@@ -76,29 +76,9 @@ jobs:
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
       #----------------------------------------------
-      # install your root project, if required
+      # install your root project, and run tests.
       #----------------------------------------------
       - name: Install library
-        run: poetry install --no-interaction
-
-      #----------------------------------------------------------------
-      #       get project version from pyproject.toml; store in env var
-      #----------------------------------------------------------------
-      - name: Add version to environment vars
         run: |
-          PROJECT_VERSION=$(poetry version --short)
-          echo "PROJECT_VERSION=$PROJECT_VERSION" >> $GITHUB_ENV
-      - name: Guardrail to check if tag version matches project version
-        run: |
-          TAG=$(git describe HEAD --tags --abbrev=0)
-          echo $TAG
-          echo $PROJECT_VERSION
-          if [[ "$TAG" != "v$PROJECT_VERSION" ]]; then exit 1; fi
-
-      #---------------------------------------------------------------
-      # create build artifacts to be included as part of release
-      #---------------------------------------------------------------
-      - name: Create build artifacts
-        run: |
-          poetry install -vvv
-          poetry run pytest
+        poetry install --no-interaction
+        poetry run pytest
