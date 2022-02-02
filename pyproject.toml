@@ -1,0 +1,41 @@
+[tool.poetry]
+name = "volttron"
+version = "0.1.0"
+description = ""
+authors = ["volttron <volttron@pnnl.gov>"]
+license = "Apache 2"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyzmq = "^22.3.0"
+gevent = "^21.12.0"
+PyYAML = "^6.0"
+toml = "^0.10.2"
+dateutils = "^0.6.12"
+tzlocal = "^4.1"
+psutil = "^5.9.0"
+cryptography = "^36.0.1"
+watchdog-gevent = "^0.1.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/'''
