@@ -80,7 +80,7 @@ jobs:
       #----------------------------------------------
       # install your root project, and run tests.
       #----------------------------------------------
-      - name: Install library
+      - name: Install library and run tests
         run: |
           poetry install --no-interaction
           poetry run pytest
