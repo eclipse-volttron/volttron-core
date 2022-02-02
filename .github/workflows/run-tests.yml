@@ -8,6 +8,7 @@ on:
       - releases/**
     paths:
       - '**.py'
+      - '**.yml'
   pull_request:
     types:
       - opened
@@ -80,5 +81,6 @@ jobs:
       # install your root project, and run tests.
       #----------------------------------------------
       - name: Install library
-        run: poetry install --no-interaction \
+        run: |
+          poetry install --no-interaction
           poetry run pytest
