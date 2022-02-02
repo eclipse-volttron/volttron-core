@@ -19,6 +19,7 @@ watchdog-gevent = "^0.1.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
+mock = "^4.0.3"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
