@@ -1,3 +1,5 @@
+[![Pytests](https://github.com/VOLTTRON/volttron-core/actions/workflows/run-tests.yml/badge.svg)](https://github.com/VOLTTRON/volttron-core/actions/workflows/run-tests.yml)
+
 Run using commands
 
 ```commandline
