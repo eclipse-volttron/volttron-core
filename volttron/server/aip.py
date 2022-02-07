@@ -538,10 +538,18 @@ class AIPplatform(object):
             find_already_installed = re.match(f"Requirement already satisfied: (.*) from file://{agent_wheel}",
                                               response)
             if not find_already_installed:
-                raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
+                groups = re.search(".*\n(.*) is already installed with the same version", response).groups()
+                if groups:
+                    find_already_installed = groups[0].strip()
+                    cmd = ["pip", "show", find_already_installed]
+                    response = execute_command(cmd)
+                    version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
+                    agent_name = find_already_installed + "-" + version
+                else:
+                    raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
             else:
                 _log.info("Wheel already installed...")
-            agent_name = find_already_installed.groups()[0].replace("==", "-")
+                agent_name = find_already_installed.groups()[0].replace("==", "-")
         else:
             agent_name = find_success.groups()[0]
 
