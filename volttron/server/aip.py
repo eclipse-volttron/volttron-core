@@ -1025,37 +1025,25 @@ class AIPplatform(object):
             )
             raise ValueError("agent is already running")
 
-        import importlib_metadata
-        # TODO should we support ["volttron.agent"]["launch"]
-        # agents in monolithic code would have ["setuptools.installation"]["eggsecutable"] or
-        # ["volttron.agent"]["launch"]
-
+        # python3.8 and above have this implementation.
+        from importlib import metadata
         entrypoint = None
-        entrypoints = importlib_metadata.distribution(
-            name_no_version).entry_points.select(group="console_scripts")
-        if entrypoints:
-            entrypoint = entrypoints[0]
-        else:
-            entrypoints = importlib_metadata.distribution(
-                name_no_version).entry_points.select(group="setuptools.installation")
-            for entrypoint in entrypoints:
-                if entrypoint.name == "eggsecutable":
-                    break
-
-        if not entrypoints:
-            entrypoints = importlib_metadata.distribution(
-                name_no_version).entry_points.select(group="volttron.agent")
-            for entrypoint in entrypoints:
-                if entrypoint.name == "launch":
-                    break
+        entrypoints = metadata.distribution(name_no_version).entry_points
+        for entrypoint in entrypoints:
+            if entrypoint.group == "console_scripts":
+                break
+            if entrypoint.group == "setuptools.installation" and entrypoint.name == "eggsecutable":
+                break
+            if entrypoint.group == "volttron.agent" and entrypoint.name == "launch":
+                break
 
         if not entrypoints or not entrypoint:
             raise ValueError("Unable to find entry point ['console_scripts'] or "
                              "['setuptools.installation']['eggsecutable'] or "
                              "['volttron.agent']['launch']")
-
-        module = entrypoint.module
-        fn = entrypoint.attr
+        parts = entrypoint.value.split(":")
+        module = parts[0]
+        fn = parts[1]
         argv = [sys.executable, "-c", f"from {module} import {fn}; {fn}()"]
 
         config = os.path.join(self.install_dir, vip_identity, "config")
