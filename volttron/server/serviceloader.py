@@ -1,5 +1,6 @@
 import importlib
 import logging
+import pkgutil
 
 import volttron.services
 
@@ -43,19 +44,24 @@ discovered_plugins = {
 
 """
 Manage the startup order of plugins available.  Note an error will
-be raised and the server will not startup if the plugin doesn't exist.  
+be raised and the server will not startup if the plugin doesn't exist.
 The plugins that are within this same codebase hold the "default" services
 that should always be available in the system.  VOLTTRON requires that
 the services be started in a specific order for its processing to work as
 intended.
 """
-plugin_startup_order = ["volttron.services.config_store", "volttron.services.auth"]
+plugin_startup_order = [
+    "volttron.services.config_store",
+    "volttron.services.auth",
+]
 
 plugin_disabled = ["volttron.services.health"]
 
 for p in plugin_startup_order:
     if p not in discovered_plugins:
-        raise ValueError(f"Invalid plugin specified in plugin_startup_order {p}")
+        raise ValueError(
+            f"Invalid plugin specified in plugin_startup_order {p}"
+        )
     _log.info(f"Starting plugin: {p}, {discovered_plugins[p]}")
 
 for p, v in discovered_plugins.items():

@@ -3,11 +3,15 @@ import argparse
 
 def main():
     global verbose, prompt_vhome
-    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--vhome", help="Path to volttron home")
     parser.add_argument(
-        "--instance-name", dest="instance_name", help="Name of this volttron instance"
+        "--instance-name",
+        dest="instance_name",
+        help="Name of this volttron instance",
     )
 
     group = parser.add_mutually_exclusive_group()
