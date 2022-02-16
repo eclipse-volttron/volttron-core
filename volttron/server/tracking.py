@@ -44,7 +44,7 @@
 
 import gevent
 
-from ..router import UNROUTABLE, ERROR, INCOMING
+from volttron.server.router import UNROUTABLE, ERROR, INCOMING
 
 __all__ = ["Tracker"]
 
@@ -99,7 +99,9 @@ class Tracker(object):
                     stat = self.stats["error"]
                     increment(stat["error"], bytes(extra[0]))
                 else:
-                    stat = self.stats["incoming" if topic == INCOMING else "outgoing"]
+                    stat = self.stats[
+                        "incoming" if topic == INCOMING else "outgoing"
+                    ]
                 increment(stat["user"], user)
                 increment(stat["subsystem"], subsystem)
             increment(stat["peer"], pick(frames, 0))

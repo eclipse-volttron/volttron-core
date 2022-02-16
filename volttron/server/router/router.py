@@ -15,13 +15,13 @@ from volttron.utils.keystore import KeyStore
 
 from .base_router import BaseRouter, UNROUTABLE, ERROR, INCOMING
 
-from ..services.external import ExternalRPCService
-from ..services.peer import ServicePeerNotifier
-from ..services.routing import RoutingService
-from ..services.pubsub import PubSubService
-from ..server.monitor import Monitor
+from volttron.services.external import ExternalRPCService
+from volttron.services.peer import ServicePeerNotifier
+from volttron.services.routing import RoutingService
+from volttron.services.pubsub import PubSubService
+from volttron.server.monitor import Monitor
 
-#from ..server import __version__
+# from ..server import __version__
 
 _log = logging.getLogger(__name__)
 
@@ -153,16 +153,24 @@ class Router(BaseRouter):
         elif topic == UNROUTABLE:
             log("unroutable: %s: %s", extra, formatter)
         else:
-            log("%s: %s", ("incoming" if topic == INCOMING else "outgoing"), formatter)
+            log(
+                "%s: %s",
+                ("incoming" if topic == INCOMING else "outgoing"),
+                formatter,
+            )
         if self._tracker:
             self._tracker.hit(topic, frames, extra)
         if self._msgdebug:
             if not self._message_debugger_socket:
                 # Initialize a ZMQ IPC socket on which to publish all messages to MessageDebuggerAgent.
-                socket_path = os.path.expandvars("$VOLTTRON_HOME/run/messagedebug")
+                socket_path = os.path.expandvars(
+                    "$VOLTTRON_HOME/run/messagedebug"
+                )
                 socket_path = os.path.expanduser(socket_path)
                 socket_path = (
-                    "ipc://{}".format("@" if sys.platform.startswith("linux") else "")
+                    "ipc://{}".format(
+                        "@" if sys.platform.startswith("linux") else ""
+                    )
                     + socket_path
                 )
                 self._message_debugger_socket = zmq.Context().socket(zmq.PUB)
@@ -188,7 +196,9 @@ class Router(BaseRouter):
     #    return result
 
     def handle_subsystem(self, frames, user_id):
-        _log.debug(f"Handling subsystem with frames: {frames} user_id: {user_id}")
+        _log.debug(
+            f"Handling subsystem with frames: {frames} user_id: {user_id}"
+        )
 
         subsystem = frames[5]
         if subsystem == "quit":
@@ -202,7 +212,9 @@ class Router(BaseRouter):
                 self.stop()
                 raise KeyboardInterrupt()
             else:
-                _log.error(f"Sender {sender} not authorized to shutdown platform")
+                _log.error(
+                    f"Sender {sender} not authorized to shutdown platform"
+                )
         elif subsystem == "agentstop":
             try:
                 drop = frames[6]
@@ -212,7 +224,9 @@ class Router(BaseRouter):
                     self._service_notifier.peer_dropped(drop)
 
                 _log.debug(
-                    "ROUTER received agent stop message. dropping peer: {}".format(drop)
+                    "ROUTER received agent stop message. dropping peer: {}".format(
+                        drop
+                    )
                 )
             except IndexError:
                 _log.error(
@@ -246,7 +260,7 @@ class Router(BaseRouter):
                     value = self._bind_web_address
                 elif name == "platform-version":
                     raise NotImplementedError()
-                    #value = __version__
+                    # value = __version__
                 elif name == "message-bus":
                     value = os.environ.get("MESSAGEBUS", "zmq")
                 elif name == "agent-monitor-frequency":
@@ -325,7 +339,15 @@ class Router(BaseRouter):
             peer = msg_data["to_peer"]
             # Send to destionation agent/peer
             # Form new frame for local
-            frames[:9] = [peer, sender, proto, usr_id, msg_id, "external_rpc", msg]
+            frames[:9] = [
+                peer,
+                sender,
+                proto,
+                usr_id,
+                msg_id,
+                "external_rpc",
+                msg,
+            ]
             try:
                 self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)
             except ZMQError as ex:
