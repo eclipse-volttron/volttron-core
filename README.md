@@ -11,8 +11,7 @@ By default, poetry creates a virtual environment in {cache-dir}/virtualenvs
 ({cache-dir}\virtualenvs on Windows). To configure 'poetry' to create the virtualenv inside this project's root
 directory, run the following command:
 
-[```poetry config virtualenvs.in-project true```](https://python-poetry.org/docs/configuration
-)
+[```poetry config virtualenvs.in-project true```](https://python-poetry.org/docs/configuration)
 
 Then to create the virtual environment, run the following command:
 
