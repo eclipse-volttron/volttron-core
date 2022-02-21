@@ -87,8 +87,8 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
         err_message = (
             "\n{}: Below Command failed with non zero exit code.\n"
-            "Command:{} \nStderr:\n{}\n".format(
-                err_prefix, results.args, results.stderr
+            "Command:{} \nStdout:\n{}\nStderr:\n{}\n".format(
+                err_prefix, results.args, results.stdout, results.stderr
             )
         )
         if logger:
