@@ -703,9 +703,7 @@ class ControlService(BaseAgent):
                     # chunk binary representation of the bytes read from
                     # the other side of the connectoin
                     with gevent.Timeout(30):
-                        _log.debug("Waiting for chunk")
                         chunk = channel.recv()
-                        _log.debug(f"chunk is {chunk}")
                         if chunk == b"complete":
                             _log.debug(f"File transfer complete!")
                             break

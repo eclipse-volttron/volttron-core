@@ -44,7 +44,7 @@ from typing import Optional
 import zmq
 from zmq import NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
-from volttron.router.servicepeer import ServicePeerNotifier
+from volttron.server.router.servicepeer import ServicePeerNotifier
 from volttron.utils.frame_serialization import serialize_frames
 
 __all__ = ["BaseRouter", "OUTGOING", "INCOMING", "UNROUTABLE", "ERROR"]
@@ -310,7 +310,15 @@ class BaseRouter(object):
                     sender,
                 ]
             elif name == "ping":
-                frames[:7] = [sender, recipient, proto, user_id, msg_id, "ping", "pong"]
+                frames[:7] = [
+                    sender,
+                    recipient,
+                    proto,
+                    user_id,
+                    msg_id,
+                    "ping",
+                    "pong",
+                ]
             elif name == "peerlist":
                 try:
                     op = frames[6]
@@ -394,7 +402,9 @@ class BaseRouter(object):
                 ]
                 serialized_frames = serialize_frames(frames)
                 try:
-                    socket.send_multipart(serialized_frames, flags=NOBLOCK, copy=False)
+                    socket.send_multipart(
+                        serialized_frames, flags=NOBLOCK, copy=False
+                    )
                     issue(OUTGOING, serialized_frames)
                 except ZMQError as exc:
                     try:

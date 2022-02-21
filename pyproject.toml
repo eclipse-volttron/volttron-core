@@ -5,6 +5,10 @@ description = ""
 authors = ["volttron <volttron@pnnl.gov>"]
 license = "Apache 2"
 
+packages = [
+    { include = "volttron"}
+]
+
 [tool.poetry.dependencies]
 python = "^3.8"
 pyzmq = "^22.3.0"
@@ -16,6 +20,7 @@ tzlocal = "^4.1"
 psutil = "^5.9.0"
 cryptography = "^36.0.1"
 watchdog-gevent = "^0.1.1"
+pre-commit = "^2.17.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
@@ -24,6 +29,13 @@ mock = "^4.0.3"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+volttron = 'volttron.server.__main__:main'
+vcfg = 'volttron.client.commands.config:main'
+volttron-cfg = 'volttron.client.commands.config:main'
+vctl = 'volttron.client.commands.control:main'
+volttron-ctl = 'volttron.client.commands.control:main'
 
 [tool.black]
 line-length = 79
