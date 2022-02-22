@@ -5,6 +5,16 @@ repos:
   - id: check-yaml
   - id: end-of-file-fixer
   - id: trailing-whitespace
+- repo: github.com/pre-commit/mirrors-yapf
+  rev: ''  # Use the sha / tag you want to point at
+  hooks:
+      - id: yapf
+        name: yapf
+        description: "A formatter for Python files."
+        entry: yapf
+        args: [ -i, -p, --style='{based_on_style: pep8, disable_ending_comma_heuristic: true, allow_split_before_dict_value: false}' ]
+        language: python
+        types: [ python ]
 #-   repo: https://github.com/psf/black
 #    rev: 21.12b0
 #    hooks:
