@@ -1044,7 +1044,7 @@ class AuthEntry(object):
                  capabilities: Optional[dict] = None,
                  comments=None,
                  enabled=True,
-                 **kwargs,
+                 **kwargs
                  ):
 
         self.domain = AuthEntry._build_field(domain)
