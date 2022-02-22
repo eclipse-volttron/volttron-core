@@ -1033,17 +1033,9 @@ class AuthEntry(object):
     :param kwargs: These extra arguments will be ignored
     """
 
-    def __init__(self,
-                 domain=None,
-                 address=None,
-                 mechanism="CURVE",
-                 credentials=None,
-                 user_id=None,
-                 groups=None,
-                 roles=None,
-                 capabilities: Optional[dict] = None,
-                 comments=None,
-                 enabled=True,
+    def __init__(self,   domain=None,  address=None,  mechanism="CURVE",
+                 credentials=None, user_id=None,   groups=None,  roles=None,
+                 capabilities: Optional[dict] = None,  comments=None,   enabled=True,
                  **kwargs
                  ):
 
