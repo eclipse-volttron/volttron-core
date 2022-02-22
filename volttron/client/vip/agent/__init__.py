@@ -50,18 +50,12 @@ from volttron.utils.keystore import get_server_keys
 
 
 class Agent(object):
+
     class Subsystems(object):
-        def __init__(
-            self,
-            owner,
-            core,
-            heartbeat_autostart,
-            heartbeat_period,
-            enable_store,
-            enable_web,
-            enable_channel,
-            message_bus,
-        ):
+
+        def __init__(self, owner, core, heartbeat_autostart, heartbeat_period,
+                     enable_store, enable_web, enable_channel, message_bus,
+                     ):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner, self.peerlist)
@@ -74,14 +68,9 @@ class Agent(object):
                 if enable_channel:
                     self.channel = Channel(core)
             self.health = Health(owner, core, self.rpc)
-            self.heartbeat = Heartbeat(
-                owner,
-                core,
-                self.rpc,
-                self.pubsub,
-                heartbeat_autostart,
-                heartbeat_period,
-            )
+            self.heartbeat = Heartbeat(owner, core, self.rpc, self.pubsub,
+                                       heartbeat_autostart, heartbeat_period,
+                                       )
             if enable_store:
                 self.config = ConfigStore(owner, core, self.rpc)
             if enable_web:
@@ -122,10 +111,8 @@ class Agent(object):
             if identity is not None and not is_valid_identity(identity):
                 _log.warning("Deprecation warning")
                 _log.warning(
-                    "All characters in {identity} are not in the valid set.".format(
-                        identity=identity
-                    )
-                )
+                    "All characters in {identity} are not in the valid set.".
+                    format(identity=identity))
 
             if message_bus is not None and message_bus.lower() == "rmq":
                 _log.debug("Creating RMQ Core {}".format(identity))
@@ -143,34 +130,29 @@ class Agent(object):
                     reconnect_interval=reconnect_interval,
                     version=version,
                     volttron_central_address=volttron_central_address,
-                    volttron_central_instance_name=volttron_central_instance_name,
+                    volttron_central_instance_name=
+                    volttron_central_instance_name,
                 )
             else:
                 _log.debug("Creating ZMQ Core {}".format(identity))
-                self.core = ZMQCore(
-                    self,
-                    identity=identity,
-                    address=address,
-                    context=context,
-                    publickey=publickey,
-                    secretkey=secretkey,
-                    serverkey=serverkey,
-                    instance_name=instance_name,
-                    volttron_home=volttron_home,
-                    agent_uuid=agent_uuid,
-                    reconnect_interval=reconnect_interval,
-                    version=version,
-                )
-            self.vip = Agent.Subsystems(
-                self,
-                self.core,
-                heartbeat_autostart,
-                heartbeat_period,
-                enable_store,
-                enable_web,
-                enable_channel,
-                message_bus,
-            )
+                self.core = ZMQCore(self,
+                                    identity=identity,
+                                    address=address,
+                                    context=context,
+                                    publickey=publickey,
+                                    secretkey=secretkey,
+                                    serverkey=serverkey,
+                                    instance_name=instance_name,
+                                    volttron_home=volttron_home,
+                                    agent_uuid=agent_uuid,
+                                    reconnect_interval=reconnect_interval,
+                                    version=version,
+                                    )
+            self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart,
+                                        heartbeat_period, enable_store,
+                                        enable_web, enable_channel,
+                                        message_bus,
+                                        )
             self.core.setup()
             self.vip.rpc.export(self.core.version, "agent.version")
         except Exception as e:
@@ -179,24 +161,23 @@ class Agent(object):
 
 
 class BasicAgent(object):
+
     def __init__(self, **kwargs):
         kwargs.pop("identity", None)
         super(BasicAgent, self).__init__(**kwargs)
         self.core = BasicCore(self)
 
 
-def build_agent(
-    address=None,
-    identity=None,
-    publickey=None,
-    secretkey=None,
-    timeout=10,
-    serverkey=None,
-    agent_class=Agent,
-    volttron_central_address=None,
-    volttron_central_instance_name=None,
-    **kwargs
-) -> Agent:
+def build_agent(address=None,
+                identity=None,
+                publickey=None,
+                secretkey=None,
+                timeout=10,
+                serverkey=None,
+                agent_class=Agent,
+                volttron_central_address=None,
+                volttron_central_instance_name=None,
+                **kwargs) -> Agent:
     """Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with
@@ -238,8 +219,7 @@ def build_agent(
         volttron_central_instance_name=volttron_central_instance_name,
         message_bus=message_bus,
         enable_store=enable_store,
-        **kwargs
-    )
+        **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

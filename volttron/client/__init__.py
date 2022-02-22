@@ -35,18 +35,13 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
-
 """ Core package."""
 from gevent import monkey
 
 # At this point these are the only things that need to be patched
 # and the server and client are working harmoniously with this.
-patches = [
-    ('ssl', monkey.patch_ssl),
-    ('socket', monkey.patch_socket),
-    ('os', monkey.patch_os),
-]
+patches = [('ssl', monkey.patch_ssl), ('socket', monkey.patch_socket),
+           ('os', monkey.patch_os), ]
 
 # patch modules if necessary.  Only if the module hasn't been patched before.
 # this could happen if the server code uses the client (which it does).
@@ -70,11 +65,9 @@ from urllib.parse import urlparse
 from volttron.utils import jsonapi
 from volttron.utils.frozendict import FrozenDict
 
-
 #__version__ = VersionInfo("volttron.client")
 
 _log = logging.getLogger(__name__)
-
 
 # def get_volttron_root():
 #     """
@@ -84,11 +77,9 @@ _log = logging.getLogger(__name__)
 #     """
 #     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
 # def get_volttron_data():
 #     root = get_volttron_root()
 #     return os.path.join(root, "volttron_data")
-
 
 # def get_services_core(agent_dir=None):
 #     root = get_volttron_root()
@@ -97,7 +88,6 @@ _log = logging.getLogger(__name__)
 #         return services_core
 #     return os.path.join(services_core, agent_dir)
 
-
 # def get_ops(agent_dir=None):
 #     root = get_volttron_root()
 #     ops_dir = os.path.join(root, "services/ops")
@@ -105,14 +95,12 @@ _log = logging.getLogger(__name__)
 #         return ops_dir
 #     return os.path.join(ops_dir, agent_dir)
 
-
 # def get_examples(agent_dir):
 #     root = get_volttron_root()
 #     examples_dir = os.path.join(root, "examples")
 #     if not agent_dir:
 #         return examples_dir
 #     return os.path.join(examples_dir, agent_dir)
-
 
 # def is_instance_running(volttron_home=None):
 
@@ -137,7 +125,6 @@ _log = logging.getLogger(__name__)
 
 #     return psutil.pid_exists(pid)
 
-
 # def is_rabbitmq_available():
 #     rabbitmq_available = True
 #     try:
@@ -149,9 +136,7 @@ _log = logging.getLogger(__name__)
 #         rabbitmq_available = False
 #     return rabbitmq_available
 
-
 # __config__ = None
-
 
 # def get_platform_config():
 #     global __config__
@@ -170,7 +155,6 @@ _log = logging.getLogger(__name__)
 #                 __config__[option] = parser.get("volttron", option)
 #             __config__.freeze()
 #     return __config__
-
 
 # def update_platform_config(values: dict) -> None:
 #     global __config__
@@ -205,19 +189,15 @@ def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
 
     :raises ValueError if one of the parameters is None.
     """
-    _log.debug(
-        "root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
-            vip_root, serverkey, publickey, secretkey
-        )
-    )
+    _log.debug("root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
+        vip_root, serverkey, publickey, secretkey))
     parsed = urlparse(vip_root)
     if parsed.scheme == "tcp":
         if not (serverkey and publickey and secretkey and vip_root):
             raise ValueError("All parameters must be entered.")
 
         root = "{}?serverkey={}&publickey={}&secretkey={}".format(
-            vip_root, serverkey, publickey, secretkey
-        )
+            vip_root, serverkey, publickey, secretkey)
 
     elif parsed.scheme == "ipc":
         root = vip_root

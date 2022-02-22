@@ -62,12 +62,8 @@ def is_ip_private(vip_address):
     priv_20 = re.compile(r"^192.168.\d{1,3}.\d{1,3}$")
     priv_16 = re.compile(r"^172.(1[6-9]|2[0-9]|3[0-1]).[0-9]{1,3}.[0-9]{1,3}$")
 
-    return (
-        priv_lo.match(ip) is not None
-        or priv_24.match(ip) is not None
-        or priv_20.match(ip) is not None
-        or priv_16.match(ip) is not None
-    )
+    return (priv_lo.match(ip) is not None or priv_24.match(ip) is not None
+            or priv_20.match(ip) is not None or priv_16.match(ip) is not None)
 
 
 def get_hostname():
@@ -87,10 +83,9 @@ def get_address(verify_listening=False):
     if not address:
         # Connect via virtual unix socket if linux platform (mac doesn't have @ in it)
         abstract = "@" if sys.platform.startswith("linux") else ""
-        address = "ipc://%s%s/run/vip.socket" % (
-            abstract,
-            cc.get_volttron_home(),
-        )
+        address = "ipc://%s%s/run/vip.socket" % (abstract,
+                                                 cc.get_volttron_home(),
+                                                 )
 
     import zmq.green as zmqgreen
     import zmq
@@ -112,8 +107,7 @@ def get_address(verify_listening=False):
             raise ValueError(
                 "Unable to connect to vip address "
                 f"make sure VOLTTRON_HOME: {cc.get_volttron_home()} "
-                "is set properly"
-            )
+                "is set properly")
     except zmq.error.ZMQError as e:
         _log.error(f"Zmq error was {e}\n{traceback.format_exc()}")
     finally:

@@ -35,12 +35,10 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """Run gevent Greenlets in their own threads.
 
 Supports killing threads and executing callbacks from other threads.
 """
-
 
 import functools
 import sys
@@ -48,7 +46,6 @@ import threading
 
 import gevent
 from gevent import GreenletExit
-
 
 __all__ = ["AsyncCall", "GreenletExit"]
 

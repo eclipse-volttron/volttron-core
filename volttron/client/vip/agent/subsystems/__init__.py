@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 from .channel import Channel
 from .hello import Hello
 from .peerlist import PeerList
@@ -52,16 +51,7 @@ from .auth import Auth
 from .web import WebSubSystem
 
 __all__ = [
-    "PeerList",
-    "Ping",
-    "RPC",
-    "Hello",
-    "PubSub",
+    "PeerList", "Ping", "RPC", "Hello", "PubSub",
     #"RMQPubSub",
-    "Channel",
-    "Heartbeat",
-    "Health",
-    "ConfigStore",
-    "Auth",
-    "WebSubSystem"
+    "Channel", "Heartbeat", "Health", "ConfigStore", "Auth", "WebSubSystem"
 ]

@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import os
 import logging
 from typing import Optional
@@ -58,16 +57,15 @@ _log = logging.getLogger(__name__)
 
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
-    errnum: (
-        zmq.Frame(str(errnum).encode("ascii")),
-        zmq.Frame(os.strerror(errnum).encode("ascii")),
-    )
+    errnum: (zmq.Frame(str(errnum).encode("ascii")),
+             zmq.Frame(os.strerror(errnum).encode("ascii")),
+             )
     for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
-_INVALID_SUBSYSTEM = (
-    zmq.Frame(str(zmq.EPROTONOSUPPORT).encode("ascii")),
-    zmq.Frame(os.strerror(zmq.EPROTONOSUPPORT).encode("ascii")),
-)
+_INVALID_SUBSYSTEM = (zmq.Frame(str(zmq.EPROTONOSUPPORT).encode("ascii")),
+                      zmq.Frame(
+                          os.strerror(zmq.EPROTONOSUPPORT).encode("ascii")),
+                      )
 
 
 class BaseRouter(object):
@@ -89,12 +87,11 @@ class BaseRouter(object):
     _socket_class = zmq.Socket
     _poller_class = zmq.Poller
 
-    def __init__(
-        self,
-        context=None,
-        default_user_id=None,
-        service_notifier=Optional[ServicePeerNotifier],
-    ):
+    def __init__(self,
+                 context=None,
+                 default_user_id=None,
+                 service_notifier=Optional[ServicePeerNotifier],
+                 ):
         """Initialize the object instance.
 
         If context is None (the default), the zmq global context will be
@@ -133,11 +130,8 @@ class BaseRouter(object):
         sock.tcp_keepalive_cnt = 6
         self.context.set(zmq.MAX_SOCKETS, 30690)
         sock.set_hwm(6000)
-        _log.debug(
-            "ROUTER SENDBUF: {0}, {1}".format(
-                sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)
-            )
-        )
+        _log.debug("ROUTER SENDBUF: {0}, {1}".format(
+            sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
 
     def stop(self, linger=1):
@@ -298,26 +292,12 @@ class BaseRouter(object):
             name = subsystem
             if name == "hello":
                 frames = [
-                    sender,
-                    recipient,
-                    proto,
-                    user_id,
-                    msg_id,
-                    "hello",
-                    "welcome",
-                    "1.0",
-                    socket.identity,
-                    sender,
+                    sender, recipient, proto, user_id, msg_id, "hello",
+                    "welcome", "1.0", socket.identity, sender,
                 ]
             elif name == "ping":
                 frames[:7] = [
-                    sender,
-                    recipient,
-                    proto,
-                    user_id,
-                    msg_id,
-                    "ping",
-                    "pong",
+                    sender, recipient, proto, user_id, msg_id, "ping", "pong",
                 ]
             elif name == "peerlist":
                 try:
@@ -340,16 +320,8 @@ class BaseRouter(object):
                     errnum, errmsg = error = _INVALID_SUBSYSTEM
                     issue(ERROR, frames, error)
                     frames = [
-                        sender,
-                        recipient,
-                        proto,
-                        "",
-                        msg_id,
-                        "error",
-                        errnum,
-                        errmsg,
-                        "",
-                        subsystem,
+                        sender, recipient, proto, "", msg_id, "error", errnum,
+                        errmsg, "", subsystem,
                     ]
                 elif not response:
                     # Subsystem does not require a response
@@ -389,22 +361,14 @@ class BaseRouter(object):
                 # Only send errors if the sender and recipient differ
                 proto, user_id, msg_id, subsystem = frames[2:6]
                 frames = [
-                    sender,
-                    "",
-                    proto,
-                    user_id,
-                    msg_id,
-                    "error",
-                    errnum,
-                    errmsg,
-                    recipient,
-                    subsystem,
+                    sender, "", proto, user_id, msg_id, "error", errnum,
+                    errmsg, recipient, subsystem,
                 ]
                 serialized_frames = serialize_frames(frames)
                 try:
-                    socket.send_multipart(
-                        serialized_frames, flags=NOBLOCK, copy=False
-                    )
+                    socket.send_multipart(serialized_frames,
+                                          flags=NOBLOCK,
+                                          copy=False)
                     issue(OUTGOING, serialized_frames)
                 except ZMQError as exc:
                     try:

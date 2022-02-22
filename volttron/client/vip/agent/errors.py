@@ -36,14 +36,13 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import errno
-
 
 __all__ = ["VIPError", "Unreachable", "Again", "UnknownSubsystem"]
 
 
 class VIPError(Exception):
+
     def __init__(self, errnum, msg, peer, subsystem, *args):
         super(VIPError, self).__init__(errnum, msg, peer, subsystem, *args)
         self.errno = int(errnum)
@@ -68,6 +67,7 @@ class VIPError(Exception):
 
 
 class Unreachable(VIPError):
+
     def __str__(self):
         return "%s: %s" % (super(Unreachable, self).__str__(), self.peer)
 
@@ -77,5 +77,7 @@ class Again(VIPError):
 
 
 class UnknownSubsystem(VIPError):
+
     def __str__(self):
-        return "%s: %s" % (super(UnknownSubsystem, self).__str__(), self.subsystem)
+        return "%s: %s" % (super(UnknownSubsystem,
+                                 self).__str__(), self.subsystem)

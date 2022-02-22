@@ -43,10 +43,7 @@ import os
 
 import gevent
 
-from volttron.utils import (
-    ClientContext as cc,
-    get_aware_utc_now
-)
+from volttron.utils import (ClientContext as cc, get_aware_utc_now)
 
 #from volttron.client import get_home
 #from volttron.client.agent.utils import get_aware_utc_now
@@ -56,32 +53,26 @@ from volttron.client import build_vip_address_string
 __version__ = "1.0.3"
 __author__ = "Craig Allwardt <craig.allwardt@pnnl.gov>"
 
-
 DEFAULT_TIMEOUT = 30
 
 
 class Connection(object):
     """A class that manages a connection to a peer and/or server."""
 
-    def __init__(
-        self,
-        address,
-        peer=None,
-        publickey=None,
-        secretkey=None,
-        serverkey=None,
-        volttron_home=None,
-        instance_name=None,
-        message_bus=None,
-        **kwargs
-    ):
+    def __init__(self,
+                 address,
+                 peer=None,
+                 publickey=None,
+                 secretkey=None,
+                 serverkey=None,
+                 volttron_home=None,
+                 instance_name=None,
+                 message_bus=None,
+                 **kwargs):
 
         self._log = logging.getLogger(__name__)
-        self._log.debug(
-            "Connection: {}, {}, {}, {}, {}, {}".format(
-                address, peer, publickey, secretkey, serverkey, message_bus
-            )
-        )
+        self._log.debug("Connection: {}, {}, {}, {}, {}, {}".format(
+            address, peer, publickey, secretkey, serverkey, message_bus))
         self._address = address
         self._peer = peer
         self._serverkey = None
@@ -118,18 +109,15 @@ class Connection(object):
                 full_address = address
             else:
                 raise AttributeError(
-                    "Invalid address type specified. ipc or tcp accepted."
-                )
+                    "Invalid address type specified. ipc or tcp accepted.")
 
-        self._server = Agent(
-            address=full_address,
-            volttron_home=self.volttron_home,
-            enable_store=False,
-            reconnect_interval=1000,
-            instance_name=instance_name,
-            message_bus=message_bus,
-            **kwargs
-        )
+        self._server = Agent(address=full_address,
+                             volttron_home=self.volttron_home,
+                             enable_store=False,
+                             reconnect_interval=1000,
+                             instance_name=instance_name,
+                             message_bus=message_bus,
+                             **kwargs)
         # TODO the following should work as well, but doesn't.  Not sure why!
         # self._server = Agent(address=address, serverkey=serverkey,
         #                      secretkey=secretkey, publickey=publickey,
@@ -190,8 +178,8 @@ class Connection(object):
             if self.peer:
                 if self.peer not in self._server.vip.peerlist().get(timeout=2):
                     self._log.warning(
-                        "peer {} not found connected to router.".format(self.peer)
-                    )
+                        "peer {} not found connected to router.".format(
+                            self.peer))
         return self._server
 
     def peers(self, timeout=DEFAULT_TIMEOUT):
@@ -204,15 +192,20 @@ class Connection(object):
         self._log.debug("Checking for peer {}".format(self.peer))
         return self.peer in self.peers()
 
-    def publish(self, topic, headers=None, message=None, timeout=DEFAULT_TIMEOUT):
+    def publish(self,
+                topic,
+                headers=None,
+                message=None,
+                timeout=DEFAULT_TIMEOUT):
         if timeout is None:
             raise ValueError("timeout cannot be None")
 
         timeout = int(timeout)
 
-        self.server.vip.pubsub.publish(
-            "pubsub", topic=topic, headers=headers, message=message
-        ).get(timeout=timeout)
+        self.server.vip.pubsub.publish("pubsub",
+                                       topic=topic,
+                                       headers=headers,
+                                       message=message).get(timeout=timeout)
 
     def subscribe(self, prefix, callback):
         self.server.vip.pubsub.subscribe("pubsub", prefix, callback)
@@ -222,14 +215,12 @@ class Connection(object):
         peer = kwargs.pop("peer", None)
 
         if peer is not None:
-            return self.server.vip.rpc.call(peer, method, *args, **kwargs).get(
-                timeout=timeout
-            )
+            return self.server.vip.rpc.call(peer, method, *args,
+                                            **kwargs).get(timeout=timeout)
 
         if self.peer is not None:
-            return self.server.vip.rpc.call(self.peer, method, *args, **kwargs).get(
-                timeout=timeout
-            )
+            return self.server.vip.rpc.call(self.peer, method, *args,
+                                            **kwargs).get(timeout=timeout)
 
         raise ValueError("peer not specified on class or as method argument.")
 
@@ -240,7 +231,8 @@ class Connection(object):
             return self.server.vip.rpc.notify(peer, method, *args, **kwargs)
 
         if self.peer is not None:
-            return self.server.vip.rpc.notify(self.peer, method, *args, **kwargs)
+            return self.server.vip.rpc.notify(self.peer, method, *args,
+                                              **kwargs)
 
         raise ValueError("peer not specified on class or as method argument.")
 

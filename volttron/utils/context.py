@@ -22,16 +22,9 @@ class ClientContext:
 
     __volttron_home__: Optional[Path] = None
     __config__: dict = {}
-    __config_keys__ = (
-        "vip-address",
-        "bind-web-address",
-        "instance-name",
-        "message-bus",
-        "web-ssl-cert",
-        "web-ssl-key",
-        "web-secret-key",
-        "secure-agent-users"
-    )
+    __config_keys__ = ("vip-address", "bind-web-address", "instance-name",
+                       "message-bus", "web-ssl-cert", "web-ssl-key",
+                       "web-secret-key", "secure-agent-users")
 
     @classmethod
     def __load_config__(cls: "ClientContext"):
@@ -50,9 +43,9 @@ class ClientContext:
         return cls.__config__
 
     @classmethod
-    def get_config_param(
-        cls, key: str, default: Optional[str] = None
-    ) -> Optional[str]:
+    def get_config_param(cls,
+                         key: str,
+                         default: Optional[str] = None) -> Optional[str]:
 
         ClientContext.__load_config__()
         return cls.__config__.get(key, default)
@@ -87,9 +80,8 @@ class ClientContext:
         """
 
         # vhome to test against for modification.
-        vhome = (
-            Path(os.environ.get("VOLTTRON_HOME", "~/.volttron")).expanduser().resolve()
-        )
+        vhome = (Path(os.environ.get("VOLTTRON_HOME",
+                                     "~/.volttron")).expanduser().resolve())
 
         # cls variable is set the first time through this function
         # so we test to make sure nothing has changed from vhome and
@@ -97,8 +89,7 @@ class ClientContext:
         if cls.__volttron_home__:
             if vhome != cls.__volttron_home__:
                 raise ValueError(
-                    "VOLTTRON_HOME has been changed.  Possible nefarious act!"
-                )
+                    "VOLTTRON_HOME has been changed.  Possible nefarious act!")
 
         # Initialize class variable here and write a file inside the
         # volttron_home that we can check against.
@@ -162,6 +153,7 @@ class ClientContext:
     @classmethod
     def get_agent_keys(cls, vip_id):
         from volttron.utils.keystore import KeyStore
-        keystore_path = os.path.join(cls.get_volttron_home(), "agents", vip_id, "keystore.json")
+        keystore_path = os.path.join(cls.get_volttron_home(), "agents", vip_id,
+                                     "keystore.json")
         keystore = KeyStore(keystore_path)
         return keystore.public, keystore.secret

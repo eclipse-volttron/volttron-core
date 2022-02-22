@@ -6,17 +6,17 @@ from volttron.client.vip.agent import Agent as BaseAgent
 
 
 class ControlConnection(object):
+
     def __init__(self, address, peer="control"):
         self.address = address
         self.peer = peer
         message_bus = cc.get_messagebus()
-        self._server = BaseAgent(
-            address=self.address,
-            enable_store=False,
-            identity=CONTROL_CONNECTION,
-            message_bus=message_bus,
-            enable_channel=True,
-        )
+        self._server = BaseAgent(address=self.address,
+                                 enable_store=False,
+                                 identity=CONTROL_CONNECTION,
+                                 message_bus=message_bus,
+                                 enable_channel=True,
+                                 )
         self._greenlet = None
 
     @property
@@ -28,9 +28,8 @@ class ControlConnection(object):
         return self._server
 
     def call(self, method, *args, **kwargs):
-        return self.server.vip.rpc.call(
-            self.peer, method, *args, **kwargs
-        ).get(timeout=20)
+        return self.server.vip.rpc.call(self.peer, method, *args,
+                                        **kwargs).get(timeout=20)
 
     def call_no_get(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs)

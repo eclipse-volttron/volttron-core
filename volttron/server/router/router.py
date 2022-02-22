@@ -29,32 +29,30 @@ _log = logging.getLogger(__name__)
 class Router(BaseRouter):
     """Concrete VIP router."""
 
-    def __init__(
-        self,
-        local_address,
-        addresses=(),
-        context=None,
-        secretkey=None,
-        publickey=None,
-        default_user_id=None,
-        monitor=False,
-        tracker=None,
-        volttron_central_address=None,
-        instance_name=None,
-        bind_web_address=None,
-        volttron_central_serverkey=None,
-        protected_topics={},
-        external_address_file="",
-        msgdebug=None,
-        agent_monitor_frequency=600,
-        service_notifier=Optional[ServicePeerNotifier],
-    ):
+    def __init__(self,
+                 local_address,
+                 addresses=(),
+                 context=None,
+                 secretkey=None,
+                 publickey=None,
+                 default_user_id=None,
+                 monitor=False,
+                 tracker=None,
+                 volttron_central_address=None,
+                 instance_name=None,
+                 bind_web_address=None,
+                 volttron_central_serverkey=None,
+                 protected_topics={},
+                 external_address_file="",
+                 msgdebug=None,
+                 agent_monitor_frequency=600,
+                 service_notifier=Optional[ServicePeerNotifier],
+                 ):
 
-        super(Router, self).__init__(
-            context=context,
-            default_user_id=default_user_id,
-            service_notifier=service_notifier,
-        )
+        super(Router, self).__init__(context=context,
+                                     default_user_id=default_user_id,
+                                     service_notifier=service_notifier,
+                                     )
         self.local_address = Address(local_address)
         self._addr = addresses
         self.addresses = addresses = [Address(addr) for addr in set(addresses)]
@@ -70,10 +68,7 @@ class Router(BaseRouter):
             parsed = urlparse(self._volttron_central_address)
 
             assert parsed.scheme in (
-                "http",
-                "https",
-                "tcp",
-                "amqp",
+                "http", "https", "tcp", "amqp",
             ), "volttron central address must begin with http(s) or tcp found"
             if parsed.scheme == "tcp":
                 assert (
@@ -115,11 +110,9 @@ class Router(BaseRouter):
         for address in self.addresses:
             if not address.identity:
                 address.identity = identity
-            if (
-                address.secretkey is None
-                and address.server not in ["NULL", "PLAIN"]
-                and self._secretkey
-            ):
+            if (address.secretkey is None
+                    and address.server not in ["NULL", "PLAIN"]
+                    and self._secretkey):
                 address.server = "CURVE"
                 address.secretkey = self._secretkey
             if not address.domain:
@@ -128,18 +121,13 @@ class Router(BaseRouter):
             _log.debug("Additional VIP router bound to %s" % address)
         self._ext_routing = None
 
-        self._ext_routing = RoutingService(
-            self.socket,
-            self.context,
-            self._socket_class,
-            self._poller,
-            self._addr,
-            self._instance_name,
-        )
+        self._ext_routing = RoutingService(self.socket, self.context,
+                                           self._socket_class, self._poller,
+                                           self._addr, self._instance_name,
+                                           )
 
-        self.pubsub = PubSubService(
-            self.socket, self._protected_topics, self._ext_routing
-        )
+        self.pubsub = PubSubService(self.socket, self._protected_topics,
+                                    self._ext_routing)
         self.ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
@@ -153,26 +141,20 @@ class Router(BaseRouter):
         elif topic == UNROUTABLE:
             log("unroutable: %s: %s", extra, formatter)
         else:
-            log(
-                "%s: %s",
-                ("incoming" if topic == INCOMING else "outgoing"),
+            log("%s: %s", ("incoming" if topic == INCOMING else "outgoing"),
                 formatter,
-            )
+                )
         if self._tracker:
             self._tracker.hit(topic, frames, extra)
         if self._msgdebug:
             if not self._message_debugger_socket:
                 # Initialize a ZMQ IPC socket on which to publish all messages to MessageDebuggerAgent.
                 socket_path = os.path.expandvars(
-                    "$VOLTTRON_HOME/run/messagedebug"
-                )
+                    "$VOLTTRON_HOME/run/messagedebug")
                 socket_path = os.path.expanduser(socket_path)
-                socket_path = (
-                    "ipc://{}".format(
-                        "@" if sys.platform.startswith("linux") else ""
-                    )
-                    + socket_path
-                )
+                socket_path = ("ipc://{}".format(
+                    "@" if sys.platform.startswith("linux") else "") +
+                               socket_path)
                 self._message_debugger_socket = zmq.Context().socket(zmq.PUB)
                 self._message_debugger_socket.connect(socket_path)
             # Publish the routed message, including the "topic" (status/direction), for use by MessageDebuggerAgent.
@@ -197,8 +179,7 @@ class Router(BaseRouter):
 
     def handle_subsystem(self, frames, user_id):
         _log.debug(
-            f"Handling subsystem with frames: {frames} user_id: {user_id}"
-        )
+            f"Handling subsystem with frames: {frames} user_id: {user_id}")
 
         subsystem = frames[5]
         if subsystem == "quit":
@@ -213,8 +194,7 @@ class Router(BaseRouter):
                 raise KeyboardInterrupt()
             else:
                 _log.error(
-                    f"Sender {sender} not authorized to shutdown platform"
-                )
+                    f"Sender {sender} not authorized to shutdown platform")
         elif subsystem == "agentstop":
             try:
                 drop = frames[6]
@@ -224,10 +204,8 @@ class Router(BaseRouter):
                     self._service_notifier.peer_dropped(drop)
 
                 _log.debug(
-                    "ROUTER received agent stop message. dropping peer: {}".format(
-                        drop
-                    )
-                )
+                    "ROUTER received agent stop message. dropping peer: {}".
+                    format(drop))
             except IndexError:
                 _log.error(
                     f"agentstop called but unable to determine agent from frames sent {frames}"
@@ -340,13 +318,7 @@ class Router(BaseRouter):
             # Send to destionation agent/peer
             # Form new frame for local
             frames[:9] = [
-                peer,
-                sender,
-                proto,
-                usr_id,
-                msg_id,
-                "external_rpc",
-                msg,
+                peer, sender, proto, usr_id, msg_id, "external_rpc", msg,
             ]
             try:
                 self.socket.send_multipart(frames, flags=NOBLOCK, copy=False)

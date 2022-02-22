@@ -37,9 +37,7 @@
 # }}}
 
 __all__ = [
-    "VolttronHomeFileReloader",
-    "AbsolutePathFileReloader",
-    "watch_file",
+    "VolttronHomeFileReloader", "AbsolutePathFileReloader", "watch_file",
     "watch_file_with_fullpath",
 ]
 
@@ -63,16 +61,14 @@ class VolttronHomeFileReloader(PatternMatchingEventHandler):
     """
 
     def __init__(self, filetowatch, callback):
-        super(VolttronHomeFileReloader, self).__init__(
-            [f"{cc.get_volttron_home()}/{filetowatch}"]
-        )
+        super(VolttronHomeFileReloader,
+              self).__init__([f"{cc.get_volttron_home()}/{filetowatch}"])
         _log.debug(f"patterns is {cc.get_volttron_home()}/{filetowatch}")
         self._callback = callback
 
     def on_any_event(self, event):
-        _log.debug(
-            "Calling callback on event {}. Calling {}".format(event, self._callback)
-        )
+        _log.debug("Calling callback on event {}. Calling {}".format(
+            event, self._callback))
         try:
             self._callback()
         except BaseException as e:
@@ -98,9 +94,8 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
         return self._filetowatch
 
     def on_any_event(self, event):
-        _log.debug(
-            "Calling callback on event {}. Calling {}".format(event, self._callback)
-        )
+        _log.debug("Calling callback on event {}. Calling {}".format(
+            event, self._callback))
         try:
             self._callback(self._filetowatch)
         except BaseException as e:
@@ -115,17 +110,13 @@ def watch_file(fullpath, callback):
     """
 
     dirname, filename = os.path.split(fullpath)
-    _log.info(
-        "Adding file watch for %s dirname=%s, filename=%s",
-        fullpath,
-        cc.get_volttron_home(),
-        filename,
-    )
+    _log.info("Adding file watch for %s dirname=%s, filename=%s", fullpath,
+              cc.get_volttron_home(), filename,
+              )
     observer = Observer()
-    observer.schedule(
-        VolttronHomeFileReloader(filename, callback),
-        path=cc.get_volttron_home(),
-    )
+    observer.schedule(VolttronHomeFileReloader(filename, callback),
+                      path=cc.get_volttron_home(),
+                      )
     observer.start()
     _log.info("Added file watch for %s", fullpath)
 

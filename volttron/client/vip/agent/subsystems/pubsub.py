@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 from base64 import b64encode, b64decode
 import inspect
 import logging
@@ -111,8 +110,7 @@ class PubSub(SubsystemBase):
 
             def subscribe(member):  # pylint: disable=redefined-outer-name
                 for peer, bus, prefix, all_platforms, queue in annotations(
-                    member, set, "pubsub.subscriptions"
-                ):
+                        member, set, "pubsub.subscriptions"):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription(prefix, member, bus, all_platforms)
                     # _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
@@ -157,7 +155,8 @@ class PubSub(SubsystemBase):
                     if topic.startswith(prefix):
                         handled += 1
                         for callback in callbacks:
-                            callback(peer, sender, bus, topic, headers, message)
+                            callback(peer, sender, bus, topic, headers,
+                                     message)
         if not handled:
             # No callbacks for topic; synchronize with sender
             self.synchronize()
@@ -175,7 +174,8 @@ class PubSub(SubsystemBase):
         self._sync(peer, {})
 
     def _sync(self, peer, items):
-        items = {(bus, prefix) for bus, topics in items.items() for prefix in topics}
+        items = {(bus, prefix)
+                 for bus, topics in items.items() for prefix in topics}
         remove = []
         for bus, subscriptions in self._my_subscriptions.items():
             for prefix, subscribers in subscriptions.items():
@@ -218,10 +218,9 @@ class PubSub(SubsystemBase):
         if subscribers:
             sender = encode_peer(peer)
             json_msg = jsonapi.dumpb(
-                jsonrpc.json_method(
-                    None, "pubsub.push", [sender, bus, topic, headers, message], None
-                )
-            )
+                jsonrpc.json_method(None, "pubsub.push",
+                                    [sender, bus, topic, headers, message],
+                                    None))
             frames = [
                 zmq.Frame(""),
                 zmq.Frame(""),
@@ -239,37 +238,46 @@ class PubSub(SubsystemBase):
         result = next(self._results)
 
         subscriptions = {
-            platform: {bus: list(subscriptions.keys())}
+            platform: {
+                bus: list(subscriptions.keys())
+            }
             for platform, bus_subscriptions in self._my_subscriptions.items()
             for bus, subscriptions in bus_subscriptions.items()
         }
         sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions))
         frames = ["synchronize", "connected", sync_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        self.vip_socket.send_vip("",
+                                 "pubsub",
+                                 frames,
+                                 result.ident,
+                                 copy=False)
 
         # 2073 - python3 dictionary keys method returns a dict_keys structure that isn't serializable.
         #        added list(subscriptions.keys()) to make it like python2 list of strings.
-        items = [
-            {
-                platform: {bus: list(subscriptions.keys())}
-                for platform, bus_subscriptions in self._my_subscriptions.items()
-                for bus, subscriptions in bus_subscriptions.items()
+        items = [{
+            platform: {
+                bus: list(subscriptions.keys())
             }
-        ]
+            for platform, bus_subscriptions in self._my_subscriptions.items()
+            for bus, subscriptions in bus_subscriptions.items()
+        }]
         for subscriptions in items:
             sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions))
             frames = ["synchronize", "connected", sync_msg]
-            self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+            self.vip_socket.send_vip("",
+                                     "pubsub",
+                                     frames,
+                                     result.ident,
+                                     copy=False)
 
-    def list(
-        self,
-        peer,
-        prefix="",
-        bus="",
-        subscribed=True,
-        reverse=False,
-        all_platforms=False,
-    ):
+    def list(self,
+             peer,
+             prefix="",
+             bus="",
+             subscribed=True,
+             reverse=False,
+             all_platforms=False,
+             ):
         """Gets list of subscriptions matching the prefix and bus for the specified peer.
         param peer: peer
         type peer: str
@@ -290,23 +298,25 @@ class PubSub(SubsystemBase):
         """
         result = next(self._results)
         list_msg = jsonapi.dumpb(
-            dict(
-                prefix=prefix,
-                all_platforms=all_platforms,
-                subscribed=subscribed,
-                reverse=reverse,
-                bus=bus,
-            )
-        )
+            dict(prefix=prefix,
+                 all_platforms=all_platforms,
+                 subscribed=subscribed,
+                 reverse=reverse,
+                 bus=bus,
+                 ))
 
         frames = ["list", list_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        self.vip_socket.send_vip("",
+                                 "pubsub",
+                                 frames,
+                                 result.ident,
+                                 copy=False)
         return result
 
     def _add_subscription(self, prefix, callback, bus="", all_platforms=False):
         # _log.debug(f"Adding subscription prefix: {prefix} allplatforms: {all_platforms}")
         if not callable(callback):
-            raise ValueError("callback %r is not callable" % (callback,))
+            raise ValueError("callback %r is not callable" % (callback, ))
         try:
             if not all_platforms:
                 self._my_subscriptions["internal"][bus][prefix].add(callback)
@@ -318,9 +328,13 @@ class PubSub(SubsystemBase):
 
     @dualmethod
     @spawn
-    def subscribe(
-        self, peer, prefix, callback, bus="", all_platforms=False, persistent_queue=None
-    ):
+    def subscribe(self,
+                  peer,
+                  prefix,
+                  callback,
+                  bus="",
+                  all_platforms=False,
+                  persistent_queue=None):
         """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -349,30 +363,37 @@ class PubSub(SubsystemBase):
         result = next(self._results)
         self._add_subscription(prefix, callback, bus, all_platforms)
         sub_msg = jsonapi.dumpb(
-            dict(prefix=prefix, bus=bus, all_platforms=all_platforms)
-        )
+            dict(prefix=prefix, bus=bus, all_platforms=all_platforms))
 
         frames = ["subscribe", sub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        self.vip_socket.send_vip("",
+                                 "pubsub",
+                                 frames,
+                                 result.ident,
+                                 copy=False)
         return result
 
     @subscribe.classmethod
-    def subscribe(
-        cls, peer, prefix, bus="", all_platforms=False, persistent_queue=None
-    ):
+    def subscribe(cls,
+                  peer,
+                  prefix,
+                  bus="",
+                  all_platforms=False,
+                  persistent_queue=None):
+
         def decorate(method):
-            annotate(
-                method,
-                set,
-                "pubsub.subscriptions",
-                (peer, bus, prefix, all_platforms, persistent_queue),
-            )
+            annotate(method, set, "pubsub.subscriptions",
+                     (peer, bus, prefix, all_platforms, persistent_queue),
+                     )
             return method
 
         return decorate
 
-    def _drop_subscription(self, prefix, callback, bus="", platform="internal"):
-
+    def _drop_subscription(self,
+                           prefix,
+                           callback,
+                           bus="",
+                           platform="internal"):
         """
         Drop the subscription for the specified prefix, callback and bus.
         param prefix: prefix to be removed
@@ -391,7 +412,8 @@ class PubSub(SubsystemBase):
         bus_subscriptions = dict()
         if prefix is None:
             if callback is None:
-                if len(self._my_subscriptions) and platform in self._my_subscriptions:
+                if len(self._my_subscriptions
+                       ) and platform in self._my_subscriptions:
                     bus_subscriptions = self._my_subscriptions[platform]
                     if bus in bus_subscriptions:
                         topics.extend(bus_subscriptions[bus].keys())
@@ -491,10 +513,19 @@ class PubSub(SubsystemBase):
         unsub_msg = jsonapi.dumpb(subscriptions)
         topics = self._drop_subscription(prefix, callback, bus)
         frames = ["unsubscribe", unsub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        self.vip_socket.send_vip("",
+                                 "pubsub",
+                                 frames,
+                                 result.ident,
+                                 copy=False)
         return result
 
-    def publish(self, peer: str, topic: str, headers=None, message=None, bus=""):
+    def publish(self,
+                peer: str,
+                topic: str,
+                headers=None,
+                message=None,
+                bus=""):
         """Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus.
@@ -526,7 +557,10 @@ class PubSub(SubsystemBase):
             peer = "pubsub"
 
         result = next(self._results)
-        args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
+        args = [
+            "publish", topic,
+            dict(bus=bus, headers=headers, message=message)
+        ]
         self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
         return result
 
@@ -536,11 +570,9 @@ class PubSub(SubsystemBase):
             user = str(self.rpc().context.vip_message.user)
             caps = self._owner.vip.auth.get_capabilities(user)
             if not set(required_caps) <= set(caps):
-                msg = (
-                    'to publish to topic "{}" requires capabilities {},'
-                    " but capability list {} was"
-                    " provided"
-                ).format(topic, required_caps, caps)
+                msg = ('to publish to topic "{}" requires capabilities {},'
+                       " but capability list {} was"
+                       " provided").format(topic, required_caps, caps)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
 
     def _handle_subsystem(self, message):

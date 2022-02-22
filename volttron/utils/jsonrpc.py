@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """Implementation of JSON-RPC 2.0 with support for bi-directional calls.
 
 See http://www.jsonrpc.org/specification for the complete specification.
@@ -47,15 +46,9 @@ from contextlib import contextmanager
 from volttron.utils import jsonapi
 
 __all__ = [
-    "Error",
-    "MethodNotFound",
-    "RemoteError",
-    "Dispatcher",
-    "json_result",
-    "json_validate_request",
-    "json_validate_response",
+    "Error", "MethodNotFound", "RemoteError", "Dispatcher", "json_result",
+    "json_validate_request", "json_validate_response",
 ]
-
 
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
@@ -208,7 +201,8 @@ class RemoteError(Exception):
     def __repr__(self):
         exc_type = self.exc_info.get("exc_type", "<unknown>")
         try:
-            exc_args = ", ".join(repr(arg) for arg in self.exc_info["exc_args"])
+            exc_args = ", ".join(
+                repr(arg) for arg in self.exc_info["exc_args"])
         except KeyError:
             exc_args = "..."
         return "%s(%s)" % (exc_type, exc_args)
@@ -229,7 +223,8 @@ class RemoteError(Exception):
 def exception_from_json(code, message, data=None):
     """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
-        return RemoteError(data.get("detail", message), **data.get("exception.py", {}))
+        return RemoteError(data.get("detail", message),
+                           **data.get("exception.py", {}))
     elif code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
@@ -263,20 +258,20 @@ class Dispatcher(object):
         required by the call() method. The first (ident) element may be
         None to indicate a notification.
         """
-        return self.serialize(
-            [
-                json_method(ident, method, args, kwargs)
-                for ident, method, args, kwargs in requests
-            ]
-        )
+        return self.serialize([
+            json_method(ident, method, args, kwargs)
+            for ident, method, args, kwargs in requests
+        ])
 
     def call(self, ident, method, args=None, kwargs=None):
         """Create and return a request for a single method call."""
-        return self.serialize(json_method(ident, method, args or (), kwargs or {}))
+        return self.serialize(
+            json_method(ident, method, args or (), kwargs or {}))
 
     def notify(self, method, args=None, kwargs=None):
         """Create and return a request for a single notification."""
-        return self.serialize(json_method(None, method, args or (), kwargs or {}))
+        return self.serialize(
+            json_method(None, method, args or (), kwargs or {}))
 
     def exception(self, response, ident, message, context=None):
         """Called for response errors.
@@ -296,7 +291,14 @@ class Dispatcher(object):
         """Called when an error resposne is received."""
         pass
 
-    def method(self, request, ident, name, args, kwargs, batch=None, context=None):
+    def method(self,
+               request,
+               ident,
+               name,
+               args,
+               kwargs,
+               batch=None,
+               context=None):
         """Called to get make method call and return results.
 
         request is the original JSON request (as dict). name is the name
@@ -352,62 +354,61 @@ class Dispatcher(object):
         try:
             ident = msg.get("id")
         except AttributeError:
-            return json_error(
-                None,
-                INVALID_REQUEST,
-                "invalid object type",
-                detail="expected a dictionary (object); "
-                "got a {!r} instead".format(type(msg).__name__),
-            )
+            return json_error(None,
+                              INVALID_REQUEST,
+                              "invalid object type",
+                              detail="expected a dictionary (object); "
+                              "got a {!r} instead".format(type(msg).__name__),
+                              )
         try:
             version = msg["jsonrpc"]
         except KeyError:
-            return json_error(
-                ident,
-                INVALID_REQUEST,
-                "missing required member",
-                detail="missing required 'jsonrpc' member",
-            )
+            return json_error(ident,
+                              INVALID_REQUEST,
+                              "missing required member",
+                              detail="missing required 'jsonrpc' member",
+                              )
         if version != "2.0":
-            return json_error(
-                ident,
-                INVALID_REQUEST,
-                "unsupported version",
-                detail="version 2.0 supported, "
-                "but recieved version {!r}".format(version),
-            )
+            return json_error(ident,
+                              INVALID_REQUEST,
+                              "unsupported version",
+                              detail="version 2.0 supported, "
+                              "but recieved version {!r}".format(version),
+                              )
         if "error" in msg:
             error = msg["error"]
             try:
                 code = error["code"]
             except TypeError:
-                self.exception(
-                    msg,
-                    ident,
-                    "expected dict 'error' member; got "
-                    "{} instead".format(type(error).__name__),
-                    context=context,
-                )
+                self.exception(msg,
+                               ident,
+                               "expected dict 'error' member; got "
+                               "{} instead".format(type(error).__name__),
+                               context=context,
+                               )
                 return
             except KeyError:
-                self.exception(
-                    msg,
-                    ident,
-                    "'error' member is missing 'code' member",
-                    context=context,
-                )
+                self.exception(msg,
+                               ident,
+                               "'error' member is missing 'code' member",
+                               context=context,
+                               )
                 return
             try:
                 message = error["message"]
             except KeyError:
-                self.exception(
-                    msg,
-                    ident,
-                    "'error' member is missing 'message' member",
-                    context=context,
-                )
+                self.exception(msg,
+                               ident,
+                               "'error' member is missing 'message' member",
+                               context=context,
+                               )
                 return
-            self.error(msg, ident, code, message, error.get("data"), context=context)
+            self.error(msg,
+                       ident,
+                       code,
+                       message,
+                       error.get("data"),
+                       context=context)
         elif "result" in msg:
             self.result(msg, ident, msg["result"], context=context)
         elif "method" in msg:
@@ -428,15 +429,14 @@ class Dispatcher(object):
                     "got a {!r} instead".format(type(params).__name__),
                 )
             try:
-                result = self.method(
-                    msg,
-                    ident,
-                    name,
-                    args,
-                    kwargs,
-                    batch=batch,
-                    context=context,
-                )
+                result = self.method(msg,
+                                     ident,
+                                     name,
+                                     args,
+                                     kwargs,
+                                     batch=batch,
+                                     context=context,
+                                     )
             except NotImplementedError:
                 if ident is None:
                     return
@@ -456,8 +456,7 @@ class Dispatcher(object):
                         exc_info["exc_type"] = exc_type.__name__
                     else:
                         exc_info["exc_type"] = ".".join(
-                            [exc_type.__module__, exc_type.__name__]
-                        )
+                            [exc_type.__module__, exc_type.__name__])
                 if "exc_args" not in exc_info:
                     try:
                         exc_info["exc_args"] = exc.args
@@ -465,10 +464,7 @@ class Dispatcher(object):
                         pass
                 error = {"detail": str(exc), "exception.py": exc_info}
                 return json_error(
-                    ident,
-                    UNHANDLED_EXCEPTION,  # pylint: disable=star-args
-                    "unhandled exception",
-                    **error
-                )
+                    ident, UNHANDLED_EXCEPTION,  # pylint: disable=star-args
+                    "unhandled exception", **error)
             if ident is not None:
                 return json_result(ident, result)

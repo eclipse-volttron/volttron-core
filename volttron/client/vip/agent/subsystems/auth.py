@@ -49,7 +49,6 @@ from volttron.client.known_identities import AUTH
 from volttron.utils import ClientContext as cc, jsonapi
 from volttron.utils.jsonrpc import RemoteError
 from volttron.utils.keystore import KeyStore
-
 """
 The auth subsystem allows an agent to quickly query authorization state
 (e.g., which capabilities each user has been granted).
@@ -62,6 +61,7 @@ _log = logging.getLogger(__name__)
 
 
 class Auth(SubsystemBase):
+
     def __init__(self, owner, core, rpc):
         self._owner = owner
         self._core = weakref.ref(core)
@@ -130,20 +130,20 @@ class Auth(SubsystemBase):
                     )
                 destination_serverkey = serverkey
 
-            publickey, secretkey = self._core().publickey, self._core().secretkey
-            _log.debug(
-                "Connecting using: {}".format(cc.get_fq_identity(self._core().identity))
-            )
+            publickey, secretkey = self._core().publickey, self._core(
+            ).secretkey
+            _log.debug("Connecting using: {}".format(
+                cc.get_fq_identity(self._core().identity)))
 
-            value = build_agent(
-                agent_class=agent_class,
-                identity=cc.get_fq_identity(self._core().identity),
-                serverkey=destination_serverkey,
-                publickey=publickey,
-                secretkey=secretkey,
-                message_bus="zmq",
-                address=address,
-            )
+            value = build_agent(agent_class=agent_class,
+                                identity=cc.get_fq_identity(
+                                    self._core().identity),
+                                serverkey=destination_serverkey,
+                                publickey=publickey,
+                                secretkey=secretkey,
+                                message_bus="zmq",
+                                address=address,
+                                )
         elif parsed_address.scheme in ("https", "http"):
             from volttron.client.web import DiscoveryInfo
             from volttron.client.web import DiscoveryError
@@ -153,11 +153,10 @@ class Auth(SubsystemBase):
 
                 # We need to discover which type of bus is at the other end.
                 info = DiscoveryInfo.request_discovery_info(address)
-                remote_identity = "{}.{}.{}".format(
-                    info.instance_name,
-                    cc.get_instance_name(),
-                    self._core().identity,
-                )
+                remote_identity = "{}.{}.{}".format(info.instance_name,
+                                                    cc.get_instance_name(),
+                                                    self._core().identity,
+                                                    )
                 # if the current message bus is zmq then we need
                 # to connect a zmq on the remote, whether that be the
                 # rmq router or proxy.  Also note that we are using the fully qualified
@@ -166,25 +165,21 @@ class Auth(SubsystemBase):
                 if cc.get_messagebus() == "zmq":
                     if not info.vip_address or not info.serverkey:
                         err = "Discovery from {} did not return serverkey and/or vip_address".format(
-                            address
-                        )
+                            address)
                         raise ValueError(err)
 
-                    _log.debug(
-                        "Connecting using: {}".format(
-                            cc.get_fq_identity(self._core().identity)
-                        )
-                    )
+                    _log.debug("Connecting using: {}".format(
+                        cc.get_fq_identity(self._core().identity)))
 
                     # use fully qualified identity
-                    value = build_agent(
-                        identity=cc.get_fq_identity(self._core().identity),
-                        address=info.vip_address,
-                        serverkey=info.serverkey,
-                        secretkey=self._core().secretkey,
-                        publickey=self._core().publickey,
-                        agent_class=agent_class,
-                    )
+                    value = build_agent(identity=cc.get_fq_identity(
+                        self._core().identity),
+                                        address=info.vip_address,
+                                        serverkey=info.serverkey,
+                                        secretkey=self._core().secretkey,
+                                        publickey=self._core().publickey,
+                                        agent_class=agent_class,
+                                        )
 
                 else:  # we are on rmq messagebus
 
@@ -196,15 +191,14 @@ class Auth(SubsystemBase):
                         # Check if we already have the cert, if so use it instead of requesting cert again
                         remote_certs_dir = self.get_remote_certs_dir()
                         remote_cert_name = "{}.{}".format(
-                            info.instance_name, fqid_local
-                        )
-                        certfile = os.path.join(
-                            remote_certs_dir, remote_cert_name + ".crt"
-                        )
+                            info.instance_name, fqid_local)
+                        certfile = os.path.join(remote_certs_dir,
+                                                remote_cert_name + ".crt")
                         if os.path.exists(certfile):
                             response = certfile
                         else:
-                            response = self.request_cert(address, fqid_local, info)
+                            response = self.request_cert(
+                                address, fqid_local, info)
 
                         if response is None:
                             _log.error("there was no response from the server")
@@ -224,17 +218,16 @@ class Auth(SubsystemBase):
                             #   pass to the build_remote_connection_params for a successful
 
                             remote_rmq_user = cc.get_fq_identity(
-                                fqid_local, info.instance_name
-                            )
-                            _log.debug("REMOTE RMQ USER IS: {}".format(remote_rmq_user))
-                            remote_rmq_address = (
-                                self._core().rmq_mgmt.build_remote_connection_param(
-                                    remote_rmq_user,
-                                    info.rmq_address,
-                                    ssl_auth=True,
-                                    cert_dir=self.get_remote_certs_dir(),
-                                )
-                            )
+                                fqid_local, info.instance_name)
+                            _log.debug("REMOTE RMQ USER IS: {}".format(
+                                remote_rmq_user))
+                            remote_rmq_address = (self._core(
+                            ).rmq_mgmt.build_remote_connection_param(
+                                remote_rmq_user,
+                                info.rmq_address,
+                                ssl_auth=True,
+                                cert_dir=self.get_remote_certs_dir(),
+                            ))
 
                             value = build_agent(
                                 identity=fqid_local,
@@ -247,7 +240,8 @@ class Auth(SubsystemBase):
                                 agent_class=agent_class,
                             )
                         else:
-                            raise ValueError("Unknown path through discovery process!")
+                            raise ValueError(
+                                "Unknown path through discovery process!")
 
                     else:
                         # TODO: cache the connection so we don't always have to ping
@@ -260,8 +254,8 @@ class Auth(SubsystemBase):
                             if not os.path.exists("keystore.json"):
                                 with open("keystore.json", "w") as fp:
                                     fp.write(
-                                        jsonapi.dumps(KeyStore.generate_keypair_dict())
-                                    )
+                                        jsonapi.dumps(
+                                            KeyStore.generate_keypair_dict()))
 
                             with open("keystore.json") as fp:
                                 keypair = jsonapi.loads(fp.read())
@@ -277,17 +271,13 @@ class Auth(SubsystemBase):
                         )
             except DiscoveryError:
                 _log.error(
-                    "Couldn't connect to {} or incorrect response returned response was {}".format(
-                        address, value
-                    )
-                )
+                    "Couldn't connect to {} or incorrect response returned response was {}"
+                    .format(address, value))
 
         else:
             raise ValueError(
-                "Invalid configuration found the address: {} has an invalid scheme".format(
-                    address
-                )
-            )
+                "Invalid configuration found the address: {} has an invalid scheme"
+                .format(address))
 
         return value
 
@@ -404,10 +394,10 @@ class Auth(SubsystemBase):
         while self._dirty:
             self._dirty = False
             try:
-                self._user_to_capabilities = (
-                    self._rpc().call(AUTH, "get_user_to_capabilities").get(timeout=10)
-                )
-                _log.debug("self. user to cap {}".format(self._user_to_capabilities))
+                self._user_to_capabilities = (self._rpc().call(
+                    AUTH, "get_user_to_capabilities").get(timeout=10))
+                _log.debug("self. user to cap {}".format(
+                    self._user_to_capabilities))
             except RemoteError:
                 self._dirty = True
 

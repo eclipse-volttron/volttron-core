@@ -35,18 +35,16 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VOLTTRON platform™ messaging header name constants."""
-
 
 __author__ = "Brandon Carpenter <brandon.carpenter@pnnl.gov>"
 __copyright__ = "Copyright (c) 2016, Battelle Memorial Institute"
 __license__ = "Apache 2.0"
 
-
-CONTENT_TYPE = type(
-    "ContentTypeStr", (str,), {"JSON": "application/json", "PLAIN_TEXT": "text/plain"}
-)("Content-Type")
+CONTENT_TYPE = type("ContentTypeStr", (str, ), {
+    "JSON": "application/json",
+    "PLAIN_TEXT": "text/plain"
+})("Content-Type")
 
 DATE = "Date"
 
@@ -65,6 +63,7 @@ class Headers(dict):
     """Case-insensitive dictionary for HTTP-like headers."""
 
     class Key(str):
+
         def __new__(cls, value):
             string = str(value)
             obj = str.__new__(cls, string.lower())
@@ -80,8 +79,8 @@ class Headers(dict):
     def __init__(self, *args, **kwargs):
         Key = self.__class__.Key
         obj = super(Headers, self).__init__(
-            ((Key(key), value) for key, value in dict(*args, **kwargs).items())
-        )
+            ((Key(key), value)
+             for key, value in dict(*args, **kwargs).items()))
 
     def __contains__(self, key):
         return super(Headers, self).__contains__(str(key).lower())
@@ -112,8 +111,9 @@ class Headers(dict):
     def update(self, *args, **kwargs):
         Key = self.__class__.Key
         obj = super(Headers, self).update(
-            ((Key(key), value) for key, value in dict(*args, **kwargs).items())
-        )
+            ((Key(key), value)
+             for key, value in dict(*args, **kwargs).items()))
 
     def __repr__(self):
-        return "%s(%s)" % (self.__class__.__name__, super(Headers, self).__repr__())
+        return "%s(%s)" % (self.__class__.__name__, super(Headers,
+                                                          self).__repr__())

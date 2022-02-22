@@ -4,42 +4,39 @@ import argparse
 def main():
     global verbose, prompt_vhome
     parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter
-    )
+        formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--vhome", help="Path to volttron home")
-    parser.add_argument(
-        "--instance-name",
-        dest="instance_name",
-        help="Name of this volttron instance",
-    )
+    parser.add_argument("--instance-name",
+                        dest="instance_name",
+                        help="Name of this volttron instance",
+                        )
 
     group = parser.add_mutually_exclusive_group()
 
     agent_list = "\n\t" + "\n\t".join(sorted(available_agents.keys()))
-    group.add_argument(
-        "--list-agents",
-        action="store_true",
-        dest="list_agents",
-        help="list configurable agents{}".format(agent_list),
-    )
+    group.add_argument("--list-agents",
+                       action="store_true",
+                       dest="list_agents",
+                       help="list configurable agents{}".format(agent_list),
+                       )
 
     group.add_argument("--agent", nargs="+", help="configure listed agents")
-    group.add_argument(
-        "--rabbitmq",
-        nargs="+",
-        help="Configure rabbitmq for single instance, "
-        "federation, or shovel either based on "
-        "configuration file in yml format or providing "
-        "details when prompted. \nUsage: vcfg --rabbitmq "
-        "single|federation|shovel [rabbitmq config "
-        "file]",
-    )
+    group.add_argument("--rabbitmq",
+                       nargs="+",
+                       help="Configure rabbitmq for single instance, "
+                       "federation, or shovel either based on "
+                       "configuration file in yml format or providing "
+                       "details when prompted. \nUsage: vcfg --rabbitmq "
+                       "single|federation|shovel [rabbitmq config "
+                       "file]",
+                       )
     group.add_argument(
         "--secure-agent-users",
         action="store_true",
         dest="secure_agent_users",
-        help="Require that agents run with their own users (this requires running "
+        help=
+        "Require that agents run with their own users (this requires running "
         "scripts/secure_user_permissions.sh as sudo)",
     )
 
@@ -70,10 +67,8 @@ def main():
             parser.print_help()
             sys.exit(1)
         elif args.rabbitmq[0] not in ["single", "federation", "shovel"]:
-            print(
-                "Usage: vcf --rabbitmq single|federation|shovel "
-                "[optional path to rabbitmq config yml]"
-            )
+            print("Usage: vcf --rabbitmq single|federation|shovel "
+                  "[optional path to rabbitmq config yml]")
             parser.print_help()
             sys.exit(1)
         elif len(args.rabbitmq) == 2 and not os.path.exists(args.rabbitmq[1]):

@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 from string import whitespace
 
 store_ext = ".store"
@@ -80,22 +79,14 @@ def list_unique_links(config):
 
 
 def check_for_recursion(new_config_name, new_config, existing_configs):
-    return _follow_links(
-        set(),
-        new_config_name.lower(),
-        new_config_name.lower(),
-        new_config,
-        existing_configs,
-    )
+    return _follow_links(set(), new_config_name.lower(),
+                         new_config_name.lower(), new_config, existing_configs,
+                         )
 
 
-def _follow_links(
-    seen,
-    new_config_name,
-    current_config_name,
-    current_config,
-    existing_configs,
-):
+def _follow_links(seen, new_config_name, current_config_name, current_config,
+                  existing_configs,
+                  ):
     children = list_unique_links(current_config)
 
     if new_config_name in children:
@@ -109,13 +100,9 @@ def _follow_links(
             # Link to a non-existing config, skip in the future.
             seen.add(child_config_name)
             continue
-        if _follow_links(
-            seen,
-            new_config_name,
-            child_config_name,
-            child_config,
-            existing_configs,
-        ):
+        if _follow_links(seen, new_config_name, child_config_name,
+                         child_config, existing_configs,
+                         ):
             return True
 
     return False

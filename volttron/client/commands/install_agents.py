@@ -54,12 +54,9 @@ import yaml
 
 from volttron.client.vip.agent.results import AsyncResult
 
-from volttron.utils import (
-    ClientContext as cc,
-    jsonapi,
-    get_address,
-    execute_command,
-)
+from volttron.utils import (ClientContext as cc, jsonapi, get_address,
+                            execute_command,
+                            )
 
 # from volttron.platform import agent, config, jsonapi, get_home
 # from volttron.platform.agent.utils import execute_command
@@ -83,9 +80,9 @@ def install_requirements(agent_source):
         _log.info(f"Installing requirements for agent from {req_file}.")
         cmds = ["pip", "install", "-r", req_file]
         try:
-            execute_command(
-                cmds, logger=_log, err_prefix="Error installing requirements"
-            )
+            execute_command(cmds,
+                            logger=_log,
+                            err_prefix="Error installing requirements")
         except InstallRuntimeError:
             sys.exit(1)
 
@@ -119,8 +116,7 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     else:
         raise InstallRuntimeError(
             f"No .whl file found in {dist_path} after running command {' '.join(cmd)}. "
-            f"\nCommand returned stdout:\n{output}"
-        )
+            f"\nCommand returned stdout:\n{output}")
 
     # TODO: does pipenv handle this. Does whl contain requirements.txt
     # assert opts.connection, "Connection must have been created to access this feature."
@@ -151,8 +147,7 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
         config_file = agent_config
         if not Path(config_file).exists():
             raise InstallRuntimeError(
-                f"Config file {config_file} does not exist!"
-            )
+                f"Config file {config_file} does not exist!")
     else:
         cfg = tempfile.NamedTemporaryFile()
         with open(cfg.name, "w") as fout:
@@ -165,15 +160,9 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
     except Exception as exc:
         raise InstallRuntimeError(exc)
 
-    agent_uuid = send_agent(
-        opts.connection,
-        opts.package,
-        opts.vip_identity,
-        publickey,
-        secretkey,
-        opts.force,
-        config_dict,
-    )
+    agent_uuid = send_agent(opts.connection, opts.package, opts.vip_identity,
+                            publickey, secretkey, opts.force, config_dict,
+                            )
 
     if not agent_uuid:
         raise ValueError(f"Agent was not installed properly.")
@@ -195,9 +184,8 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
         _log.debug(f"Prioritinzing agent {agent_uuid},{opts.priority}")
         output_dict["priority"] = opts.priority
 
-        opts.connection.call(
-            "prioritize_agent", agent_uuid, str(opts.priority)
-        )
+        opts.connection.call("prioritize_agent", agent_uuid,
+                             str(opts.priority))
 
     try:
 
@@ -274,25 +262,18 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
                 # check if you can download from pip
                 pip_download_dir = tempfile.mkdtemp()
                 try:
-                    execute_command(
-                        [
-                            "pip",
-                            "download",
-                            "--no-deps",
-                            "--dest",
-                            pip_download_dir,
-                            opts.package,
-                        ]
-                    )
+                    execute_command([
+                        "pip", "download", "--no-deps", "--dest",
+                        pip_download_dir, opts.package,
+                    ])
                     # there should be a single wheel file in dir
                     opts.package = os.path.join(
-                        pip_download_dir, os.listdir(pip_download_dir)[0]
-                    )
+                        pip_download_dir,
+                        os.listdir(pip_download_dir)[0])
                 except RuntimeError as r:
                     raise InstallRuntimeError(
                         f" Invalid wheel {opts.package}. It is not a local wheel file. Error"
-                        f"downloading {opts.package} from pip"
-                    )
+                        f"downloading {opts.package} from pip")
 
             else:
                 opts.connection.kill()
@@ -302,15 +283,10 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
             shutil.rmtree(pip_download_dir)
 
 
-def send_agent(
-    connection: "ControlConnection",
-    wheel_file: str,
-    vip_identity: str,
-    publickey: str,
-    secretkey: str,
-    force: bool,
-    agent_config: dict,
-):
+def send_agent(connection: "ControlConnection", wheel_file: str,
+               vip_identity: str, publickey: str, secretkey: str, force: bool,
+               agent_config: dict,
+               ):
     """
     Send an agent wheel from the client to the server.
 
@@ -348,8 +324,7 @@ def send_agent(
 
             protocol_message = message
             protocol_message = base64.b64decode(
-                protocol_message.encode("utf-8")
-            )
+                protocol_message.encode("utf-8"))
             protocol_headers = headers
             response_received = True
 
@@ -358,11 +333,10 @@ def send_agent(
             op = None
             size = None
             _log.debug(f"Subscribing to {rmq_response_topic}")
-            server.vip.pubsub.subscribe(
-                peer="pubsub",
-                prefix=rmq_response_topic,
-                callback=protocol_requested,
-            ).get(timeout=5)
+            server.vip.pubsub.subscribe(peer="pubsub",
+                                        prefix=rmq_response_topic,
+                                        callback=protocol_requested,
+                                        ).get(timeout=5)
             gevent.sleep(5)
             _log.debug(f"Publishing to {rmq_send_topic}")
             while True:
@@ -394,27 +368,25 @@ def send_agent(
                         sha512.update(chunk)
                         # Needs a string to go across the messagebus.
                         message = base64.b64encode(chunk).decode("utf-8")
-                        server.vip.pubsub.publish(
-                            peer="pubsub",
-                            topic=rmq_send_topic,
-                            message=message,
-                        ).get(timeout=10)
+                        server.vip.pubsub.publish(peer="pubsub",
+                                                  topic=rmq_send_topic,
+                                                  message=message,
+                                                  ).get(timeout=10)
                     else:
                         _log.debug(f"Op was fetch sending complete")
                         message = base64.b64encode(b"complete").decode("utf-8")
-                        server.vip.pubsub.publish(
-                            peer="pubsub",
-                            topic=rmq_send_topic,
-                            message=message,
-                        ).get(timeout=10)
+                        server.vip.pubsub.publish(peer="pubsub",
+                                                  topic=rmq_send_topic,
+                                                  message=message,
+                                                  ).get(timeout=10)
                         gevent.sleep(10)
                         break
                 elif op == "checksum":
                     _log.debug(f"sending checksum {sha512.hexdigest()}")
                     message = base64.b64encode(sha512.digest()).decode("utf-8")
-                    server.vip.pubsub.publish(
-                        "pubsub", topic=rmq_send_topic, message=message
-                    ).get(timeout=10)
+                    server.vip.pubsub.publish("pubsub",
+                                              topic=rmq_send_topic,
+                                              message=message).get(timeout=10)
 
                 _log.debug("Waiting for next response")
 
@@ -422,8 +394,7 @@ def send_agent(
                     while not response_received:
                         gevent.sleep(0.1)
                 _log.debug(
-                    f"Response received bottom of loop {protocol_message}"
-                )
+                    f"Response received bottom of loop {protocol_message}")
                 # wait for next response
                 resp = jsonapi.loads(protocol_message)
 
@@ -436,11 +407,10 @@ def send_agent(
         finally:
             _log.debug("Closing wheel and unsubscribing.")
             wheel.close()
-            server.vip.pubsub.unsubscribe(
-                peer="pubsub",
-                prefix="rmq_response_topic",
-                callback=protocol_requested,
-            )
+            server.vip.pubsub.unsubscribe(peer="pubsub",
+                                          prefix="rmq_response_topic",
+                                          callback=protocol_requested,
+                                          )
 
     def send_zmq():
         nonlocal wheel, channel
@@ -503,34 +473,20 @@ def send_agent(
         )
         task = gevent.spawn(send_rmq)
         # TODO: send config
-        result = server.vip.rpc.call(
-            peer,
-            "install_agent_rmq",
-            os.path.basename(path),
-            rmq_send_topic,
-            vip_identity,
-            publickey,
-            secretkey,
-            force,
-            agent_config,
-            rmq_response_topic,
-        )
+        result = server.vip.rpc.call(peer, "install_agent_rmq",
+                                     os.path.basename(path), rmq_send_topic,
+                                     vip_identity, publickey, secretkey, force,
+                                     agent_config, rmq_response_topic,
+                                     )
     elif server.core.messagebus == "zmq":
         _log.debug(
-            f"calling install_agent on {peer} using channel {channel.name}"
-        )
+            f"calling install_agent on {peer} using channel {channel.name}")
         task = gevent.spawn(send_zmq)
-        result = server.vip.rpc.call(
-            peer,
-            "install_agent",
-            os.path.basename(path),
-            channel.name,
-            vip_identity,
-            publickey,
-            secretkey,
-            force,
-            agent_config,
-        )
+        result = server.vip.rpc.call(peer, "install_agent",
+                                     os.path.basename(path), channel.name,
+                                     vip_identity, publickey, secretkey, force,
+                                     agent_config,
+                                     )
 
     else:
         raise ValueError("Unknown messagebus detected!")
@@ -565,57 +521,55 @@ def add_install_agent_parser(add_parser_fn):
     )
     install.add_argument(
         "--skip-requirements",
-        help="Skip installing requirements from a requirements.txt if present in the agent directory.",
+        help=
+        "Skip installing requirements from a requirements.txt if present in the agent directory.",
     )
     install.add_argument(
         "install_path",
         help="path to agent wheel or directory for agent installation",
     )
     install.add_argument("--tag", help="tag for the installed agent")
-    install.add_argument(
-        "--vip-identity",
-        help="VIP IDENTITY for the installed agent. "
-        "Overrides any previously configured VIP IDENTITY.",
-    )
+    install.add_argument("--vip-identity",
+                         help="VIP IDENTITY for the installed agent. "
+                         "Overrides any previously configured VIP IDENTITY.",
+                         )
     install.add_argument("--agent-config", help="Agent configuration!")
     install.add_argument(
         "-f",
         "--force",
         action="store_true",
-        help="agents are uninstalled by tag so force allows multiple agents to be removed at one go.",
+        help=
+        "agents are uninstalled by tag so force allows multiple agents to be removed at one go.",
     )
-    install.add_argument(
-        "--priority",
-        default=-1,
-        type=int,
-        help="priority of startup during instance startup",
-    )
-    install.add_argument(
-        "--start",
-        action="store_true",
-        help="start the agent during the script execution",
-    )
+    install.add_argument("--priority",
+                         default=-1,
+                         type=int,
+                         help="priority of startup during instance startup",
+                         )
+    install.add_argument("--start",
+                         action="store_true",
+                         help="start the agent during the script execution",
+                         )
     install.add_argument(
         "--enable",
         action="store_true",
         help="enable the agent with default 50 priority unless --priority set",
     )
-    install.add_argument(
-        "--csv",
-        action="store_true",
-        help="format the standard out output to csv",
-    )
-    install.add_argument(
-        "--json",
-        action="store_true",
-        help="format the standard out output to json",
-    )
+    install.add_argument("--csv",
+                         action="store_true",
+                         help="format the standard out output to csv",
+                         )
+    install.add_argument("--json",
+                         action="store_true",
+                         help="format the standard out output to json",
+                         )
     install.add_argument(
         "-st",
         "--agent-start-time",
         default=5,
         type=int,
-        help="the amount of time to wait and verify that the agent has started up.",
+        help=
+        "the amount of time to wait and verify that the agent has started up.",
     )
 
     install.set_defaults(func=install_agent_vctl, verify_agents=True)

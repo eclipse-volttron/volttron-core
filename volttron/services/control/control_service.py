@@ -64,25 +64,16 @@ import gevent.event
 # import requests
 # from requests.exceptions import ConnectionError
 
-from volttron.server import (
-    aip as aipmod,
-    server_argparser as config
-)
-from volttron.utils import (
-    ClientContext as cc,
-    get_address,
-    jsonapi,
-    get_aware_utc_now,
-    is_volttron_running,
-    wait_for_volttron_shutdown,
-)
+from volttron.server import (aip as aipmod, server_argparser as config)
+from volttron.utils import (ClientContext as cc, get_address, jsonapi,
+                            get_aware_utc_now, is_volttron_running,
+                            wait_for_volttron_shutdown,
+                            )
 
-from volttron.client.known_identities import (
-    CONTROL_CONNECTION,
-    CONFIGURATION_STORE,
-    PLATFORM_HEALTH,
-    AUTH,
-)
+from volttron.client.known_identities import (CONTROL_CONNECTION,
+                                              CONFIGURATION_STORE,
+                                              PLATFORM_HEALTH, AUTH,
+                                              )
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 
@@ -90,13 +81,9 @@ from volttron.services.auth import AuthEntry, AuthFile, AuthException
 from volttron.utils.certs import Certs
 from volttron.utils.scheduling import periodic
 
-from volttron.client.vip.agent import (
-    Agent as BaseAgent,
-    Core,
-    RPC,
-    VIPError,
-    Unreachable,
-)
+from volttron.client.vip.agent import (Agent as BaseAgent, Core, RPC, VIPError,
+                                       Unreachable,
+                                       )
 
 from volttron.client.messaging.health import Status, STATUS_BAD
 from volttron.client.vip.agent.subsystems.query import Query
@@ -124,8 +111,7 @@ _stdout = sys.stdout
 _stderr = sys.stderr
 
 _log = logging.getLogger(
-    os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__
-)
+    os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
 message_bus = cc.get_messagebus()
 rmq_mgmt = None
@@ -134,9 +120,9 @@ CHUNK_SIZE = 4096
 
 
 class ControlService(BaseAgent):
-    def __init__(
-        self, aip: aipmod.AIPplatform, agent_monitor_frequency, *args, **kwargs
-    ):
+
+    def __init__(self, aip: aipmod.AIPplatform, agent_monitor_frequency, *args,
+                 **kwargs):
 
         tracker = kwargs.pop("tracker", None)
         # Control config store not necessary right now
@@ -149,16 +135,11 @@ class ControlService(BaseAgent):
         self.agent_monitor_frequency = int(agent_monitor_frequency)
 
         if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-                _,
-            ) = self.core._get_keys_from_addr()
+            (self.core.publickey, self.core.secretkey, _,
+             ) = self.core._get_keys_from_addr()
         if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-            ) = self.core._get_keys_from_keystore()
+            (self.core.publickey, self.core.secretkey,
+             ) = self.core._get_keys_from_keystore()
 
     @Core.receiver("onsetup")
     def _setup(self, sender, **kwargs):
@@ -171,10 +152,8 @@ class ControlService(BaseAgent):
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
-        _log.debug(
-            " agent monitor frequency is... {}".format(
-                self.agent_monitor_frequency)
-        )
+        _log.debug(" agent monitor frequency is... {}".format(
+            self.agent_monitor_frequency))
         self.core.schedule(periodic(self.agent_monitor_frequency),
                            self._monitor_agents)
 
@@ -194,12 +173,9 @@ class ControlService(BaseAgent):
                 if attempt < 5:
                     self.crashed_agents[uid] = attempt
                     next_restart = get_aware_utc_now() + timedelta(
-                        minutes=attempt * 5
-                    )
-                    _log.debug(
-                        "{} stopped unexpectedly. Will attempt to "
-                        "restart at {}".format(name, next_restart)
-                    )
+                        minutes=attempt * 5)
+                    _log.debug("{} stopped unexpectedly. Will attempt to "
+                               "restart at {}".format(name, next_restart))
                     self.core.schedule(next_restart, self._restart_agent, uid,
                                        name)
                 else:
@@ -230,12 +206,10 @@ class ControlService(BaseAgent):
 
     def send_alert(self, agent_id, agent_name):
         """Send an alert for the group, summarizing missing topics."""
-        alert_key = "Agent {}({}) stopped unexpectedly".format(agent_name,
-                                                               agent_id)
-        context = (
-            "Agent {}({}) stopped unexpectedly. Attempts to "
-            "restart failed".format(agent_name, agent_id)
-        )
+        alert_key = "Agent {}({}) stopped unexpectedly".format(
+            agent_name, agent_id)
+        context = ("Agent {}({}) stopped unexpectedly. Attempts to "
+                   "restart failed".format(agent_name, agent_id))
         status = Status.build(STATUS_BAD, context=context)
         self.vip.health.send_alert(alert_key, status)
 
@@ -260,37 +234,31 @@ class ControlService(BaseAgent):
     @RPC.export
     def agent_status(self, uuid):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         return self._aip.agent_status(uuid)
 
     @RPC.export
     def agent_name(self, uuid):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         return self._aip.agent_name(uuid)
 
     @RPC.export
     def agent_version(self, uuid):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         return self._aip.agent_version(uuid)
 
     @RPC.export
@@ -304,25 +272,21 @@ class ControlService(BaseAgent):
     @RPC.export
     def start_agent(self, uuid):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         self._aip.start_agent(uuid)
 
     @RPC.export
     def stop_agent(self, uuid):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
 
         identity = self.agent_vip_identity(uuid)
         self._aip.stop_agent(uuid)
@@ -351,47 +315,38 @@ class ControlService(BaseAgent):
         _log.info("CONTROL RPC list_agents")
         tag = self._aip.agent_tag
         priority = self._aip.agent_priority
-        return [
-            {
-                "name": name,
-                "uuid": uuid,
-                "tag": tag(uuid),
-                "priority": priority(uuid),
-                "identity": self.agent_vip_identity(uuid),
-            }
-            for uuid, name in self._aip.list_agents().items()
-        ]
+        return [{
+            "name": name,
+            "uuid": uuid,
+            "tag": tag(uuid),
+            "priority": priority(uuid),
+            "identity": self.agent_vip_identity(uuid),
+        } for uuid, name in self._aip.list_agents().items()]
 
     @RPC.export
     def tag_agent(self, uuid, tag):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         if not isinstance(tag, (type(None), str)):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'tag';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'tag';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         self._aip.tag_agent(uuid, tag)
 
     @RPC.export
     def remove_agent(self, uuid, remove_auth=True):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
 
         identity = self.agent_vip_identity(uuid)
         # Because we are using send_vip we should pass frames that have
@@ -406,21 +361,17 @@ class ControlService(BaseAgent):
     @RPC.export
     def prioritize_agent(self, uuid, priority="50"):
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         if not isinstance(priority, (type(None), str)):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string or null for 'priority';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string or null for 'priority';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         self._aip.prioritize_agent(uuid, priority)
 
     @RPC.export
@@ -431,13 +382,11 @@ class ControlService(BaseAgent):
         @return:
         """
         if not isinstance(uuid, str):
-            identity = bytes(self.vip.rpc.context.vip_message.peer).decode(
-                "utf-8")
-            raise TypeError(
-                "expected a string for 'uuid';"
-                "got {!r} from identity: {}".format(type(uuid).__name__,
-                                                    identity)
-            )
+            identity = bytes(
+                self.vip.rpc.context.vip_message.peer).decode("utf-8")
+            raise TypeError("expected a string for 'uuid';"
+                            "got {!r} from identity: {}".format(
+                                type(uuid).__name__, identity))
         return self._aip.uuid_vip_id_map[uuid]
 
     @RPC.export
@@ -460,7 +409,8 @@ class ControlService(BaseAgent):
         """
         result = {}
         for vip_identity in self._aip.vip_id_uuid_map:
-            result[vip_identity] = self._aip.__get_agent_keystore__(vip_identity).public
+            result[vip_identity] = self._aip.__get_agent_keystore__(
+                vip_identity).public
         return result
 
     @RPC.export
@@ -471,8 +421,8 @@ class ControlService(BaseAgent):
         return self._vip_identity_exists(identity)
 
     @RPC.export
-    def install_agent_rmq(self, filename, topic, vip_identity, publickey, secretkey, force, agent_config,
-                          response_topic):
+    def install_agent_rmq(self, filename, topic, vip_identity, publickey,
+                          secretkey, force, agent_config, response_topic):
         """
         Install the agent through the rmq message bus.
         """
@@ -491,7 +441,8 @@ class ControlService(BaseAgent):
             protocol_headers = headers
             response_received = True
 
-        agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
+        agent_uuid = self._raise_error_if_identity_exists_without_force(
+            vip_identity, force)
         try:
             tmpdir = tempfile.mkdtemp()
             path = os.path.join(tmpdir, os.path.basename(filename))
@@ -500,29 +451,28 @@ class ControlService(BaseAgent):
 
             try:
                 request_checksum = base64.b64encode(
-                    jsonapi.dumps(["checksum"]).encode("utf-8")
-                ).decode("utf-8")
+                    jsonapi.dumps(["checksum"
+                                   ]).encode("utf-8")).decode("utf-8")
                 request_fetch = base64.b64encode(
-                    jsonapi.dumps(["fetch", protocol_request_size]).encode("utf-8")
-                ).decode("utf-8")
+                    jsonapi.dumps(["fetch", protocol_request_size
+                                   ]).encode("utf-8")).decode("utf-8")
 
                 _log.debug(f"Server subscribing to {topic}")
                 self.vip.pubsub.subscribe(
-                    peer="pubsub", prefix=topic, callback=protocol_subscription
-                ).get(timeout=5)
+                    peer="pubsub",
+                    prefix=topic,
+                    callback=protocol_subscription).get(timeout=5)
                 gevent.sleep(5)
                 while True:
 
-                    _log.debug(
-                        f"Requesting data {request_fetch} sending to "
-                        f"{response_topic}"
-                    )
+                    _log.debug(f"Requesting data {request_fetch} sending to "
+                               f"{response_topic}")
                     response_received = False
 
                     # request a chunk of the file
                     self.vip.pubsub.publish(
-                        "pubsub", topic=response_topic, message=request_fetch
-                    ).get(timeout=5)
+                        "pubsub", topic=response_topic,
+                        message=request_fetch).get(timeout=5)
                     # chunk binary representation of the bytes read from
                     # the other side of the connection
                     with gevent.Timeout(30):
@@ -544,9 +494,9 @@ class ControlService(BaseAgent):
                         _log.debug("Requesting checksum")
                         response_received = False
                         self.vip.pubsub.publish(
-                            "pubsub", topic=response_topic,
-                            message=request_checksum
-                        ).get(timeout=5)
+                            "pubsub",
+                            topic=response_topic,
+                            message=request_checksum).get(timeout=5)
 
                         while not response_received:
                             gevent.sleep(0.1)
@@ -564,18 +514,19 @@ class ControlService(BaseAgent):
                 raise
             finally:
                 store.close()
-                self.vip.pubsub.unsubscribe(
-                    "pubsub", response_topic, protocol_subscription
-                )
+                self.vip.pubsub.unsubscribe("pubsub", response_topic,
+                                            protocol_subscription)
                 _log.debug("Unsubscribing on server")
 
-            agent_uuid = self._install_wheel_to_platform(agent_uuid, vip_identity, path, publickey, secretkey,
-                                                         agent_config)
+            agent_uuid = self._install_wheel_to_platform(
+                agent_uuid, vip_identity, path, publickey, secretkey,
+                agent_config)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-    def _install_wheel_to_platform(self, agent_uuid, vip_identity, path, publickey, secretkey, agent_config):
+    def _install_wheel_to_platform(self, agent_uuid, vip_identity, path,
+                                   publickey, secretkey, agent_config):
         old_agent_data_dir = None
         backup_agent_file = None
 
@@ -585,44 +536,40 @@ class ControlService(BaseAgent):
 
         if agent_uuid:
             _log.debug(f"There is an existing agent {agent_uuid}")
-            old_agent_data_dir = self._aip.get_agent_data_dir(
-                agent_uuid)
+            old_agent_data_dir = self._aip.get_agent_data_dir(agent_uuid)
             if os.listdir(old_agent_data_dir):
                 # And there is data to backup
                 backup_agent_file = "/tmp/{}.tar.gz".format(agent_uuid)
                 backup_agent_data(backup_agent_file, old_agent_data_dir)
             # current agent's keystore overrides any keystore data passed
-            keystore = self._aip.__get_agent_keystore__(vip_identity, publickey, secretkey)
+            keystore = self._aip.__get_agent_keystore__(
+                vip_identity, publickey, secretkey)
             publickey = keystore.public
             secretkey = keystore.secret
 
-            _log.info(
-                'Removing previous version of agent "{}"\n'.format(
-                    vip_identity)
-            )
+            _log.info('Removing previous version of agent "{}"\n'.format(
+                vip_identity))
             self.remove_agent(agent_uuid)
         _log.debug("Calling aip install_agent.")
-        agent_uuid = self._aip.install_agent(path, vip_identity, publickey, secretkey, agent_config)
+        agent_uuid = self._aip.install_agent(path, vip_identity, publickey,
+                                             secretkey, agent_config)
 
         if backup_agent_file is not None:
             restore_agent_data_from_tgz(
-                backup_agent_file,
-                self._aip.get_agent_data_dir(agent_uuid),
+                backup_agent_file, self._aip.get_agent_data_dir(agent_uuid),
             )
         _log.debug(f"Returning {agent_uuid}")
         return agent_uuid
 
     @RPC.export
-    def install_agent(
-        self,
-        filename,
-        channel_name,
-        vip_identity=None,
-        publickey=None,
-        secretkey=None,
-        force=False,
-        agent_config=None
-    ):
+    def install_agent(self,
+                      filename,
+                      channel_name,
+                      vip_identity=None,
+                      publickey=None,
+                      secretkey=None,
+                      force=False,
+                      agent_config=None):
         """
         Installs an agent on the instance instance.
 
@@ -680,8 +627,7 @@ class ControlService(BaseAgent):
         # at this point if agent_uuid is populated then there is an
         # identity of that already available.
         agent_uuid = self._raise_error_if_identity_exists_without_force(
-            vip_identity, force
-        )
+            vip_identity, force)
         _log.debug(f"rpc: install_agent {agent_uuid}")
         # Prepare to install agent that is passed over to us.
         peer = self.vip.rpc.context.vip_message.peer
@@ -730,13 +676,15 @@ class ControlService(BaseAgent):
                 del channel
 
             _log.debug("After transferring wheel to us now to do stuff.")
-            agent_uuid = self._install_wheel_to_platform(agent_uuid, vip_identity, path, publickey, secretkey,
-                                                         agent_config)
+            agent_uuid = self._install_wheel_to_platform(
+                agent_uuid, vip_identity, path, publickey, secretkey,
+                agent_config)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-    def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
+    def _raise_error_if_identity_exists_without_force(self, vip_identity: str,
+                                                      force: bool):
         """
         This will raise a ValueError if the identity passed exists but
         force was not True when this function is called.
@@ -762,7 +710,9 @@ class ControlService(BaseAgent):
         """
         return self._aip.vip_id_uuid_map.get(vip_identity)
 
-Agent = collections.namedtuple("Agent", "name tag uuid vip_identity agent_user")
+
+Agent = collections.namedtuple("Agent",
+                               "name tag uuid vip_identity agent_user")
 
 
 def _list_agents(aip):
@@ -776,19 +726,9 @@ def escape(pattern):
     strings = re.split(r"([*?])", pattern)
     if len(strings) == 1:
         return re.escape(pattern), False
-    return (
-        "".join(
-            ".*"
-            if s == "*"
-            else "."
-            if s == "?"
-            else s
-            if s in [r"\?", r"\*"]
-            else re.escape(s)
-            for s in strings
-        ),
-        True,
-    )
+    return ("".join(".*" if s == "*" else "." if s == "?" else s if s in
+                    [r"\?", r"\*"] else re.escape(s) for s in strings), True,
+            )
 
 
 def filter_agents(agents, patterns, opts):
@@ -805,17 +745,22 @@ def filter_agents(agents, patterns, opts):
                 result.update(matches)
             # if no match is found based on uuid, try matching on agent name
             elif len(matches) == 0:
-                matches = [agent for agent in agents if reobj.match(agent.name)]
+                matches = [
+                    agent for agent in agents if reobj.match(agent.name)
+                ]
                 if len(matches) >= 1:
                     result.update(matches)
         else:
             reobj = re.compile(regex + "$")
             if by_uuid:
-                result.update(agent for agent in agents if reobj.match(agent.uuid))
+                result.update(agent for agent in agents
+                              if reobj.match(agent.uuid))
             if by_name:
-                result.update(agent for agent in agents if reobj.match(agent.name))
+                result.update(agent for agent in agents
+                              if reobj.match(agent.name))
             if by_tag:
-                result.update(agent for agent in agents if reobj.match(agent.tag or ""))
+                result.update(agent for agent in agents
+                              if reobj.match(agent.tag or ""))
         yield pattern, result
 
 
@@ -825,7 +770,8 @@ def filter_agent(agents, pattern, opts):
 
 def backup_agent_data(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
+        tar.add(source_dir,
+                arcname=os.path.sep)  # os.path.basename(source_dir))
 
 
 def restore_agent_data_from_tgz(source_file, output_dir):
@@ -842,6 +788,7 @@ def get_agent_data_dir_by_uuid(opts, agent_uuid):
 def get_agent_data_dir_by_vip_id(opts, vip_identity):
     agent_data_dir = opts.aip.get_agent_data_dir(vip_identity=vip_identity)
     return agent_data_dir
+
 
 #
 # def upgrade_agent(opts):
@@ -897,15 +844,17 @@ def tag_agent(opts):
             msg = "multiple agents selected"
         else:
             msg = "agent not found"
-        _stderr.write("{}: error: {}: {}\n".format(opts.command, msg, opts.agent))
+        _stderr.write("{}: error: {}: {}\n".format(opts.command, msg,
+                                                   opts.agent))
         return 10
-    (agent,) = agents
+    (agent, ) = agents
     if opts.tag:
         _stdout.write("Tagging {} {}\n".format(agent.uuid, agent.name))
         opts.aip.tag_agent(agent.uuid, opts.tag)
     elif opts.remove:
         if agent.tag is not None:
-            _stdout.write("Removing tag for {} {}\n".format(agent.uuid, agent.name))
+            _stdout.write("Removing tag for {} {}\n".format(
+                agent.uuid, agent.name))
             opts.aip.tag_agent(agent.uuid, None)
     else:
         if agent.tag is not None:
@@ -916,20 +865,20 @@ def remove_agent(opts, remove_auth=True):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command, pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         elif len(match) > 1 and not opts.force:
             _stderr.write(
                 "{}: error: pattern returned multiple agents: {}\n".format(
-                    opts.command, pattern
-                )
-            )
-            _stderr.write("Use -f or --force to force removal of multiple agents.\n")
+                    opts.command, pattern))
+            _stderr.write(
+                "Use -f or --force to force removal of multiple agents.\n")
             return 10
         for agent in match:
             _stdout.write("Removing {} {}\n".format(agent.uuid, agent.name))
-            opts.connection.call("remove_agent", agent.uuid, remove_auth=remove_auth)
+            opts.connection.call("remove_agent",
+                                 agent.uuid,
+                                 remove_auth=remove_auth)
 
 
 def _calc_min_uuid_length(agents):
@@ -945,6 +894,7 @@ def _calc_min_uuid_length(agents):
 
 
 def list_agents(opts):
+
     def get_priority(agent):
         return opts.aip.agent_priority(agent.uuid) or ""
 
@@ -976,8 +926,7 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
             print(f"{peer}")
         for method in peer_method_metadata[peer]:
             params = peer_method_metadata[peer][method].get(
-                "params", "No parameters for this method."
-            )
+                "params", "No parameters for this method.")
             if code is True:
                 if len(params) == 0:
                     print(f"self.vip.rpc.call({peer}, {method}).get()")
@@ -990,11 +939,9 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
                 print(f"\t{method}")
                 if opts.verbose == True:
                     print("\tDocumentation:")
-                    doc = (
-                        peer_method_metadata[peer][method]
-                        .get("doc", "No documentation for this method.")
-                        .replace("\n", "\n\t\t")
-                    )
+                    doc = (peer_method_metadata[peer][method].get(
+                        "doc", "No documentation for this method.").replace(
+                            "\n", "\n\t\t"))
                     print(f"\t\t{doc}\n")
             print("\tParameters:")
             if type(params) is str:
@@ -1019,8 +966,7 @@ def list_agents_rpc(opts):
         for method in methods:
             try:
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
-                    peer, f"{method}.inspect"
-                ).get(timeout=4)
+                    peer, f"{method}.inspect").get(timeout=4)
             except gevent.Timeout:
                 print(f"{peer} has timed out.")
             except Unreachable:
@@ -1034,9 +980,8 @@ def list_agents_rpc(opts):
     peer_methods = {}
     for peer in peers:
         try:
-            peer_methods[peer] = conn.server.vip.rpc.call(peer, "inspect").get(
-                timeout=4
-            )["methods"]
+            peer_methods[peer] = conn.server.vip.rpc.call(
+                peer, "inspect").get(timeout=4)["methods"]
         except gevent.Timeout:
             print(f"{peer} has timed out")
         except Unreachable:
@@ -1072,8 +1017,7 @@ def list_agent_rpc_code(opts):
         for method in methods:
             try:
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
-                    peer, f"{method}.inspect"
-                ).get(timeout=4)
+                    peer, f"{method}.inspect").get(timeout=4)
             except gevent.Timeout:
                 print(f"{peer} has timed out.")
             except Unreachable:
@@ -1088,9 +1032,8 @@ def list_agent_rpc_code(opts):
     peer_methods = {}
     for peer in peers:
         try:
-            peer_methods[peer] = conn.server.vip.rpc.call(peer, "inspect").get(
-                timeout=4
-            )["methods"]
+            peer_methods[peer] = conn.server.vip.rpc.call(
+                peer, "inspect").get(timeout=4)["methods"]
         except gevent.Timeout:
             print(f"{peer} has timed out.")
         except Unreachable:
@@ -1112,8 +1055,7 @@ def list_agent_rpc_code(opts):
         for method in peer_methods[peer]:
             try:
                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
-                    peer, f"{method}.inspect"
-                ).get(timeout=4)
+                    peer, f"{method}.inspect").get(timeout=4)
             except gevent.Timeout:
                 print(f"{peer} has timed out")
             except Unreachable:
@@ -1135,47 +1077,41 @@ def list_remotes(opts):
     """
     conn = opts.connection
     if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
         return
 
     output_view = []
     try:
-        pending_csrs = conn.server.vip.rpc.call(AUTH, "get_pending_csrs").get(timeout=4)
+        pending_csrs = conn.server.vip.rpc.call(
+            AUTH, "get_pending_csrs").get(timeout=4)
         for csr in pending_csrs:
-            output_view.append(
-                {
-                    "entry": {
-                        "user_id": csr["identity"],
-                        "address": csr["remote_ip_address"],
-                    },
-                    "status": csr["status"],
-                }
-            )
+            output_view.append({
+                "entry": {
+                    "user_id": csr["identity"],
+                    "address": csr["remote_ip_address"],
+                },
+                "status": csr["status"],
+            })
     except TimeoutError:
         print("Certs timed out")
     try:
         approved_certs = conn.server.vip.rpc.call(
-            AUTH, "get_authorization_approved"
-        ).get(timeout=4)
+            AUTH, "get_authorization_approved").get(timeout=4)
         for value in approved_certs:
             output_view.append({"entry": value, "status": "APPROVED"})
     except TimeoutError:
         print("Approved credentials timed out")
     try:
-        denied_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_denied").get(
-            timeout=4
-        )
+        denied_certs = conn.server.vip.rpc.call(
+            AUTH, "get_authorization_denied").get(timeout=4)
         for value in denied_certs:
             output_view.append({"entry": value, "status": "DENIED"})
     except TimeoutError:
         print("Denied credentials timed out")
     try:
-        pending_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_pending").get(
-            timeout=4
-        )
+        pending_certs = conn.server.vip.rpc.call(
+            AUTH, "get_authorization_pending").get(timeout=4)
         for value in pending_certs:
             output_view.append({"entry": value, "status": "PENDING"})
     except TimeoutError:
@@ -1191,7 +1127,9 @@ def list_remotes(opts):
         ]
 
     elif opts.status == "denied":
-        output_view = [output for output in output_view if output["status"] == "DENIED"]
+        output_view = [
+            output for output in output_view if output["status"] == "DENIED"
+        ]
 
     elif opts.status == "pending":
         output_view = [
@@ -1214,30 +1152,22 @@ def list_remotes(opts):
                 output["entry"][value] = "-"
 
     userid_width = max(
-        5, max(len(str(output["entry"]["user_id"])) for output in output_view)
-    )
+        5, max(len(str(output["entry"]["user_id"])) for output in output_view))
     address_width = max(
-        5, max(len(str(output["entry"]["address"])) for output in output_view)
-    )
-    status_width = max(5, max(len(str(output["status"])) for output in output_view))
+        5, max(len(str(output["entry"]["address"])) for output in output_view))
+    status_width = max(
+        5, max(len(str(output["status"])) for output in output_view))
     fmt = "{:{}} {:{}} {:{}}\n"
     _stderr.write(
-        fmt.format(
-            "USER_ID", userid_width, "ADDRESS", address_width, "STATUS", status_width
-        )
-    )
+        fmt.format("USER_ID", userid_width, "ADDRESS", address_width, "STATUS",
+                   status_width))
     fmt = "{:{}} {:{}} {:{}}\n"
     for output in output_view:
         _stdout.write(
-            fmt.format(
-                output["entry"]["user_id"],
-                userid_width,
-                output["entry"]["address"],
-                address_width,
-                output["status"],
-                status_width,
-            )
-        )
+            fmt.format(output["entry"]["user_id"], userid_width,
+                       output["entry"]["address"], address_width,
+                       output["status"], status_width,
+                       ))
 
 
 def approve_remote(opts):
@@ -1248,14 +1178,11 @@ def approve_remote(opts):
     """
     conn = opts.connection
     if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
         return
-    conn.server.vip.rpc.call(AUTH, "approve_authorization_failure", opts.user_id).get(
-        timeout=4
-    )
+    conn.server.vip.rpc.call(AUTH, "approve_authorization_failure",
+                             opts.user_id).get(timeout=4)
 
 
 def deny_remote(opts):
@@ -1266,14 +1193,11 @@ def deny_remote(opts):
     """
     conn = opts.connection
     if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
         return
-    conn.server.vip.rpc.call(AUTH, "deny_authorization_failure", opts.user_id).get(
-        timeout=4
-    )
+    conn.server.vip.rpc.call(AUTH, "deny_authorization_failure",
+                             opts.user_id).get(timeout=4)
 
 
 def delete_remote(opts):
@@ -1284,14 +1208,11 @@ def delete_remote(opts):
     """
     conn = opts.connection
     if not conn:
-        _stderr.write(
-            "VOLTTRON is not running. This command "
-            "requires VOLTTRON platform to be running\n"
-        )
+        _stderr.write("VOLTTRON is not running. This command "
+                      "requires VOLTTRON platform to be running\n")
         return
-    conn.server.vip.rpc.call(AUTH, "delete_authorization_failure", opts.user_id).get(
-        timeout=4
-    )
+    conn.server.vip.rpc.call(AUTH, "delete_authorization_failure",
+                             opts.user_id).get(timeout=4)
 
 
 # the following global variables are used to update the cache so
@@ -1308,23 +1229,17 @@ def update_health_cache(opts):
     t_now = datetime.now()
     do_update = True
     # Make sure we update if we don't have any health dicts, or if the cache has timed out.
-    if (
-        health_cache_timeout_date is not None
-        and t_now < health_cache_timeout_date
-        and health_cache
-    ):
+    if (health_cache_timeout_date is not None
+            and t_now < health_cache_timeout_date and health_cache):
         do_update = False
 
     if do_update:
         health_cache.clear()
         health_cache.update(
             opts.connection.server.vip.rpc.call(
-                PLATFORM_HEALTH, "get_platform_health"
-            ).get(timeout=4)
-        )
+                PLATFORM_HEALTH, "get_platform_health").get(timeout=4))
         health_cache_timeout_date = datetime.now() + timedelta(
-            seconds=health_cache_timeout
-        )
+            seconds=health_cache_timeout)
 
 
 def status_agents(opts):
@@ -1340,9 +1255,11 @@ def status_agents(opts):
             agent = agents[uuid]
             agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = Agent(
-                name, None, uuid, vip_identity=None, agent_user=agent_user
-            )
+            agents[uuid] = agent = Agent(name,
+                                         None,
+                                         uuid,
+                                         vip_identity=None,
+                                         agent_user=agent_user)
         status[uuid] = stat
     agents = list(agents.values())
 
@@ -1408,15 +1325,11 @@ def enable_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command, pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         for agent in match:
-            _stdout.write(
-                "Enabling {} {} with priority {}\n".format(
-                    agent.uuid, agent.name, opts.priority
-                )
-            )
+            _stdout.write("Enabling {} {} with priority {}\n".format(
+                agent.uuid, agent.name, opts.priority))
             opts.aip.prioritize_agent(agent.uuid, opts.priority)
 
 
@@ -1424,13 +1337,13 @@ def disable_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command, pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         for agent in match:
             priority = opts.aip.agent_priority(agent.uuid)
             if priority is not None:
-                _stdout.write("Disabling {} {}\n".format(agent.uuid, agent.name))
+                _stdout.write("Disabling {} {}\n".format(
+                    agent.uuid, agent.name))
                 opts.aip.prioritize_agent(agent.uuid, None)
 
 
@@ -1439,13 +1352,13 @@ def start_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command, pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         for agent in match:
             pid, status = call("agent_status", agent.uuid)
             if pid is None or status is not None:
-                _stdout.write("Starting {} {}\n".format(agent.uuid, agent.name))
+                _stdout.write("Starting {} {}\n".format(
+                    agent.uuid, agent.name))
                 call("start_agent", agent.uuid)
 
 
@@ -1454,13 +1367,13 @@ def stop_agent(opts):
     agents = _list_agents(opts.aip)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write(
-                "{}: error: agent not found: {}\n".format(opts.command, pattern)
-            )
+            _stderr.write("{}: error: agent not found: {}\n".format(
+                opts.command, pattern))
         for agent in match:
             pid, status = call("agent_status", agent.uuid)
             if pid and status is None:
-                _stdout.write("Stopping {} {}\n".format(agent.uuid, agent.name))
+                _stdout.write("Stopping {} {}\n".format(
+                    agent.uuid, agent.name))
                 call("stop_agent", agent.uuid)
 
 
@@ -1479,15 +1392,12 @@ def shutdown_agents(opts):
     if "rmq" == cc.get_messagebus():
         if not check_rabbit_status():
             rmq_cfg = RMQConfig()
-            wait_period = (
-                rmq_cfg.reconnect_delay() if rmq_cfg.reconnect_delay() < 60 else 60
-            )
+            wait_period = (rmq_cfg.reconnect_delay()
+                           if rmq_cfg.reconnect_delay() < 60 else 60)
             _stderr.write(
                 "RabbitMQ server is not running.\n"
-                "Waiting for {} seconds for possible reconnection and to perform normal shutdown\n".format(
-                    wait_period
-                )
-            )
+                "Waiting for {} seconds for possible reconnection and to perform normal shutdown\n"
+                .format(wait_period))
             gevent.sleep(wait_period)
             if not check_rabbit_status():
                 _stderr.write(
@@ -1529,9 +1439,8 @@ def _send_agent(connection, peer, path):
             wheel.close()
             channel.close(linger=0)
 
-    result = connection.vip.rpc.call(
-        peer, "install_agent", os.path.basename(path), channel.name
-    )
+    result = connection.vip.rpc.call(peer, "install_agent",
+                                     os.path.basename(path), channel.name)
     task = gevent.spawn(send)
     result.rawlink(lambda glt: task.kill(block=False))
     return result
@@ -1568,7 +1477,8 @@ def list_known_hosts(opts):
 def remove_known_host(opts):
     store = KnownHostsStore()
     store.remove(opts.host)
-    _stdout.write('host "{}" removed from {}\n'.format(opts.host, store.filename))
+    _stdout.write('host "{}" removed from {}\n'.format(opts.host,
+                                                       store.filename))
 
 
 def do_stats(opts):
@@ -1613,21 +1523,19 @@ def _print_two_columns(dict_, key_name, value_name):
     padding = 2
     key_lengths = [len(key) for key in dict_] + [len(key_name)]
     max_key_len = max(key_lengths) + padding
-    _stdout.write(
-        "{}{}{}\n".format(key_name, " " * (max_key_len - len(key_name)), value_name)
-    )
-    _stdout.write(
-        "{}{}{}\n".format(
-            "-" * len(key_name),
-            " " * (max_key_len - len(key_name)),
-            "-" * len(value_name),
-        )
-    )
+    _stdout.write("{}{}{}\n".format(key_name,
+                                    " " * (max_key_len - len(key_name)),
+                                    value_name))
+    _stdout.write("{}{}{}\n".format("-" * len(key_name),
+                                    " " * (max_key_len - len(key_name)),
+                                    "-" * len(value_name),
+                                    ))
     for key in sorted(dict_):
         value = dict_[key]
         if isinstance(value, list):
             value = sorted(value)
-        _stdout.write("{}{}{}\n".format(key, " " * (max_key_len - len(key)), value))
+        _stdout.write("{}{}{}\n".format(key, " " * (max_key_len - len(key)),
+                                        value))
 
 
 def list_auth(opts, indices=None):
@@ -1638,36 +1546,37 @@ def list_auth(opts, indices=None):
         for index, entry in enumerate(entries):
             if indices is None or index in indices:
                 _stdout.write("\nINDEX: {}\n".format(index))
-                _stdout.write("{}\n".format(jsonapi.dumps(vars(entry), indent=2)))
+                _stdout.write("{}\n".format(
+                    jsonapi.dumps(vars(entry), indent=2)))
     else:
         _stdout.write("No entries in {}\n".format(auth_file.auth_file))
 
 
-def _ask_for_auth_fields(
-    domain=None,
-    address=None,
-    user_id=None,
-    capabilities=None,
-    roles=None,
-    groups=None,
-    mechanism="CURVE",
-    credentials=None,
-    comments=None,
-    enabled=True,
-    **kwargs,
-):
+def _ask_for_auth_fields(domain=None,
+                         address=None,
+                         user_id=None,
+                         capabilities=None,
+                         roles=None,
+                         groups=None,
+                         mechanism="CURVE",
+                         credentials=None,
+                         comments=None,
+                         enabled=True,
+                         **kwargs,
+                         ):
+
     class Asker(object):
+
         def __init__(self):
             self._fields = collections.OrderedDict()
 
-        def add(
-            self,
-            name,
-            default=None,
-            note=None,
-            callback=lambda x: x,
-            validate=lambda x, y: (True, ""),
-        ):
+        def add(self,
+                name,
+                default=None,
+                note=None,
+                callback=lambda x: x,
+                validate=lambda x, y: (True, ""),
+                ):
             self._fields[name] = {
                 "note": note,
                 "default": default,
@@ -1734,18 +1643,20 @@ def _ask_for_auth_fields(
     asker.add("domain", domain)
     asker.add("address", address)
     asker.add("user_id", user_id)
-    asker.add(
-        "capabilities",
-        capabilities,
-        "delimit multiple entries with comma",
-        _parse_capabilities,
-    )
-    asker.add("roles", roles, "delimit multiple entries with comma", _comma_split)
-    asker.add("groups", groups, "delimit multiple entries with comma", _comma_split)
+    asker.add("capabilities", capabilities,
+              "delimit multiple entries with comma", _parse_capabilities,
+              )
+    asker.add("roles", roles, "delimit multiple entries with comma",
+              _comma_split)
+    asker.add("groups", groups, "delimit multiple entries with comma",
+              _comma_split)
     asker.add("mechanism", mechanism, validate=valid_mech)
     asker.add("credentials", credentials, validate=valid_creds)
     asker.add("comments", comments)
-    asker.add("enabled", enabled, callback=to_true_or_false, validate=is_true_or_false)
+    asker.add("enabled",
+              enabled,
+              callback=to_true_or_false,
+              validate=is_true_or_false)
 
     return asker.ask()
 
@@ -1799,14 +1710,11 @@ def add_auth(opts):
 
     if opts.add_known_host:
         if entry.address is None:
-            raise ValueError(
-                "host (--address) is required when " "--add-known-host is specified"
-            )
+            raise ValueError("host (--address) is required when "
+                             "--add-known-host is specified")
         if entry.credentials is None:
-            raise ValueError(
-                "serverkey (--credentials) is required when "
-                "--add-known-host is specified"
-            )
+            raise ValueError("serverkey (--credentials) is required when "
+                             "--add-known-host is specified")
         opts.host = entry.address
         opts.serverkey = entry.credentials
         add_server_key(opts)
@@ -1974,9 +1882,8 @@ def get_filtered_agents(opts, agents=None):
         filtered = set()
         for pattern, match in filter_agents(agents, opts.pattern, opts):
             if not match:
-                _stderr.write(
-                    "{}: error: agent not found: {}\n".format(opts.command, pattern)
-                )
+                _stderr.write("{}: error: agent not found: {}\n".format(
+                    opts.command, pattern))
             filtered |= match
         agents = list(filtered)
     return agents
@@ -2019,35 +1926,21 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or "") for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
+    identity_width = max(
+        3, max(len(agent.vip_identity or "") for agent in agents))
     fmt = "{} {:{}} {:{}} {:{}} {:>6}\n"
 
     if not opts.json:
         _stderr.write(
-            fmt.format(
-                " " * n,
-                "AGENT",
-                name_width,
-                "IDENTITY",
-                identity_width,
-                "TAG",
-                tag_width,
-                field_name,
-            )
-        )
+            fmt.format(" " * n, "AGENT", name_width, "IDENTITY",
+                       identity_width, "TAG", tag_width, field_name,
+                       ))
         for agent in agents:
             _stdout.write(
-                fmt.format(
-                    agent.uuid[:n],
-                    agent.name,
-                    name_width,
-                    agent.vip_identity,
-                    identity_width,
-                    agent.tag or "",
-                    tag_width,
-                    field_callback(agent),
-                )
-            )
+                fmt.format(agent.uuid[:n], agent.name, name_width,
+                           agent.vip_identity, identity_width, agent.tag or "",
+                           tag_width, field_callback(agent),
+                           ))
     else:
         json_obj = {}
         for agent in agents:
@@ -2061,7 +1954,10 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
-def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
+def _show_filtered_agents_status(opts,
+                                 status_callback,
+                                 health_callback,
+                                 agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -2105,74 +2001,44 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
     if not opts.json:
         name_width = max(5, max(len(agent.name) for agent in agents))
         tag_width = max(3, max(len(agent.tag or "") for agent in agents))
-        identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
+        identity_width = max(
+            3, max(len(agent.vip_identity or "") for agent in agents))
         if cc.is_secure_mode():
-            user_width = max(3, max(len(agent.agent_user or "") for agent in agents))
+            user_width = max(
+                3, max(len(agent.agent_user or "") for agent in agents))
             fmt = "{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
             _stderr.write(
-                fmt.format(
-                    " " * n,
-                    "AGENT",
-                    name_width,
-                    "IDENTITY",
-                    identity_width,
-                    "TAG",
-                    tag_width,
-                    "AGENT_USER",
-                    user_width,
-                    "STATUS",
-                    "HEALTH",
-                )
-            )
+                fmt.format(" " * n, "AGENT", name_width, "IDENTITY",
+                           identity_width, "TAG", tag_width, "AGENT_USER",
+                           user_width, "STATUS", "HEALTH",
+                           ))
             fmt = "{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n"
             for agent in agents:
                 status_str = status_callback(agent)
                 agent_health_dict = health_callback(agent)
                 _stdout.write(
                     fmt.format(
-                        agent.uuid[:n],
-                        agent.name,
-                        name_width,
-                        agent.vip_identity,
-                        identity_width,
-                        agent.tag or "",
-                        tag_width,
-                        agent.agent_user if status_str.startswith("running") else "",
-                        user_width,
-                        status_str,
-                        health_callback(agent),
-                    )
-                )
+                        agent.uuid[:n], agent.name, name_width,
+                        agent.vip_identity, identity_width, agent.tag or "",
+                        tag_width, agent.agent_user
+                        if status_str.startswith("running") else "",
+                        user_width, status_str, health_callback(agent),
+                    ))
         else:
             fmt = "{} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
             _stderr.write(
-                fmt.format(
-                    " " * n,
-                    "AGENT",
-                    name_width,
-                    "IDENTITY",
-                    identity_width,
-                    "TAG",
-                    tag_width,
-                    "STATUS",
-                    "HEALTH",
-                )
-            )
+                fmt.format(" " * n, "AGENT", name_width, "IDENTITY",
+                           identity_width, "TAG", tag_width, "STATUS",
+                           "HEALTH",
+                           ))
             fmt = "{} {:{}} {:{}} {:{}} {:<15} {:<}\n"
             for agent in agents:
                 _stdout.write(
-                    fmt.format(
-                        agent.uuid[:n],
-                        agent.name,
-                        name_width,
-                        agent.vip_identity,
-                        identity_width,
-                        agent.tag or "",
-                        tag_width,
-                        status_callback(agent),
-                        health_callback(agent),
-                    )
-                )
+                    fmt.format(agent.uuid[:n], agent.name, name_width,
+                               agent.vip_identity, identity_width, agent.tag
+                               or "", tag_width, status_callback(agent),
+                               health_callback(agent),
+                               ))
     else:
         json_obj = {}
         for agent in agents:
@@ -2186,14 +2052,13 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
             }
             if cc.is_secure_mode():
                 json_obj[agent.vip_identity]["agent_user"] = (
-                    agent.agent_user
-                    if json_obj[agent.vip_identity]["status"].startswith("running")
-                    else ""
-                )
+                    agent.agent_user if json_obj[agent.vip_identity]
+                    ["status"].startswith("running") else "")
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
 def get_agent_publickey(opts):
+
     def get_key(agent):
         return opts.aip.get_agent_keystore(agent.uuid).public
 
@@ -2230,13 +2095,12 @@ def add_config_to_store(opts):
 
     file_contents = opts.infile.read()
 
-    call(
-        "manage_store",
-        opts.identity,
-        opts.name,
-        file_contents,
-        config_type=opts.config_type,
-    )
+    call("manage_store",
+         opts.identity,
+         opts.name,
+         file_contents,
+         config_type=opts.config_type,
+         )
 
 
 def delete_config_from_store(opts):
@@ -2314,10 +2178,8 @@ def edit_config(opts):
             subprocess.check_call([opts.editor, f.name])
         except subprocess.CalledProcessError as e:
             _stderr.write(
-                "Editor returned with code {}. Changes not committed.\n".format(
-                    e.returncode
-                )
-            )
+                "Editor returned with code {}. Changes not committed.\n".
+                format(e.returncode))
             success = False
 
         if not success:
@@ -2330,13 +2192,12 @@ def edit_config(opts):
             _stderr.write("No changes detected.\n")
             return
 
-        call(
-            "manage_store",
-            opts.identity,
-            opts.name,
-            new_raw_data,
-            config_type=config_type,
-        )
+        call("manage_store",
+             opts.identity,
+             opts.name,
+             new_raw_data,
+             config_type=config_type,
+             )
 
 
 def priority(value):
@@ -2353,7 +2214,12 @@ def get_keys(opts):
     key_store = KeyStore()
     publickey = key_store.public
     secretkey = key_store.secret
-    return {"publickey": publickey, "secretkey": secretkey, "serverkey": serverkey}
+    return {
+        "publickey": publickey,
+        "secretkey": secretkey,
+        "serverkey": serverkey
+    }
+
 
 # TODO Move RMQ Management services
 # RabbitMQ management methods
@@ -2899,26 +2765,24 @@ def export_pkcs12_from_identity(opts):
 def main(argv=sys.argv):
     # Refuse to run as root
     if not getattr(os, "getuid", lambda: -1)():
-        sys.stderr.write(
-            "%s: error: refusing to run as root to prevent "
-            "potential damage.\n" % os.path.basename(argv[0])
-        )
+        sys.stderr.write("%s: error: refusing to run as root to prevent "
+                         "potential damage.\n" % os.path.basename(argv[0]))
         sys.exit(77)
 
     volttron_home = cc.get_volttron_home()
 
     os.environ["VOLTTRON_HOME"] = volttron_home
 
-    global_args = config.ArgumentParser(description="global options", add_help=False)
-    global_args.add_argument(
-        "-c",
-        "--config",
-        metavar="FILE",
-        action="parse_config",
-        ignore_unknown=True,
-        sections=[None, "global", "volttron-ctl"],
-        help="read configuration from FILE",
-    )
+    global_args = config.ArgumentParser(description="global options",
+                                        add_help=False)
+    global_args.add_argument("-c",
+                             "--config",
+                             metavar="FILE",
+                             action="parse_config",
+                             ignore_unknown=True,
+                             sections=[None, "global", "volttron-ctl"],
+                             help="read configuration from FILE",
+                             )
     global_args.add_argument(
         "--debug",
         action="store_true",
@@ -2932,35 +2796,29 @@ def main(argv=sys.argv):
         help="timeout in seconds for remote calls (default: %(default)g)",
     )
     global_args.add_argument(
-        "--msgdebug", help="route all messages to an agent while debugging"
-    )
-    global_args.add_argument(
-        "--vip-address",
-        metavar="ZMQADDR",
-        help="ZeroMQ URL to bind for VIP connections",
-    )
+        "--msgdebug", help="route all messages to an agent while debugging")
+    global_args.add_argument("--vip-address",
+                             metavar="ZMQADDR",
+                             help="ZeroMQ URL to bind for VIP connections",
+                             )
 
-    global_args.set_defaults(
-        vip_address=get_address(),
-        timeout=60,
-    )
+    global_args.set_defaults(vip_address=get_address(), timeout=60, )
 
     filterable = config.ArgumentParser(add_help=False)
-    filterable.add_argument(
-        "--name",
-        dest="by_name",
-        action="store_true",
-        help="filter/search by agent name",
-    )
-    filterable.add_argument(
-        "--tag", dest="by_tag", action="store_true", help="filter/search by tag name"
-    )
-    filterable.add_argument(
-        "--uuid",
-        dest="by_uuid",
-        action="store_true",
-        help="filter/search by UUID (default)",
-    )
+    filterable.add_argument("--name",
+                            dest="by_name",
+                            action="store_true",
+                            help="filter/search by agent name",
+                            )
+    filterable.add_argument("--tag",
+                            dest="by_tag",
+                            action="store_true",
+                            help="filter/search by tag name")
+    filterable.add_argument("--uuid",
+                            dest="by_uuid",
+                            action="store_true",
+                            help="filter/search by UUID (default)",
+                            )
     filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
 
     parser = config.ArgumentParser(
@@ -2971,19 +2829,17 @@ def main(argv=sys.argv):
         argument_default=argparse.SUPPRESS,
         parents=[global_args],
     )
-    parser.add_argument(
-        "-l",
-        "--log",
-        metavar="FILE",
-        default=None,
-        help="send log output to FILE instead of stderr",
-    )
-    parser.add_argument(
-        "-L",
-        "--log-config",
-        metavar="FILE",
-        help="read logging configuration from FILE",
-    )
+    parser.add_argument("-l",
+                        "--log",
+                        metavar="FILE",
+                        default=None,
+                        help="send log output to FILE instead of stderr",
+                        )
+    parser.add_argument("-L",
+                        "--log-config",
+                        metavar="FILE",
+                        help="read logging configuration from FILE",
+                        )
     parser.add_argument(
         "-q",
         "--quiet",
@@ -3000,27 +2856,26 @@ def main(argv=sys.argv):
         dest="verboseness",
         help="increase logger verboseness; may be used multiple times",
     )
-    parser.add_argument(
-        "--verboseness",
-        type=int,
-        metavar="LEVEL",
-        default=logging.WARNING,
-        help="set logger verboseness",
-    )
-    parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument(
-        "--json", action="store_true", default=False, help="format output to json"
-    )
+    parser.add_argument("--verboseness",
+                        type=int,
+                        metavar="LEVEL",
+                        default=logging.WARNING,
+                        help="set logger verboseness",
+                        )
+    parser.add_argument("--show-config",
+                        action="store_true",
+                        help=argparse.SUPPRESS)
+    parser.add_argument("--json",
+                        action="store_true",
+                        default=False,
+                        help="format output to json")
 
     parser.add_help_argument()
-    parser.set_defaults(
-        log_config=None,
-        volttron_home=volttron_home,
-    )
+    parser.set_defaults(log_config=None, volttron_home=volttron_home, )
 
-    top_level_subparsers = parser.add_subparsers(
-        title="commands", metavar="", dest="command"
-    )
+    top_level_subparsers = parser.add_subparsers(title="commands",
+                                                 metavar="",
+                                                 dest="command")
 
     def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         parents = kwargs.get("parents", [])
@@ -3031,24 +2886,33 @@ def main(argv=sys.argv):
 
     add_install_agent_parser(add_parser)
 
-    tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
+    tag = add_parser("tag",
+                     parents=[filterable],
+                     help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
     group = tag.add_mutually_exclusive_group()
     group.add_argument("tag", nargs="?", const=None, help="tag to give agent")
-    group.add_argument("-r", "--remove", action="store_true", help="remove tag")
+    group.add_argument("-r",
+                       "--remove",
+                       action="store_true",
+                       help="remove tag")
     tag.set_defaults(func=tag_agent, tag=None, remove=False)
 
     remove = add_parser("remove", parents=[filterable], help="remove agent")
     remove.add_argument("pattern", nargs="+", help="UUID or name of agent")
-    remove.add_argument(
-        "-f", "--force", action="store_true", help="force removal of multiple agents"
-    )
+    remove.add_argument("-f",
+                        "--force",
+                        action="store_true",
+                        help="force removal of multiple agents")
     remove.set_defaults(func=remove_agent, force=False)
 
-    peers = add_parser("peerlist", help="list the peers connected to the platform")
+    peers = add_parser("peerlist",
+                       help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
 
-    list_ = add_parser("list", parents=[filterable], help="list installed agent")
+    list_ = add_parser("list",
+                       parents=[filterable],
+                       help="list installed agent")
     list_.add_argument("pattern", nargs="*", help="UUID or name of agent")
     list_.add_argument(
         "-n",
@@ -3059,7 +2923,9 @@ def main(argv=sys.argv):
     )
     list_.set_defaults(func=list_agents, min_uuid_len=1)
 
-    status = add_parser("status", parents=[filterable], help="show status of agents")
+    status = add_parser("status",
+                        parents=[filterable],
+                        help="show status of agents")
     status.add_argument("pattern", nargs="*", help="UUID or name of agent")
     status.add_argument(
         "-n",
@@ -3070,38 +2936,40 @@ def main(argv=sys.argv):
     )
     status.set_defaults(func=status_agents, min_uuid_len=1)
 
-    health = add_parser(
-        "health", parents=[filterable], help="show agent health as JSON"
-    )
+    health = add_parser("health",
+                        parents=[filterable],
+                        help="show agent health as JSON")
     health.add_argument("pattern", nargs=1, help="UUID or name of agent")
     health.set_defaults(func=agent_health, min_uuid_len=1)
 
     clear = add_parser("clear", help="clear status of defunct agents")
-    clear.add_argument(
-        "-a",
-        "--all",
-        dest="clear_all",
-        action="store_true",
-        help="clear the status of all agents",
-    )
+    clear.add_argument("-a",
+                       "--all",
+                       dest="clear_all",
+                       action="store_true",
+                       help="clear the status of all agents",
+                       )
     clear.set_defaults(func=clear_status, clear_all=False)
 
-    enable = add_parser(
-        "enable", parents=[filterable], help="enable agent to start automatically"
-    )
+    enable = add_parser("enable",
+                        parents=[filterable],
+                        help="enable agent to start automatically")
     enable.add_argument("pattern", nargs="+", help="UUID or name of agent")
-    enable.add_argument(
-        "-p", "--priority", type=priority, help="2-digit priority from 00 to 99"
-    )
+    enable.add_argument("-p",
+                        "--priority",
+                        type=priority,
+                        help="2-digit priority from 00 to 99")
     enable.set_defaults(func=enable_agent, priority="50")
 
-    disable = add_parser(
-        "disable", parents=[filterable], help="prevent agent from start automatically"
-    )
+    disable = add_parser("disable",
+                         parents=[filterable],
+                         help="prevent agent from start automatically")
     disable.add_argument("pattern", nargs="+", help="UUID or name of agent")
     disable.set_defaults(func=disable_agent)
 
-    start = add_parser("start", parents=[filterable], help="start installed agent")
+    start = add_parser("start",
+                       parents=[filterable],
+                       help="start installed agent")
     start.add_argument("pattern", nargs="+", help="UUID or name of agent")
     start.set_defaults(func=start_agent)
 
@@ -3116,53 +2984,54 @@ def main(argv=sys.argv):
     run = add_parser("run", help="start any agent by path")
     run.add_argument("directory", nargs="+", help="path to agent directory")
     if HAVE_RESTRICTED:
-        run.add_argument(
-            "--verify",
-            action="store_true",
-            dest="verify_agents",
-            help="verify agent integrity during run",
-        )
-        run.add_argument(
-            "--no-verify",
-            action="store_false",
-            dest="verify_agents",
-            help=argparse.SUPPRESS,
-        )
+        run.add_argument("--verify",
+                         action="store_true",
+                         dest="verify_agents",
+                         help="verify agent integrity during run",
+                         )
+        run.add_argument("--no-verify",
+                         action="store_false",
+                         dest="verify_agents",
+                         help=argparse.SUPPRESS,
+                         )
     run.set_defaults(func=run_agent)
     # ====================================================
     # rpc commands
     # ====================================================
     rpc_ctl = add_parser("rpc", help="rpc controls")
 
-    rpc_subparsers = rpc_ctl.add_subparsers(
-        title="subcommands", metavar="", dest="store_commands"
-    )
+    rpc_subparsers = rpc_ctl.add_subparsers(title="subcommands",
+                                            metavar="",
+                                            dest="store_commands")
 
-    rpc_code = add_parser(
-        "code",
-        subparser=rpc_subparsers,
-        help="shows how to use rpc call in other agents",
-    )
+    rpc_code = add_parser("code",
+                          subparser=rpc_subparsers,
+                          help="shows how to use rpc call in other agents",
+                          )
 
-    rpc_code.add_argument(
-        "pattern", nargs="*", help="Identity of agent, followed by method(s)" ""
-    )
+    rpc_code.add_argument("pattern",
+                          nargs="*",
+                          help="Identity of agent, followed by method(s)"
+                          "")
     rpc_code.add_argument(
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods",
+        help=
+        "list all subsystem rpc methods in addition to the agent's rpc methods",
     )
 
     rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
 
-    rpc_list = add_parser(
-        "list", subparser=rpc_subparsers, help="lists all agents and their rpc methods"
-    )
+    rpc_list = add_parser("list",
+                          subparser=rpc_subparsers,
+                          help="lists all agents and their rpc methods")
 
-    rpc_list.add_argument(
-        "-i", "--vip", dest="by_vip", action="store_true", help="filter by vip identity"
-    )
+    rpc_list.add_argument("-i",
+                          "--vip",
+                          dest="by_vip",
+                          action="store_true",
+                          help="filter by vip identity")
 
     rpc_list.add_argument("pattern", nargs="*", help="UUID or name of agent")
 
@@ -3170,7 +3039,8 @@ def main(argv=sys.argv):
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
+        help=
+        "list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
         "is specified, display the doc-string associated with the method.",
     )
 
@@ -3181,13 +3051,13 @@ def main(argv=sys.argv):
     # ====================================================
     cert_cmds = add_parser("certs", help="manage certificate creation")
 
-    certs_subparsers = cert_cmds.add_subparsers(
-        title="subcommands", metavar="", dest="store_commands"
-    )
+    certs_subparsers = cert_cmds.add_subparsers(title="subcommands",
+                                                metavar="",
+                                                dest="store_commands")
 
-    create_ssl_keypair_cmd = add_parser(
-        "create-ssl-keypair", subparser=certs_subparsers, help="create a ssl keypair."
-    )
+    create_ssl_keypair_cmd = add_parser("create-ssl-keypair",
+                                        subparser=certs_subparsers,
+                                        help="create a ssl keypair.")
 
     create_ssl_keypair_cmd.add_argument(
         "identity",
@@ -3199,46 +3069,48 @@ def main(argv=sys.argv):
     export_pkcs12 = add_parser(
         "export-pkcs12",
         subparser=certs_subparsers,
-        help="create a PKCS12 encoded file containing private and public key from an agent. "
+        help=
+        "create a PKCS12 encoded file containing private and public key from an agent. "
         "this function is useful to create a java key store using a p12 file.",
     )
-    export_pkcs12.add_argument("identity", help="identity of the agent to export")
-    export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
+    export_pkcs12.add_argument("identity",
+                               help="identity of the agent to export")
+    export_pkcs12.add_argument("outfile",
+                               help="file to write the PKCS12 file to")
     export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
 
     # ====================================================
     # auth commands
     # ====================================================
     auth_cmds = add_parser(
-        "auth", help="manage authorization entries and encryption keys"
-    )
+        "auth", help="manage authorization entries and encryption keys")
 
-    auth_subparsers = auth_cmds.add_subparsers(
-        title="subcommands", metavar="", dest="store_commands"
-    )
+    auth_subparsers = auth_cmds.add_subparsers(title="subcommands",
+                                               metavar="",
+                                               dest="store_commands")
 
-    auth_add = add_parser(
-        "add", help="add new authentication record", subparser=auth_subparsers
-    )
+    auth_add = add_parser("add",
+                          help="add new authentication record",
+                          subparser=auth_subparsers)
     auth_add.add_argument("--domain", default=None)
     auth_add.add_argument("--address", default=None)
     auth_add.add_argument("--mechanism", default=None)
     auth_add.add_argument("--credentials", default=None)
     auth_add.add_argument("--user_id", default=None)
-    auth_add.add_argument(
-        "--groups", default=None, help="delimit multiple entries with comma"
-    )
-    auth_add.add_argument(
-        "--roles", default=None, help="delimit multiple entries with comma"
-    )
-    auth_add.add_argument(
-        "--capabilities", default=None, help="delimit multiple entries with comma"
-    )
+    auth_add.add_argument("--groups",
+                          default=None,
+                          help="delimit multiple entries with comma")
+    auth_add.add_argument("--roles",
+                          default=None,
+                          help="delimit multiple entries with comma")
+    auth_add.add_argument("--capabilities",
+                          default=None,
+                          help="delimit multiple entries with comma")
     auth_add.add_argument("--comments", default=None)
     auth_add.add_argument("--disabled", action="store_true")
-    auth_add.add_argument(
-        "--add-known-host", action="store_true", help="adds entry in known host"
-    )
+    auth_add.add_argument("--add-known-host",
+                          action="store_true",
+                          help="adds entry in known host")
     auth_add.set_defaults(func=add_auth)
 
     auth_add_group = add_parser(
@@ -3247,9 +3119,10 @@ def main(argv=sys.argv):
         help="associate a group name with a set of roles",
     )
     auth_add_group.add_argument("group", metavar="GROUP", help="name of group")
-    auth_add_group.add_argument(
-        "roles", metavar="ROLE", nargs="*", help="roles to associate with the group"
-    )
+    auth_add_group.add_argument("roles",
+                                metavar="ROLE",
+                                nargs="*",
+                                help="roles to associate with the group")
     auth_add_group.set_defaults(func=add_group)
 
     auth_add_known_host = add_parser(
@@ -3258,8 +3131,9 @@ def main(argv=sys.argv):
         help="add server public key to known-hosts file",
     )
     auth_add_known_host.add_argument(
-        "--host", required=True, help="hostname or IP address with optional port"
-    )
+        "--host",
+        required=True,
+        help="hostname or IP address with optional port")
     auth_add_known_host.add_argument("--serverkey", required=True)
     auth_add_known_host.set_defaults(func=add_server_key)
 
@@ -3269,12 +3143,11 @@ def main(argv=sys.argv):
         help="associate a role name with a set of capabilities",
     )
     auth_add_role.add_argument("role", metavar="ROLE", help="name of role")
-    auth_add_role.add_argument(
-        "capabilities",
-        metavar="CAPABILITY",
-        nargs="*",
-        help="capabilities to associate with the role",
-    )
+    auth_add_role.add_argument("capabilities",
+                               metavar="CAPABILITY",
+                               nargs="*",
+                               help="capabilities to associate with the role",
+                               )
     auth_add_role.set_defaults(func=add_role)
 
     auth_keypair = add_parser(
@@ -3284,9 +3157,9 @@ def main(argv=sys.argv):
     )
     auth_keypair.set_defaults(func=gen_keypair)
 
-    auth_list = add_parser(
-        "list", help="list authentication records", subparser=auth_subparsers
-    )
+    auth_list = add_parser("list",
+                           help="list authentication records",
+                           subparser=auth_subparsers)
     auth_list.set_defaults(func=list_auth)
 
     auth_list_groups = add_parser(
@@ -3310,13 +3183,14 @@ def main(argv=sys.argv):
     )
     auth_list_roles.set_defaults(func=list_roles)
 
-    auth_publickey = add_parser(
-        "publickey",
-        parents=[filterable],
-        subparser=auth_subparsers,
-        help="show public key for each agent",
-    )
-    auth_publickey.add_argument("pattern", nargs="*", help="UUID or name of agent")
+    auth_publickey = add_parser("publickey",
+                                parents=[filterable],
+                                subparser=auth_subparsers,
+                                help="show public key for each agent",
+                                )
+    auth_publickey.add_argument("pattern",
+                                nargs="*",
+                                help="UUID or name of agent")
     auth_publickey.add_argument(
         "-n",
         dest="min_uuid_len",
@@ -3331,9 +3205,10 @@ def main(argv=sys.argv):
         subparser=auth_subparsers,
         help="removes one or more authentication records by indices",
     )
-    auth_remove.add_argument(
-        "indices", nargs="+", type=int, help="index or indices of record(s) to remove"
-    )
+    auth_remove.add_argument("indices",
+                             nargs="+",
+                             type=int,
+                             help="index or indices of record(s) to remove")
     auth_remove.set_defaults(func=remove_auth)
 
     auth_remove_group = add_parser(
@@ -3350,8 +3225,9 @@ def main(argv=sys.argv):
         help="remove entry from known-hosts file",
     )
     auth_remove_known_host.add_argument(
-        "host", metavar="HOST", help="hostname or IP address with optional port"
-    )
+        "host",
+        metavar="HOST",
+        help="hostname or IP address with optional port")
     auth_remove_known_host.set_defaults(func=remove_known_host)
 
     auth_remove_role = add_parser(
@@ -3362,19 +3238,19 @@ def main(argv=sys.argv):
     auth_remove_role.add_argument("role", help="name of role")
     auth_remove_role.set_defaults(func=remove_role)
 
-    auth_serverkey = add_parser(
-        "serverkey",
-        subparser=auth_subparsers,
-        help="show the serverkey for the instance",
-    )
+    auth_serverkey = add_parser("serverkey",
+                                subparser=auth_subparsers,
+                                help="show the serverkey for the instance",
+                                )
     auth_serverkey.set_defaults(func=show_serverkey)
 
-    auth_update = add_parser(
-        "update",
-        subparser=auth_subparsers,
-        help="updates one authentication record by index",
-    )
-    auth_update.add_argument("index", type=int, help="index of record to update")
+    auth_update = add_parser("update",
+                             subparser=auth_subparsers,
+                             help="updates one authentication record by index",
+                             )
+    auth_update.add_argument("index",
+                             type=int,
+                             help="index of record to update")
     auth_update.set_defaults(func=update_auth)
 
     auth_update_group = add_parser(
@@ -3382,7 +3258,9 @@ def main(argv=sys.argv):
         subparser=auth_subparsers,
         help="update group to include (or remove) given roles",
     )
-    auth_update_group.add_argument("group", metavar="GROUP", help="name of group")
+    auth_update_group.add_argument("group",
+                                   metavar="GROUP",
+                                   help="name of group")
     auth_update_group.add_argument(
         "roles",
         nargs="*",
@@ -3390,8 +3268,9 @@ def main(argv=sys.argv):
         help="roles to append to (or remove from) the group",
     )
     auth_update_group.add_argument(
-        "--remove", action="store_true", help="remove (rather than append) given roles"
-    )
+        "--remove",
+        action="store_true",
+        help="remove (rather than append) given roles")
     auth_update_group.set_defaults(func=update_group)
 
     auth_update_role = add_parser(
@@ -3419,8 +3298,7 @@ def main(argv=sys.argv):
         help="manage pending RMQ certs and ZMQ credentials",
     )
     auth_remote_subparsers = auth_remote.add_subparsers(
-        title="remote subcommands", metavar="", dest="store_commands"
-    )
+        title="remote subcommands", metavar="", dest="store_commands")
 
     auth_remote_list_cmd = add_parser(
         "list",
@@ -3428,8 +3306,7 @@ def main(argv=sys.argv):
         help="lists approved, denied, and pending certs and credentials",
     )
     auth_remote_list_cmd.add_argument(
-        "--status", help="Specify approved, denied, or pending"
-    )
+        "--status", help="Specify approved, denied, or pending")
     auth_remote_list_cmd.set_defaults(func=list_remotes)
 
     auth_remote_approve_cmd = add_parser(
@@ -3438,8 +3315,8 @@ def main(argv=sys.argv):
         help="approves pending or denied remote connection",
     )
     auth_remote_approve_cmd.add_argument(
-        "user_id", help="user_id or identity of pending credential or cert to approve"
-    )
+        "user_id",
+        help="user_id or identity of pending credential or cert to approve")
     auth_remote_approve_cmd.set_defaults(func=approve_remote)
 
     auth_remote_deny_cmd = add_parser(
@@ -3448,8 +3325,8 @@ def main(argv=sys.argv):
         help="denies pending or denied remote connection",
     )
     auth_remote_deny_cmd.add_argument(
-        "user_id", help="user_id or identity of pending credential or cert to deny"
-    )
+        "user_id",
+        help="user_id or identity of pending credential or cert to deny")
     auth_remote_deny_cmd.set_defaults(func=deny_remote)
 
     auth_remote_delete_cmd = add_parser(
@@ -3458,27 +3335,28 @@ def main(argv=sys.argv):
         help="approves pending or denied remote connection",
     )
     auth_remote_delete_cmd.add_argument(
-        "user_id", help="user_id or identity of pending credential or cert to delete"
-    )
+        "user_id",
+        help="user_id or identity of pending credential or cert to delete")
     auth_remote_delete_cmd.set_defaults(func=delete_remote)
 
     # ====================================================
     # config commands
     # ====================================================
-    config_store = add_parser("config", help="manage the platform configuration store")
+    config_store = add_parser("config",
+                              help="manage the platform configuration store")
 
     config_store_subparsers = config_store.add_subparsers(
-        title="subcommands", metavar="", dest="store_commands"
-    )
+        title="subcommands", metavar="", dest="store_commands")
 
-    config_store_store = add_parser(
-        "store", help="store a configuration", subparser=config_store_subparsers
-    )
+    config_store_store = add_parser("store",
+                                    help="store a configuration",
+                                    subparser=config_store_subparsers)
 
-    config_store_store.add_argument("identity", help="VIP IDENTITY of the store")
+    config_store_store.add_argument("identity",
+                                    help="VIP IDENTITY of the store")
     config_store_store.add_argument(
-        "name", help="name used to reference the configuration by in the store"
-    )
+        "name",
+        help="name used to reference the configuration by in the store")
     config_store_store.add_argument(
         "infile",
         nargs="?",
@@ -3493,37 +3371,39 @@ def main(argv=sys.argv):
         action="store_const",
         help="interpret the input file as raw data",
     )
-    config_store_store.add_argument(
-        "--json",
-        const="json",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as json",
-    )
-    config_store_store.add_argument(
-        "--csv",
-        const="csv",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as csv",
-    )
+    config_store_store.add_argument("--json",
+                                    const="json",
+                                    dest="config_type",
+                                    action="store_const",
+                                    help="interpret the input file as json",
+                                    )
+    config_store_store.add_argument("--csv",
+                                    const="csv",
+                                    dest="config_type",
+                                    action="store_const",
+                                    help="interpret the input file as csv",
+                                    )
 
-    config_store_store.set_defaults(func=add_config_to_store, config_type="json")
+    config_store_store.set_defaults(func=add_config_to_store,
+                                    config_type="json")
 
     config_store_edit = add_parser(
         "edit",
-        help="edit a configuration. (nano by default, respects EDITOR env variable)",
+        help=
+        "edit a configuration. (nano by default, respects EDITOR env variable)",
         subparser=config_store_subparsers,
     )
 
-    config_store_edit.add_argument("identity", help="VIP IDENTITY of the store")
+    config_store_edit.add_argument("identity",
+                                   help="VIP IDENTITY of the store")
     config_store_edit.add_argument(
-        "name", help="name used to reference the configuration by in the store"
-    )
+        "name",
+        help="name used to reference the configuration by in the store")
     config_store_edit.add_argument(
         "--editor",
         dest="editor",
-        help="Set the editor to use to change the file. Defaults to nano if EDITOR is not set",
+        help=
+        "Set the editor to use to change the file. Defaults to nano if EDITOR is not set",
         default=os.getenv("EDITOR", "nano"),
     )
     config_store_edit.add_argument(
@@ -3531,21 +3411,24 @@ def main(argv=sys.argv):
         const="raw",
         dest="config_type",
         action="store_const",
-        help="Interpret the configuration as raw data. If the file already exists this is ignored.",
+        help=
+        "Interpret the configuration as raw data. If the file already exists this is ignored.",
     )
     config_store_edit.add_argument(
         "--json",
         const="json",
         dest="config_type",
         action="store_const",
-        help="Interpret the configuration as json. If the file already exists this is ignored.",
+        help=
+        "Interpret the configuration as json. If the file already exists this is ignored.",
     )
     config_store_edit.add_argument(
         "--csv",
         const="csv",
         dest="config_type",
         action="store_const",
-        help="Interpret the configuration as csv. If the file already exists this is ignored.",
+        help=
+        "Interpret the configuration as csv. If the file already exists this is ignored.",
     )
     config_store_edit.add_argument(
         "--new",
@@ -3557,10 +3440,11 @@ def main(argv=sys.argv):
 
     config_store_edit.set_defaults(func=edit_config, config_type="json")
 
-    config_store_delete = add_parser(
-        "delete", help="delete a configuration", subparser=config_store_subparsers
-    )
-    config_store_delete.add_argument("identity", help="VIP IDENTITY of the store")
+    config_store_delete = add_parser("delete",
+                                     help="delete a configuration",
+                                     subparser=config_store_subparsers)
+    config_store_delete.add_argument("identity",
+                                     help="VIP IDENTITY of the store")
     config_store_delete.add_argument(
         "name",
         nargs="?",
@@ -3581,41 +3465,42 @@ def main(argv=sys.argv):
         subparser=config_store_subparsers,
     )
 
-    config_store_list.add_argument(
-        "identity", nargs="?", help="VIP IDENTITY of the store to list"
-    )
+    config_store_list.add_argument("identity",
+                                   nargs="?",
+                                   help="VIP IDENTITY of the store to list")
 
     config_store_list.set_defaults(func=list_store)
 
-    config_store_get = add_parser(
-        "get",
-        help="get the contents of a configuration",
-        subparser=config_store_subparsers,
-    )
+    config_store_get = add_parser("get",
+                                  help="get the contents of a configuration",
+                                  subparser=config_store_subparsers,
+                                  )
 
     config_store_get.add_argument("identity", help="VIP IDENTITY of the store")
     config_store_get.add_argument(
-        "name", help="name used to reference the configuration by in the store"
-    )
-    config_store_get.add_argument(
-        "--raw", action="store_true", help="get the configuration as raw data"
-    )
+        "name",
+        help="name used to reference the configuration by in the store")
+    config_store_get.add_argument("--raw",
+                                  action="store_true",
+                                  help="get the configuration as raw data")
     config_store_get.set_defaults(func=get_config)
 
     shutdown = add_parser("shutdown", help="stop all agents")
-    shutdown.add_argument(
-        "--platform", action="store_true", help="also stop the platform process"
-    )
+    shutdown.add_argument("--platform",
+                          action="store_true",
+                          help="also stop the platform process")
     shutdown.set_defaults(func=shutdown_agents, platform=False)
 
     send = add_parser("send", help="send agent and start on a remote platform")
     send.add_argument("wheel", nargs="+", help="agent package to send")
     send.set_defaults(func=send_agent)
 
-    stats = add_parser("stats", help="manage router message statistics tracking")
+    stats = add_parser("stats",
+                       help="manage router message statistics tracking")
     op = stats.add_argument(
-        "op", choices=["status", "enable", "disable", "dump", "pprint"], nargs="?"
-    )
+        "op",
+        choices=["status", "enable", "disable", "dump", "pprint"],
+        nargs="?")
     stats.set_defaults(func=do_stats, op="status")
 
     # ==============================================================================
@@ -3628,11 +3513,10 @@ def main(argv=sys.argv):
         # ====================================================
         rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
         rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(
-            title="subcommands", metavar="", dest="store_commands"
-        )
-        rabbitmq_add_vhost = add_parser(
-            "add-vhost", help="add a new virtual host", subparser=rabbitmq_subparsers
-        )
+            title="subcommands", metavar="", dest="store_commands")
+        rabbitmq_add_vhost = add_parser("add-vhost",
+                                        help="add a new virtual host",
+                                        subparser=rabbitmq_subparsers)
         rabbitmq_add_vhost.add_argument("vhost", help="Virtual host")
         rabbitmq_add_vhost.set_defaults(func=add_vhost)
 
@@ -3646,41 +3530,42 @@ def main(argv=sys.argv):
         rabbitmq_add_user.add_argument("pwd", help="password")
         rabbitmq_add_user.set_defaults(func=add_user)
 
-        rabbitmq_add_exchange = add_parser(
-            "add-exchange", help="add a new exchange", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_add_exchange = add_parser("add-exchange",
+                                           help="add a new exchange",
+                                           subparser=rabbitmq_subparsers)
         rabbitmq_add_exchange.add_argument("name", help="Name of the exchange")
         rabbitmq_add_exchange.add_argument(
-            "type", help="Type of the exchange - fanout/direct/topic"
-        )
+            "type", help="Type of the exchange - fanout/direct/topic")
         rabbitmq_add_exchange.set_defaults(func=add_exchange)
 
-        rabbitmq_add_queue = add_parser(
-            "add-queue", help="add a new queue", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_add_queue = add_parser("add-queue",
+                                        help="add a new queue",
+                                        subparser=rabbitmq_subparsers)
         rabbitmq_add_queue.add_argument("name", help="Name of the queue")
         rabbitmq_add_queue.set_defaults(func=add_queue)
         # =======================================================================
         # List commands
-        rabbitmq_list_vhosts = add_parser(
-            "list-vhosts", help="List virtual hosts", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_list_vhosts = add_parser("list-vhosts",
+                                          help="List virtual hosts",
+                                          subparser=rabbitmq_subparsers)
         rabbitmq_list_vhosts.set_defaults(func=list_vhosts)
 
-        rabbitmq_list_users = add_parser(
-            "list-users", help="List users", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_list_users = add_parser("list-users",
+                                         help="List users",
+                                         subparser=rabbitmq_subparsers)
         rabbitmq_list_users.set_defaults(func=list_users)
 
         rabbitmq_list_user_properties = add_parser(
-            "list-user-properties", help="List users", subparser=rabbitmq_subparsers
-        )
-        rabbitmq_list_user_properties.add_argument("user", help="RabbitMQ user id")
+            "list-user-properties",
+            help="List users",
+            subparser=rabbitmq_subparsers)
+        rabbitmq_list_user_properties.add_argument("user",
+                                                   help="RabbitMQ user id")
         rabbitmq_list_user_properties.set_defaults(func=list_user_properties)
 
-        rabbitmq_list_exchanges = add_parser(
-            "list-exchanges", help="List exhanges", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_list_exchanges = add_parser("list-exchanges",
+                                             help="List exhanges",
+                                             subparser=rabbitmq_subparsers)
         rabbitmq_list_exchanges.set_defaults(func=list_exchanges)
 
         rabbitmq_list_exchanges_props = add_parser(
@@ -3688,18 +3573,20 @@ def main(argv=sys.argv):
             help="list exchanges with properties",
             subparser=rabbitmq_subparsers,
         )
-        rabbitmq_list_exchanges_props.set_defaults(func=list_exchanges_with_properties)
+        rabbitmq_list_exchanges_props.set_defaults(
+            func=list_exchanges_with_properties)
 
-        rabbitmq_list_queues = add_parser(
-            "list-queues", help="list all queues", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_list_queues = add_parser("list-queues",
+                                          help="list all queues",
+                                          subparser=rabbitmq_subparsers)
         rabbitmq_list_queues.set_defaults(func=list_queues)
         rabbitmq_list_queues_props = add_parser(
             "list-queue-properties",
             help="list queues with properties",
             subparser=rabbitmq_subparsers,
         )
-        rabbitmq_list_queues_props.set_defaults(func=list_queues_with_properties)
+        rabbitmq_list_queues_props.set_defaults(
+            func=list_queues_with_properties)
 
         rabbitmq_list_bindings = add_parser(
             "list-bindings",
@@ -3721,37 +3608,42 @@ def main(argv=sys.argv):
             help="list all shovel parameters",
             subparser=rabbitmq_subparsers,
         )
-        rabbitmq_list_shovel_parameters.set_defaults(func=list_shovel_parameters)
+        rabbitmq_list_shovel_parameters.set_defaults(
+            func=list_shovel_parameters)
 
-        rabbitmq_list_policies = add_parser(
-            "list-policies", help="list all policies", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_list_policies = add_parser("list-policies",
+                                            help="list all policies",
+                                            subparser=rabbitmq_subparsers)
         rabbitmq_list_policies.set_defaults(func=list_policies)
         # ==========================================================================================
         # Remove commands
-        rabbitmq_remove_vhosts = add_parser(
-            "remove-vhosts", help="Remove virtual host/s", subparser=rabbitmq_subparsers
-        )
-        rabbitmq_remove_vhosts.add_argument("vhost", nargs="+", help="Virtual host")
+        rabbitmq_remove_vhosts = add_parser("remove-vhosts",
+                                            help="Remove virtual host/s",
+                                            subparser=rabbitmq_subparsers)
+        rabbitmq_remove_vhosts.add_argument("vhost",
+                                            nargs="+",
+                                            help="Virtual host")
         rabbitmq_remove_vhosts.set_defaults(func=remove_vhosts)
 
-        rabbitmq_remove_users = add_parser(
-            "remove-users", help="Remove virtual user/s", subparser=rabbitmq_subparsers
-        )
-        rabbitmq_remove_users.add_argument("user", nargs="+", help="Virtual host")
+        rabbitmq_remove_users = add_parser("remove-users",
+                                           help="Remove virtual user/s",
+                                           subparser=rabbitmq_subparsers)
+        rabbitmq_remove_users.add_argument("user",
+                                           nargs="+",
+                                           help="Virtual host")
         rabbitmq_remove_users.set_defaults(func=remove_users)
 
-        rabbitmq_remove_exchanges = add_parser(
-            "remove-exchanges", help="Remove exchange/s", subparser=rabbitmq_subparsers
-        )
-        rabbitmq_remove_exchanges.add_argument(
-            "exchanges", nargs="+", help="Remove exchanges/s"
-        )
+        rabbitmq_remove_exchanges = add_parser("remove-exchanges",
+                                               help="Remove exchange/s",
+                                               subparser=rabbitmq_subparsers)
+        rabbitmq_remove_exchanges.add_argument("exchanges",
+                                               nargs="+",
+                                               help="Remove exchanges/s")
         rabbitmq_remove_exchanges.set_defaults(func=remove_exchanges)
 
-        rabbitmq_remove_queues = add_parser(
-            "remove-queues", help="Remove queue/s", subparser=rabbitmq_subparsers
-        )
+        rabbitmq_remove_queues = add_parser("remove-queues",
+                                            help="Remove queue/s",
+                                            subparser=rabbitmq_subparsers)
         rabbitmq_remove_queues.add_argument("queues", nargs="+", help="Queue")
         rabbitmq_remove_queues.set_defaults(func=remove_queues)
 
@@ -3760,9 +3652,9 @@ def main(argv=sys.argv):
             help="Remove federation parameter",
             subparser=rabbitmq_subparsers,
         )
-        rabbitmq_remove_fed_parameters.add_argument(
-            "parameters", nargs="+", help="parameter name/s"
-        )
+        rabbitmq_remove_fed_parameters.add_argument("parameters",
+                                                    nargs="+",
+                                                    help="parameter name/s")
         rabbitmq_remove_fed_parameters.set_defaults(func=remove_fed_parameters)
 
         rabbitmq_remove_shovel_parameters = add_parser(
@@ -3770,17 +3662,18 @@ def main(argv=sys.argv):
             help="Remove shovel parameter",
             subparser=rabbitmq_subparsers,
         )
-        rabbitmq_remove_shovel_parameters.add_argument(
-            "parameters", nargs="+", help="parameter name/s"
-        )
-        rabbitmq_remove_shovel_parameters.set_defaults(func=remove_shovel_parameters)
+        rabbitmq_remove_shovel_parameters.add_argument("parameters",
+                                                       nargs="+",
+                                                       help="parameter name/s")
+        rabbitmq_remove_shovel_parameters.set_defaults(
+            func=remove_shovel_parameters)
 
-        rabbitmq_remove_policies = add_parser(
-            "remove-policies", help="Remove policy", subparser=rabbitmq_subparsers
-        )
-        rabbitmq_remove_policies.add_argument(
-            "policies", nargs="+", help="policy name/s"
-        )
+        rabbitmq_remove_policies = add_parser("remove-policies",
+                                              help="Remove policy",
+                                              subparser=rabbitmq_subparsers)
+        rabbitmq_remove_policies.add_argument("policies",
+                                              nargs="+",
+                                              help="policy name/s")
         rabbitmq_remove_policies.set_defaults(func=remove_policies)
 
     # Parse and expand options
@@ -3795,10 +3688,8 @@ def main(argv=sys.argv):
         if args[0] not in ("list", "tag", "auth", "rabbitmq", "certs"):
             # check pid file
             if not utils.is_volttron_running(volttron_home):
-                _stderr.write(
-                    "VOLTTRON is not running. This command "
-                    "requires VOLTTRON platform to be running\n"
-                )
+                _stderr.write("VOLTTRON is not running. This command "
+                              "requires VOLTTRON platform to be running\n")
                 return 10
 
     conf = os.path.join(volttron_home, "config")
@@ -3823,7 +3714,9 @@ def main(argv=sys.argv):
     elif opts.log == "-":
         log_to_file(sys.stdout, level)
     elif opts.log:
-        log_to_file(opts.log, level, handler_class=logging.handlers.WatchedFileHandler)
+        log_to_file(opts.log,
+                    level,
+                    handler_class=logging.handlers.WatchedFileHandler)
     else:
         log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
     if opts.log_config:
@@ -3847,10 +3740,8 @@ def main(argv=sys.argv):
         error = exc.message
     except AttributeError as exc:
         _stderr.write(
-            "Invalid command: '{}' or command requires additional arguments\n".format(
-                opts.command
-            )
-        )
+            "Invalid command: '{}' or command requires additional arguments\n".
+            format(opts.command))
         parser.print_help()
         return 1
     except SystemExit as exc:

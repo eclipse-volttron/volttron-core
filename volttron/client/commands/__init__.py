@@ -35,8 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
-
 """ Core package."""
 from gevent import monkey
 
@@ -54,7 +52,6 @@ from urllib.parse import urlparse
 
 from volttron.utils import jsonapi
 from volttron.utils.frozendict import FrozenDict
-
 
 _log = logging.getLogger(__name__)
 
@@ -78,7 +75,6 @@ pyproject = toml.load(tomle_file)
 
 __version__ = pyproject["tool"]["poetry"]["version"]
 
-
 # def get_volttron_root():
 #     """
 #     Returns the root folder where the volttron code base resideds on disk.
@@ -87,11 +83,9 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 #     """
 #     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
 # def get_volttron_data():
 #     root = get_volttron_root()
 #     return os.path.join(root, "volttron_data")
-
 
 # def get_services_core(agent_dir=None):
 #     root = get_volttron_root()
@@ -100,7 +94,6 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 #         return services_core
 #     return os.path.join(services_core, agent_dir)
 
-
 # def get_ops(agent_dir=None):
 #     root = get_volttron_root()
 #     ops_dir = os.path.join(root, "services/ops")
@@ -108,14 +101,12 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 #         return ops_dir
 #     return os.path.join(ops_dir, agent_dir)
 
-
 # def get_examples(agent_dir):
 #     root = get_volttron_root()
 #     examples_dir = os.path.join(root, "examples")
 #     if not agent_dir:
 #         return examples_dir
 #     return os.path.join(examples_dir, agent_dir)
-
 
 # def is_instance_running(volttron_home=None):
 
@@ -140,7 +131,6 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 
 #     return psutil.pid_exists(pid)
 
-
 # def is_rabbitmq_available():
 #     rabbitmq_available = True
 #     try:
@@ -152,9 +142,7 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 #         rabbitmq_available = False
 #     return rabbitmq_available
 
-
 # __config__ = None
-
 
 # def get_platform_config():
 #     global __config__
@@ -173,7 +161,6 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 #                 __config__[option] = parser.get("volttron", option)
 #             __config__.freeze()
 #     return __config__
-
 
 # def update_platform_config(values: dict) -> None:
 #     global __config__
@@ -198,7 +185,6 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 #         p.write(fp)
 
 #     return get_platform_config()
-
 
 # def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
 #     """Build a full vip address string based upon the passed arguments
@@ -228,7 +214,6 @@ __version__ = pyproject["tool"]["poetry"]["version"]
 #         raise ValueError("Invalid vip root specified!")
 
 #     return root
-
 
 # def update_volttron_script_path(path: str) -> str:
 #     """
