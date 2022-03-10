@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import os
 import logging
 from typing import Optional
@@ -61,8 +60,7 @@ _ROUTE_ERRORS = {
     errnum: (
         zmq.Frame(str(errnum).encode("ascii")),
         zmq.Frame(os.strerror(errnum).encode("ascii")),
-    )
-    for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
+    ) for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
 _INVALID_SUBSYSTEM = (
     zmq.Frame(str(zmq.EPROTONOSUPPORT).encode("ascii")),
@@ -133,11 +131,8 @@ class BaseRouter(object):
         sock.tcp_keepalive_cnt = 6
         self.context.set(zmq.MAX_SOCKETS, 30690)
         sock.set_hwm(6000)
-        _log.debug(
-            "ROUTER SENDBUF: {0}, {1}".format(
-                sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)
-            )
-        )
+        _log.debug("ROUTER SENDBUF: {0}, {1}".format(
+            sock.getsockopt(zmq.SNDBUF), sock.getsockopt(zmq.RCVBUF)))
         self.setup()
 
     def stop(self, linger=1):
@@ -402,9 +397,9 @@ class BaseRouter(object):
                 ]
                 serialized_frames = serialize_frames(frames)
                 try:
-                    socket.send_multipart(
-                        serialized_frames, flags=NOBLOCK, copy=False
-                    )
+                    socket.send_multipart(serialized_frames,
+                                          flags=NOBLOCK,
+                                          copy=False)
                     issue(OUTGOING, serialized_frames)
                 except ZMQError as exc:
                     try:

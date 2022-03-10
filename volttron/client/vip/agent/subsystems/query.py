@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import weakref
 
 from .base import SubsystemBase
@@ -46,6 +45,7 @@ __all__ = ["Query"]
 
 
 class Query(SubsystemBase):
+
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()

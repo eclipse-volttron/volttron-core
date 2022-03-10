@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import logging
 import weakref
 
@@ -47,11 +46,11 @@ from zmq.green import ENOTSOCK
 
 __all__ = ["Ping"]
 
-
 _log = logging.getLogger(__name__)
 
 
 class Ping(SubsystemBase):
+
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()
@@ -63,10 +62,14 @@ class Ping(SubsystemBase):
         args.insert(0, "ping")
         connection = self.core().connection
         try:
-            connection.send_vip("", "ping", args=["drop", peer], msg_id=result.ident)
+            connection.send_vip("",
+                                "ping",
+                                args=["drop", peer],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
-                _log.debug("Socket send on non socket {}".format(self.core().identity))
+                _log.debug("Socket send on non socket {}".format(
+                    self.core().identity))
         return result
 
     __call__ = ping
