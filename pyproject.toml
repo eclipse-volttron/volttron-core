@@ -20,11 +20,11 @@ tzlocal = "^4.1"
 psutil = "^5.9.0"
 cryptography = "^36.0.1"
 watchdog-gevent = "^0.1.1"
-pre-commit = "^2.17.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
 mock = "^4.0.3"
+pre-commit = "^2.17.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -37,18 +37,9 @@ volttron-cfg = 'volttron.client.commands.config:main'
 vctl = 'volttron.client.commands.control:main'
 volttron-ctl = 'volttron.client.commands.control:main'
 
-[tool.black]
-line-length = 79
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/'''
+[tool.autopep8]
+max_line_length = 120
+ignore = "E501,W6"  # or ["E501", "W6"]
+in-place = true
+recursive = true
+aggressive = 3
