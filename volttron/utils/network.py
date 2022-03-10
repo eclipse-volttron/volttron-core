@@ -103,13 +103,11 @@ def get_address(verify_listening=False):
         # the get_address to not have somethiing bound to the address.
         if verify_listening:
             ctx = zmqgreen.Context.instance()
-            sock = ctx.socket(
-                zmq.PUB)    # or SUB - does not make any difference
+            sock = ctx.socket(zmq.PUB)    # or SUB - does not make any difference
             sock.bind(address)
-            raise ValueError(
-                "Unable to connect to vip address "
-                f"make sure VOLTTRON_HOME: {cc.get_volttron_home()} "
-                "is set properly")
+            raise ValueError("Unable to connect to vip address "
+                             f"make sure VOLTTRON_HOME: {cc.get_volttron_home()} "
+                             "is set properly")
     except zmq.error.ZMQError as e:
         _log.error(f"Zmq error was {e}\n{traceback.format_exc()}")
     finally:

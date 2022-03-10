@@ -56,10 +56,9 @@ class AgentMockery:
 
 
 def test_env_args_passed_to_agent():
-    env = dict(
-        AGENT_PUBLICKEY="uSo_q3vw-DpcOeCOXc1A4o1U11qpTtkkW2EviHM7x24",
-        AGENT_SECRETKEY="WpnCmf1vM1Z5gw0uIg8tr2C4erNQpSa0KONq9NvjzUE",
-        VOLTTRON_SERVERKEY="UH4tX5RDNTMjp5VPxVuj-M5QiO82BLUghYeWJ_CgvQc")
+    env = dict(AGENT_PUBLICKEY="uSo_q3vw-DpcOeCOXc1A4o1U11qpTtkkW2EviHM7x24",
+               AGENT_SECRETKEY="WpnCmf1vM1Z5gw0uIg8tr2C4erNQpSa0KONq9NvjzUE",
+               VOLTTRON_SERVERKEY="UH4tX5RDNTMjp5VPxVuj-M5QiO82BLUghYeWJ_CgvQc")
     with mock.patch.dict(os.environ, env):
         vip_main(AgentMockery, identity="foo")
         assert env["AGENT_PUBLICKEY"] == AgentMockery.mykwargs['publickey']

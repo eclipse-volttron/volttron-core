@@ -73,8 +73,7 @@ class ExternalRPCService(object):
         result = None
 
         try:
-            sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:
-                                                                                  9]
+            sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
         except IndexError:
             return False
 
@@ -89,9 +88,7 @@ class ExternalRPCService(object):
                 response = result
             elif result is not None:
                 # Form response frame
-                response = [
-                    sender, recipient, proto, usr_id, msg_id, subsystem
-                ]
+                response = [sender, recipient, proto, usr_id, msg_id, subsystem]
                 response.append("request_response")
                 response.append(result)
         return response
@@ -104,8 +101,7 @@ class ExternalRPCService(object):
         """
         try:
             # Extract the frames and reorganize to add external platform and peer information
-            sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:
-                                                                                  9]
+            sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
             # msg_data = jsonapi.loads(msg)
             msg_data = msg
             to_platform = msg_data["to_platform"]
@@ -121,9 +117,7 @@ class ExternalRPCService(object):
             self._ext_router.send_external(to_platform, frames)
             return False
         except KeyError as exc:
-            _log.error(
-                "Missing instance name in external RPC message: {}".format(
-                    exc))
+            _log.error("Missing instance name in external RPC message: {}".format(exc))
         except IndexError:
             _log.error("Invalid EXT RPC message")
 
@@ -135,8 +129,7 @@ class ExternalRPCService(object):
         """
         try:
             # Extract the frames and reorganize to send to local peer
-            sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:
-                                                                                  9]
+            sender, recipient, proto, usr_id, msg_id, subsystem, op, msg = frames[:9]
             # msg_data = jsonapi.loads(msg)
             msg_data = msg
             peer = msg_data["to_peer"]
@@ -144,8 +137,7 @@ class ExternalRPCService(object):
             drop = self._send_internal(frames)
             return False
         except KeyError as exc:
-            _log.error(
-                "Missing agent name in external RPC message: {}".format(exc))
+            _log.error("Missing agent name in external RPC message: {}".format(exc))
         except IndexError:
             _log.error("Invalid EXT RPC message")
 

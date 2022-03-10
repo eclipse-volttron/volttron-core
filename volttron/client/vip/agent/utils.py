@@ -63,8 +63,7 @@ def get_server_keys():
     except IOError as e:
         raise RuntimeError(
             "Exception accessing server keystore. Agents must use agent's public and private key"
-            "to build dynamic agents when running in secure mode. Exception:{}"
-            .format(e))
+            "to build dynamic agents when running in secure mode. Exception:{}".format(e))
 
     return ks.public, ks.secret
 

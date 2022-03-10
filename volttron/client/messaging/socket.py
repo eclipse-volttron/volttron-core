@@ -63,10 +63,7 @@ class Socket(zmq.Socket):
     # Override send_string to ensure copy defaults to True.
     # https://github.com/zeromq/pyzmq/pull/456
     def send_string(self, u, flags=0, copy=True, encoding="utf-8"):
-        super(Socket, self).send_string(u,
-                                        flags=flags,
-                                        copy=copy,
-                                        encoding=encoding)
+        super(Socket, self).send_string(u, flags=flags, copy=copy, encoding=encoding)
 
     send_string.__doc__ = zmq.Socket.send_string.__doc__
 

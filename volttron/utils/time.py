@@ -81,9 +81,7 @@ def format_timestamp(time_stamp):
         seconds = td.seconds
         minutes, seconds = divmod(seconds, 60)
         hours, minutes = divmod(minutes, 60)
-        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign,
-                                                   HH=hours,
-                                                   MM=minutes)
+        time_str += "{sign}{HH:02}:{MM:02}".format(sign=sign, HH=hours, MM=minutes)
 
     return time_str
 
@@ -113,8 +111,7 @@ def parse_timestamp_string(time_stamp_str):
         try:
             base_time_stamp_str = time_stamp_str[:26]
             time_zone_str = time_stamp_str[26:]
-            time_stamp = datetime.strptime(base_time_stamp_str,
-                                           "%Y-%m-%dT%H:%M:%S.%f")
+            time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
             # Handle most common case.
             if time_zone_str == "+00:00":
                 return time_stamp.replace(tzinfo=pytz.UTC)
@@ -184,9 +181,8 @@ def process_timestamp(timestamp_string, topic=""):
     try:
         timestamp = parse_timestamp_string(timestamp_string)
     except (ValueError, TypeError):
-        _log.error(
-            "message for {topic} bad timetamp string: {ts_string}".format(
-                topic=topic, ts_string=timestamp_string))
+        _log.error("message for {topic} bad timetamp string: {ts_string}".format(
+            topic=topic, ts_string=timestamp_string))
         return
 
     if timestamp.tzinfo is None:

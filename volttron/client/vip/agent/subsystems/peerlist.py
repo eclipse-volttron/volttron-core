@@ -66,14 +66,10 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip("",
-                                "peerlist",
-                                args=["list"],
-                                msg_id=result.ident)
+            connection.send_vip("", "peerlist", args=["list"], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(
-                    self.core().identity))
+                _log.error("Socket send on non socket {}".format(self.core().identity))
         return result
 
     def add_peer(self, peer, message_bus=None):
@@ -88,8 +84,7 @@ class PeerList(SubsystemBase):
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(
-                    self.core().identity))
+                _log.error("Socket send on non socket {}".format(self.core().identity))
         return result
 
     def drop_peer(self, peer, message_bus=None):
@@ -104,8 +99,7 @@ class PeerList(SubsystemBase):
                                 msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(
-                    self.core().identity))
+                _log.error("Socket send on non socket {}".format(self.core().identity))
         return result
 
     def list_with_messagebus(self):
@@ -113,14 +107,10 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip("",
-                                "peerlist",
-                                args=["list_with_messagebus"],
-                                msg_id=result.ident)
+            connection.send_vip("", "peerlist", args=["list_with_messagebus"], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(
-                    self.core().identity))
+                _log.error("Socket send on non socket {}".format(self.core().identity))
         return result
 
     __call__ = list
@@ -146,9 +136,7 @@ class PeerList(SubsystemBase):
             # getattr requires a string
             onop = "on" + op
             if message_bus:
-                getattr(self, onop).send(self,
-                                         peer=peer,
-                                         message_bus=message_bus)
+                getattr(self, onop).send(self, peer=peer, message_bus=message_bus)
             else:
                 getattr(self, onop).send(self, peer=peer)
             if op == "add":

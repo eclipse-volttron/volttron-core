@@ -155,14 +155,9 @@ class Address(object):
                 elif name == "server":
                     value = value.upper().strip()
                     if value not in ["NULL", "PLAIN", "CURVE"]:
-                        raise ValueError("bad value for server parameter: %r" %
-                                         value)
+                        raise ValueError("bad value for server parameter: %r" % value)
                 elif name == "ipv6":
-                    value = bool(
-                        re.sub(r"\s*(0|false|no|off)\s*",
-                               r"",
-                               value,
-                               flags=re.I))
+                    value = bool(re.sub(r"\s*(0|false|no|off)\s*", r"", value, flags=re.I))
                 setattr(self, name, value)
 
     @property
@@ -382,8 +377,7 @@ class _Socket(object):
             if not flags & SNDMORE:
                 # Must have SNDMORE flag until sending SUBSYSTEM frame.
                 if state < 4:
-                    raise ProtocolError("expecting at least %d more frames" %
-                                        (4 - state - 1))
+                    raise ProtocolError("expecting at least %d more frames" % (4 - state - 1))
                 # Reset the send state when the last frame is sent
                 self._send_state = -1 if self.type == ROUTER else 0
             elif state < 5:
@@ -393,10 +387,7 @@ class _Socket(object):
                     state += 1
                 self._send_state = state + 1
             try:
-                super(_Socket, self).send(frame,
-                                          flags=flags,
-                                          copy=copy,
-                                          track=track)
+                super(_Socket, self).send(frame, flags=flags, copy=copy, track=track)
             except Exception:
                 self._send_state = state
                 raise
@@ -405,10 +396,7 @@ class _Socket(object):
         parts = serialize_frames(msg_parts)
         # _log.debug("Sending parts on multiparts: {}".format(parts))
         with self._sending(flags) as flags:
-            super(_Socket, self).send_multipart(parts,
-                                                flags=flags,
-                                                copy=copy,
-                                                track=track)
+            super(_Socket, self).send_multipart(parts, flags=flags, copy=copy, track=track)
 
     def send_vip(
         self,
@@ -472,18 +460,13 @@ class _Socket(object):
                 track=track,
             )
             if args:
-                send = (self.send if isinstance(args, (bytes, str)) else
-                        self.send_multipart)
+                send = (self.send if isinstance(args, (bytes, str)) else self.send_multipart)
                 send(args, flags=flags, copy=copy, track=track)
 
     def send_vip_dict(self, dct, flags=0, copy=True, track=False):
         """Send VIP message from a dictionary."""
         msg_id = dct.pop("id", "")
-        self.send_vip(flags=flags,
-                      copy=copy,
-                      track=track,
-                      msg_id=msg_id,
-                      **dct)
+        self.send_vip(flags=flags, copy=copy, track=track, msg_id=msg_id, **dct)
 
     def send_vip_object(self, msg, flags=0, copy=True, track=False):
         """Send VIP message from an object."""
@@ -531,8 +514,7 @@ class _Socket(object):
         if not self.getsockopt(RCVMORE):
             # Ensure SUBSYSTEM is received
             if state < 4:
-                raise ProtocolError(
-                    "expected at least {} more frames".format(4 - state - 1))
+                raise ProtocolError("expected at least {} more frames".format(4 - state - 1))
             self._recv_state = -1 if self.type == ROUTER else 0
         elif state < 5:
             self._recv_state = state + 1
