@@ -37,9 +37,16 @@ volttron-cfg = 'volttron.client.commands.config:main'
 vctl = 'volttron.client.commands.control:main'
 volttron-ctl = 'volttron.client.commands.control:main'
 
-[tool.autopep8]
-max_line_length = 120
-ignore = "E501,W6"  # or ["E501", "W6"]
-in-place = true
-recursive = true
-aggressive = 3
+[tool.yapfignore]
+ignore_patterns = [
+    ".venv/**",
+    ".pytest_cache/**",
+    "dist/**",
+    "docs/**"
+]
+
+[tool.yapf]
+based_on_style = "pep8"
+spaces_before_comment = 4
+column_limit = 120
+split_before_logical_operator = true
