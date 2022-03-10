@@ -85,7 +85,7 @@ jobs:
         run: |
           # current_tag is the last tagged relese in the repository.   From there
           # we need to remove the v from the begining of the tag.
-          if $(git tag -l "v*"); then
+          if ! $(git tag -l "v*" = ''); then
             current_tag=$(git tag -l "v*" | sort --reverse |sed -n 1p)
           else
             current_tag=v10.0.0
