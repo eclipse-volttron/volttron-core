@@ -16,7 +16,6 @@ env:
   PYTHON_VERSION: '3.8'
   PROJECT_NAME: test-release-actions
   RUNS_ON: ubuntu-20.04
-  PUBLISH_TO_PYPI_TEST: false
 
 jobs:
 
@@ -122,7 +121,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Poetry to use Pypi Repository
-        if: ${{ PUBLISH_TO_PYPI_TEST }}
+        if: ${{ false }}
         run: |
           poetry config repositories.test-pypi https://test.pypi.org/legacy/
           poetry config pypi-token.test-pypi ${{ secrets.TEST_PYPI_TOKEN }}
