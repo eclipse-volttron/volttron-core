@@ -27,9 +27,8 @@ class ExampleAgent(Agent):
         self.vip.pubsub.subscribe(my_id, "this/topic", self.onmessage)
 
     def onmessage(self, peer, sender, bus, topic, headers, message):
-        print(
-            "received: peer=%r, sender=%r, bus=%r, topic=%r, headers=%r, message=%r"
-            % (peer, sender, bus, topic, headers, message))
+        print("received: peer=%r, sender=%r, bus=%r, topic=%r, headers=%r, message=%r" %
+              (peer, sender, bus, topic, headers, message))
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):

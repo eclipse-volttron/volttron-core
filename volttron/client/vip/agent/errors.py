@@ -79,5 +79,4 @@ class Again(VIPError):
 class UnknownSubsystem(VIPError):
 
     def __str__(self):
-        return "%s: %s" % (super(UnknownSubsystem,
-                                 self).__str__(), self.subsystem)
+        return "%s: %s" % (super(UnknownSubsystem, self).__str__(), self.subsystem)

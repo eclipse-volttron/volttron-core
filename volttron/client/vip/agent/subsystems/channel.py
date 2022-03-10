@@ -149,8 +149,7 @@ class Channel(SubsystemBase):
 
         if name is None:
             while True:
-                name = ''.join(
-                    random.choice(string.printable[:-5]) for i in range(30))
+                name = ''.join(random.choice(string.printable[:-5]) for i in range(30))
                 channel = (peer, name)
                 if channel not in self._channels:
                     break
@@ -161,8 +160,7 @@ class Channel(SubsystemBase):
         _log.debug(f"Connecting to channel {channel}")
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1
-        sock.identity = ident = f'{hash(channel)}s.{hash(sock)}s'.encode(
-            'utf-8')
+        sock.identity = ident = f'{hash(channel)}s.{hash(sock)}s'.encode('utf-8')
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)
         object.__setattr__(sock, 'name', name)

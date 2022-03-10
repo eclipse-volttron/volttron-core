@@ -52,8 +52,7 @@ except importlib_metadata.PackageNotFoundError:
     tomle_file = root.joinpath("pyproject.toml")
     if not tomle_file.exists():
         raise ValueError(
-            f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})"
-        )
+            f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})")
     import toml
 
     pyproject = toml.load(tomle_file)

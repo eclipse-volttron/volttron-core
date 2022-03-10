@@ -123,9 +123,8 @@ class Agent(object):
 
             if identity is not None and not is_valid_identity(identity):
                 _log.warning("Deprecation warning")
-                _log.warning(
-                    "All characters in {identity} are not in the valid set.".
-                    format(identity=identity))
+                _log.warning("All characters in {identity} are not in the valid set.".format(
+                    identity=identity))
 
             if message_bus is not None and message_bus.lower() == "rmq":
                 _log.debug("Creating RMQ Core {}".format(identity))
@@ -143,8 +142,7 @@ class Agent(object):
                     reconnect_interval=reconnect_interval,
                     version=version,
                     volttron_central_address=volttron_central_address,
-                    volttron_central_instance_name=
-                    volttron_central_instance_name,
+                    volttron_central_instance_name=volttron_central_instance_name,
                 )
             else:
                 _log.debug("Creating ZMQ Core {}".format(identity))
@@ -228,17 +226,16 @@ def build_agent(address=None,
     except KeyError:
         enable_store = False
 
-    agent = agent_class(
-        address=address,
-        identity=identity,
-        publickey=publickey,
-        secretkey=secretkey,
-        serverkey=serverkey,
-        volttron_central_address=volttron_central_address,
-        volttron_central_instance_name=volttron_central_instance_name,
-        message_bus=message_bus,
-        enable_store=enable_store,
-        **kwargs)
+    agent = agent_class(address=address,
+                        identity=identity,
+                        publickey=publickey,
+                        secretkey=secretkey,
+                        serverkey=serverkey,
+                        volttron_central_address=volttron_central_address,
+                        volttron_central_instance_name=volttron_central_instance_name,
+                        message_bus=message_bus,
+                        enable_store=enable_store,
+                        **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

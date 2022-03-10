@@ -60,10 +60,7 @@ class Signal(object):
         return [receiver(sender, **kwargs) for receiver in self._receivers]
 
     def sendby(self, executor, sender, **kwargs):
-        return [
-            executor(receiver, sender, **kwargs)
-            for receiver in self._receivers
-        ]
+        return [executor(receiver, sender, **kwargs) for receiver in self._receivers]
 
     def receiver(self, func):
         self.connect(func)

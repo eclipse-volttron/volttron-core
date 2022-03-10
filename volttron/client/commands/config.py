@@ -3,8 +3,7 @@ import argparse
 
 def main():
     global verbose, prompt_vhome
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--vhome", help="Path to volttron home")
     parser.add_argument(
@@ -38,8 +37,7 @@ def main():
         "--secure-agent-users",
         action="store_true",
         dest="secure_agent_users",
-        help=
-        "Require that agents run with their own users (this requires running "
+        help="Require that agents run with their own users (this requires running "
         "scripts/secure_user_permissions.sh as sudo)",
     )
 
