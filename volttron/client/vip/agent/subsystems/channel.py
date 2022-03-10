@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import functools
 import logging
 import random
@@ -53,7 +52,6 @@ from .base import SubsystemBase
 
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.WARN)
-
 
 __all__ = ['Channel']
 
@@ -98,6 +96,7 @@ class Channel(SubsystemBase):
                 message[0] = name
                 # _log.debug(f"Sending vip through channel {message}")
                 vip_sock.send_vip(peer, 'channel', message, copy=False)
+
         core.onstart.connect(start, self)
 
         def stop(sender, **kwargs):
@@ -150,8 +149,8 @@ class Channel(SubsystemBase):
 
         if name is None:
             while True:
-                name = ''.join(random.choice(string.printable[:-5])
-                               for i in range(30))
+                name = ''.join(
+                    random.choice(string.printable[:-5]) for i in range(30))
                 channel = (peer, name)
                 if channel not in self._channels:
                     break
@@ -162,7 +161,8 @@ class Channel(SubsystemBase):
         _log.debug(f"Connecting to channel {channel}")
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1
-        sock.identity = ident = f'{hash(channel)}s.{hash(sock)}s'.encode('utf-8')
+        sock.identity = ident = f'{hash(channel)}s.{hash(sock)}s'.encode(
+            'utf-8')
         sockref = weakref.ref(sock, self._destroy)
         object.__setattr__(sock, 'peer', peer)
         object.__setattr__(sock, 'name', name)

@@ -9,6 +9,7 @@ def meh():
 
 
 class ExampleAgent(Agent):
+
     @Core.receiver("onsetup")
     def setup(self, sender, **kwargs):
         self.vip.rpc.export(self.foo)
@@ -28,8 +29,7 @@ class ExampleAgent(Agent):
     def onmessage(self, peer, sender, bus, topic, headers, message):
         print(
             "received: peer=%r, sender=%r, bus=%r, topic=%r, headers=%r, message=%r"
-            % (peer, sender, bus, topic, headers, message)
-        )
+            % (peer, sender, bus, topic, headers, message))
 
     @Core.receiver("onstop")
     def stopping(self, sender, **kwargs):
@@ -78,10 +78,9 @@ if __name__ == "__main__":
     print(agent.vip.rpc.call("example", "hello.inspect").get(timeout=3))
     print("4  ===========================")
     print(
-        agent.vip.pubsub.publish(
-            "example", "this/topic/here", {"key": "value"}, "Are you the Walrus?"
-        ).get(timeout=3)
-    )
+        agent.vip.pubsub.publish("example", "this/topic/here", {
+            "key": "value"
+        }, "Are you the Walrus?").get(timeout=3))
     print("5  ===========================")
     sock = agent.vip.channel("example", "testing")
     sock.send("Oh say can you see?")

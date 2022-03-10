@@ -6,6 +6,7 @@ from volttron.client.vip.agent import Agent as BaseAgent
 
 
 class ControlConnection(object):
+
     def __init__(self, address, peer="control"):
         self.address = address
         self.peer = peer
@@ -28,9 +29,8 @@ class ControlConnection(object):
         return self._server
 
     def call(self, method, *args, **kwargs):
-        return self.server.vip.rpc.call(
-            self.peer, method, *args, **kwargs
-        ).get(timeout=20)
+        return self.server.vip.rpc.call(self.peer, method, *args,
+                                        **kwargs).get(timeout=20)
 
     def call_no_get(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs)

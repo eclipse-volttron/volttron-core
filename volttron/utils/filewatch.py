@@ -63,16 +63,14 @@ class VolttronHomeFileReloader(PatternMatchingEventHandler):
     """
 
     def __init__(self, filetowatch, callback):
-        super(VolttronHomeFileReloader, self).__init__(
-            [f"{cc.get_volttron_home()}/{filetowatch}"]
-        )
+        super(VolttronHomeFileReloader,
+              self).__init__([f"{cc.get_volttron_home()}/{filetowatch}"])
         _log.debug(f"patterns is {cc.get_volttron_home()}/{filetowatch}")
         self._callback = callback
 
     def on_any_event(self, event):
-        _log.debug(
-            "Calling callback on event {}. Calling {}".format(event, self._callback)
-        )
+        _log.debug("Calling callback on event {}. Calling {}".format(
+            event, self._callback))
         try:
             self._callback()
         except BaseException as e:
@@ -98,9 +96,8 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
         return self._filetowatch
 
     def on_any_event(self, event):
-        _log.debug(
-            "Calling callback on event {}. Calling {}".format(event, self._callback)
-        )
+        _log.debug("Calling callback on event {}. Calling {}".format(
+            event, self._callback))
         try:
             self._callback(self._filetowatch)
         except BaseException as e:

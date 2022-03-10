@@ -44,9 +44,7 @@ import struct
 
 from volttron.utils import jsonapi
 
-
 _log = logging.getLogger(__name__)
-
 
 # python 3.8 formatting errors with utf-8 encoding.  The ISO-8859-1 is equivilent to latin-1
 ENCODE_FORMAT = "ISO-8859-1"

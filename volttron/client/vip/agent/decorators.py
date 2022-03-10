@@ -36,12 +36,10 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import functools
 from types import MethodType
 
 import gevent
-
 
 __all__ = ["annotate", "annotations", "dualmethod", "spawn"]
 

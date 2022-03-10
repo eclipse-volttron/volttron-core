@@ -70,8 +70,7 @@ from zmq import green
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(
-    zmq.Context.instance().underlying
-)
+    zmq.Context.instance().underlying)
 from volttron.server import aip, __version__
 
 # Link to the volttron-client library
@@ -80,7 +79,6 @@ from volttron.utils.keystore import decode_key, encode_key
 # from .vip.router import *
 # from .vip.socket import decode_key, encode_key, Address
 # from .vip.tracking import Tracker
-
 
 from volttron.client.known_identities import (
     PLATFORM_WEB,
@@ -96,7 +94,6 @@ from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.utils.persistance import load_create_store
 
 from .tracking import Tracker
-
 
 # TODO rmq
 # from .vip.rmq_router import RMQRouter
@@ -126,8 +123,7 @@ from .log_actions import log_to_file, configure_logging, LogLevelAction
 from . import server_argparser as config
 
 _log = logging.getLogger(
-    os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__
-)
+    os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
 # Only show debug on the platform when really necessary!
 # log_level_info = (
@@ -211,12 +207,10 @@ def start_volttron_process(opts):
 
     if opts.web_ssl_key and not opts.web_ssl_cert:
         raise Exception(
-            "If web-ssl-key is specified web-ssl-cert MUST be specified."
-        )
+            "If web-ssl-key is specified web-ssl-cert MUST be specified.")
     if opts.web_ssl_cert and not opts.web_ssl_key:
         raise Exception(
-            "If web-ssl-cert is specified web-ssl-key MUST be specified."
-        )
+            "If web-ssl-cert is specified web-ssl-key MUST be specified.")
 
     if opts.web_ca_cert:
         assert os.path.isfile(opts.web_ca_cert), "web_ca_cert does not exist!"
@@ -252,8 +246,7 @@ def start_volttron_process(opts):
                     "zmq https requires a web-ssl-key and a web-ssl-cert file."
                 )
             if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(
-                opts.web_ssl_cert
-            ):
+                    opts.web_ssl_cert):
                 raise Exception(
                     "zmq https requires a web-ssl-key and a web-ssl-cert file."
                 )
@@ -270,8 +263,7 @@ def start_volttron_process(opts):
                 "volttron-central-address must begin with tcp, amqp, amqps, http or https."
             )
         opts.volttron_central_address = config.expandall(
-            opts.volttron_central_address
-        )
+            opts.volttron_central_address)
     opts.volttron_central_serverkey = opts.volttron_central_serverkey
 
     # Log configuration options
@@ -322,7 +314,11 @@ def start_volttron_process(opts):
         entry = AuthEntry(
             credentials=encode_key(publickey),
             user_id="platform",
-            capabilities=[{"edit_config_store": {"identity": "/.*/"}}],
+            capabilities=[{
+                "edit_config_store": {
+                    "identity": "/.*/"
+                }
+            }],
             comments="Automatically added by platform on start",
         )
         AuthFile().add(entry, overwrite=True)
@@ -337,13 +333,16 @@ def start_volttron_process(opts):
     control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
     os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
     ks_control_conn = KeyStore(
-        KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
-    )
+        KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
     entry = AuthEntry(
         credentials=encode_key(decode_key(ks_control_conn.public)),
         user_id=CONTROL_CONNECTION,
         capabilities=[
-            {"edit_config_store": {"identity": "/.*/"}},
+            {
+                "edit_config_store": {
+                    "identity": "/.*/"
+                }
+            },
             "allow_auth_modifications",
         ],
         comments="Automatically added by platform on start",
@@ -352,29 +351,25 @@ def start_volttron_process(opts):
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
-    zmq.Context.instance()  # DO NOT REMOVE LINE!!
+    zmq.Context.instance()    # DO NOT REMOVE LINE!!
     # zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
 
     tracker = Tracker()
-    protected_topics_file = os.path.join(
-        opts.volttron_home, "protected_topics.json"
-    )
+    protected_topics_file = os.path.join(opts.volttron_home,
+                                         "protected_topics.json")
     _log.debug("protected topics file %s", protected_topics_file)
-    external_address_file = os.path.join(
-        opts.volttron_home, "external_address.json"
-    )
+    external_address_file = os.path.join(opts.volttron_home,
+                                         "external_address.json")
     _log.debug("external_address_file file %s", external_address_file)
     protected_topics = {}
     if opts.agent_monitor_frequency:
         try:
             int(opts.agent_monitor_frequency)
         except ValueError as e:
-            raise ValueError(
-                "agent-monitor-frequency should be integer "
-                "value. Units - seconds. This determines how "
-                "often the platform checks for any crashed agent "
-                "and attempts to restart. {}".format(e)
-            )
+            raise ValueError("agent-monitor-frequency should be integer "
+                             "value. Units - seconds. This determines how "
+                             "often the platform checks for any crashed agent "
+                             "and attempts to restart. {}".format(e))
 
     # Allows registration agents to callbacks for peers
     notifier = ServicePeerNotifier()
@@ -445,11 +440,8 @@ def start_volttron_process(opts):
         _log.debug(
             "********************************************************************"
         )
-        _log.debug(
-            "VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(
-                opts.message_bus
-            )
-        )
+        _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(
+            opts.message_bus))
         _log.debug(
             "********************************************************************"
         )
@@ -486,12 +478,10 @@ def start_volttron_process(opts):
 
             protected_topics = auth.get_protected_topics()
             _log.debug(
-                "MAIN: protected topics content {}".format(protected_topics)
-            )
+                "MAIN: protected topics content {}".format(protected_topics))
             # Start ZMQ router in separate thread to remain responsive
-            thread = threading.Thread(
-                target=zmq_router, args=(config_store.core.stop,)
-            )
+            thread = threading.Thread(target=zmq_router,
+                                      args=(config_store.core.stop,))
             thread.daemon = True
             thread.start()
 
@@ -527,9 +517,8 @@ def start_volttron_process(opts):
                 message_bus=opts.message_bus,
             )
 
-            thread = threading.Thread(
-                target=rmq_router, args=(config_store.core.stop,)
-            )
+            thread = threading.Thread(target=rmq_router,
+                                      args=(config_store.core.stop,))
             thread.daemon = True
             thread.start()
 
@@ -613,13 +602,11 @@ def start_volttron_process(opts):
         instances[opts.volttron_home] = this_instance
         instances.async_sync()
 
-        protected_topics_file = os.path.join(
-            opts.volttron_home, "protected_topics.json"
-        )
+        protected_topics_file = os.path.join(opts.volttron_home,
+                                             "protected_topics.json")
         _log.debug("protected topics file %s", protected_topics_file)
-        external_address_file = os.path.join(
-            opts.volttron_home, "external_address.json"
-        )
+        external_address_file = os.path.join(opts.volttron_home,
+                                             "external_address.json")
         _log.debug("external_address_file file %s", external_address_file)
 
         # Launch additional services and wait for them to start before
@@ -636,24 +623,28 @@ def start_volttron_process(opts):
                 message_bus=opts.message_bus,
                 agent_monitor_frequency=opts.agent_monitor_frequency,
             ),
-            # TODO Key discovery agent add in.
-            # KeyDiscoveryAgent(
-            #     address=address,
-            #     serverkey=publickey,
-            #     identity=KEY_DISCOVERY,
-            #     external_address_config=external_address_file,
-            #     setup_mode=opts.setup_mode,
-            #     bind_web_address=opts.bind_web_address,
-            #     enable_store=False,
-            #     message_bus="zmq",
-            # ),
+        # TODO Key discovery agent add in.
+        # KeyDiscoveryAgent(
+        #     address=address,
+        #     serverkey=publickey,
+        #     identity=KEY_DISCOVERY,
+        #     external_address_config=external_address_file,
+        #     setup_mode=opts.setup_mode,
+        #     bind_web_address=opts.bind_web_address,
+        #     enable_store=False,
+        #     message_bus="zmq",
+        # ),
         ]
 
         entry = AuthEntry(
             credentials=services[0].core.publickey,
             user_id=CONTROL,
             capabilities=[
-                {"edit_config_store": {"identity": "/.*/"}},
+                {
+                    "edit_config_store": {
+                        "identity": "/.*/"
+                    }
+                },
                 "allow_auth_modifications",
             ],
             comments="Automatically added by platform on start",
@@ -675,14 +666,9 @@ def start_volttron_process(opts):
                 _update_config_file()
 
             if opts.message_bus == "rmq":
-                if (
-                    opts.web_ssl_key is None
-                    or opts.web_ssl_cert is None
-                    or (
-                        not os.path.isfile(opts.web_ssl_key)
-                        and not os.path.isfile(opts.web_ssl_cert)
-                    )
-                ):
+                if (opts.web_ssl_key is None or opts.web_ssl_cert is None
+                        or (not os.path.isfile(opts.web_ssl_key)
+                            and not os.path.isfile(opts.web_ssl_cert))):
                     # This is different than the master.web cert which is used for the agent to connect
                     # to rmq server.  The master.web-server certificate will be used for the platform web
                     # services.
@@ -690,12 +676,10 @@ def start_volttron_process(opts):
                     from volttron.utils.certs import Certs
 
                     certs = Certs()
-                    certs.create_signed_cert_files(
-                        base_webserver_name, cert_type="server"
-                    )
+                    certs.create_signed_cert_files(base_webserver_name,
+                                                   cert_type="server")
                     opts.web_ssl_key = certs.private_key_file(
-                        base_webserver_name
-                    )
+                        base_webserver_name)
                     opts.web_ssl_cert = certs.cert_file(base_webserver_name)
 
             _log.info("Starting platform web service")
@@ -708,16 +692,15 @@ def start_volttron_process(opts):
                     volttron_central_address=opts.volttron_central_address,
                     enable_store=False,
                     message_bus=opts.message_bus,
-                    volttron_central_rmq_address=opts.volttron_central_rmq_address,
+                    volttron_central_rmq_address=opts.
+                    volttron_central_rmq_address,
                     web_ssl_key=opts.web_ssl_key,
                     web_ssl_cert=opts.web_ssl_cert,
                     web_secret_key=opts.web_secret_key,
-                )
-            )
+                ))
 
         ks_platformweb = KeyStore(
-            KeyStore.get_agent_keystore_path(PLATFORM_WEB)
-        )
+            KeyStore.get_agent_keystore_path(PLATFORM_WEB))
         entry = AuthEntry(
             credentials=encode_key(decode_key(ks_platformweb.public)),
             user_id=PLATFORM_WEB,
@@ -743,9 +726,8 @@ def start_volttron_process(opts):
             enable_store=False,
             message_bus=opts.message_bus,
         )
-        notifier.register_peer_callback(
-            health_service.peer_added, health_service.peer_dropped
-        )
+        notifier.register_peer_callback(health_service.peer_added,
+                                        health_service.peer_dropped)
         services.append(health_service)
         events = [gevent.event.Event() for service in services]
         tasks = [
@@ -811,15 +793,12 @@ def start_volttron_process(opts):
 def main(argv=sys.argv):
     # Refuse to run as root
     if not getattr(os, "getuid", lambda: -1)():
-        sys.stderr.write(
-            "%s: error: refusing to run as root to prevent "
-            "potential damage.\n" % os.path.basename(argv[0])
-        )
+        sys.stderr.write("%s: error: refusing to run as root to prevent "
+                         "potential damage.\n" % os.path.basename(argv[0]))
         sys.exit(77)
 
     volttron_home = os.path.normpath(
-        config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron"))
-    )
+        config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
     os.environ["VOLTTRON_HOME"] = volttron_home
     # Setup option parser
     parser = config.ArgumentParser(
@@ -891,9 +870,9 @@ def main(argv=sys.argv):
     # parser.add_argument(
     #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
     #    help='VOLTTRON configuration directory')
-    parser.add_argument(
-        "--show-config", action="store_true", help=argparse.SUPPRESS
-    )
+    parser.add_argument("--show-config",
+                        action="store_true",
+                        help=argparse.SUPPRESS)
     parser.add_help_argument()
     parser.add_version_argument(version="%(prog)s " + str(__version__))
 
@@ -942,7 +921,8 @@ def main(argv=sys.argv):
         "--web-ca-cert",
         metavar="CAFILE",
         default=None,
-        help="If using self-signed certificates, this variable will be set globally to allow requests"
+        help=
+        "If using self-signed certificates, this variable will be set globally to allow requests"
         "to be able to correctly reach the webserver without having to specify verify in all calls.",
     )
     agents.add_argument(
@@ -986,7 +966,8 @@ def main(argv=sys.argv):
     agents.add_argument(
         "--setup-mode",
         action="store_true",
-        help="Setup mode flag for setting up authorization of external platforms.",
+        help=
+        "Setup mode flag for setting up authorization of external platforms.",
     )
     parser.add_argument(
         "--message-bus",
@@ -1029,8 +1010,7 @@ def main(argv=sys.argv):
     #    help='user groups allowed to connect to control socket')
 
     ipc = "ipc://%s$VOLTTRON_HOME/run/" % (
-        "@" if sys.platform.startswith("linux") else ""
-    )
+        "@" if sys.platform.startswith("linux") else "")
 
     parser.set_defaults(
         log=None,
@@ -1043,29 +1023,29 @@ def main(argv=sys.argv):
         subscribe_address=ipc + "subscribe",
         vip_address=[],
         vip_local_address=ipc + "vip.socket",
-        # This is used to start the web server from the web module.
+    # This is used to start the web server from the web module.
         bind_web_address=None,
-        # Used to contact volttron central when registering volttron central
-        # platform agent.
+    # Used to contact volttron central when registering volttron central
+    # platform agent.
         volttron_central_address=None,
         volttron_central_serverkey=None,
         instance_name=None,
-        # allow_root=False,
-        # allow_users=None,
-        # allow_groups=None,
+    # allow_root=False,
+    # allow_users=None,
+    # allow_groups=None,
         verify_agents=True,
         resource_monitor=True,
-        # mobility=True,
+    # mobility=True,
         msgdebug=None,
         setup_mode=False,
-        # Type of underlying message bus to use - ZeroMQ or RabbitMQ
+    # Type of underlying message bus to use - ZeroMQ or RabbitMQ
         message_bus="zmq",
-        # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
+    # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
         volttron_central_rmq_address=None,
         web_ssl_key=None,
         web_ssl_cert=None,
         web_ca_cert=None,
-        # If we aren't using ssl then we need a secret key available for us to use.
+    # If we aren't using ssl then we need a secret key available for us to use.
         web_secret_key=None,
     )
 

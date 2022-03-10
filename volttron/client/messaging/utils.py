@@ -35,11 +35,9 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VOLTTRON platform™ messaging utilities."""
 
 from string import _string, Formatter
-
 
 __all__ = ["normtopic", "Topic"]
 
@@ -94,13 +92,18 @@ class TopicFormatter(Formatter):
     more information on formatters and the role of each method.
     """
 
-    def _vformat(
-        self, format_string, args, kwargs, used_args, recursion_depth, auto_arg_index=0
-    ):
+    def _vformat(self,
+                 format_string,
+                 args,
+                 kwargs,
+                 used_args,
+                 recursion_depth,
+                 auto_arg_index=0):
         if recursion_depth < 0:
             raise ValueError("maximum string recursion exceeded")
         result = []
-        for platformral, name, format_spec, conversion in self.parse(format_string):
+        for platformral, name, format_spec, conversion in self.parse(
+                format_string):
             if conversion in ["S", "R"]:
                 optional = True
                 conversion = conversion.lower()
@@ -136,8 +139,7 @@ class TopicFormatter(Formatter):
             else:
                 obj = self.convert_field(obj, conversion)
                 format_spec, auto_arg_index = self._vformat(
-                    format_spec, args, kwargs, used_args, recursion_depth - 1
-                )
+                    format_spec, args, kwargs, used_args, recursion_depth - 1)
                 obj = self.format_field(obj, format_spec)
             result.append(obj)
         return "".join(result), auto_arg_index
@@ -149,6 +151,7 @@ class TopicFormatter(Formatter):
 
 
 class Topic(str):
+
     def __init__(self, format_string):
         """Perform minimal validation of names used in format fields."""
         for _, name, _, _ in _string.formatter_parser(format_string):
@@ -156,10 +159,8 @@ class Topic(str):
                 continue
             name, _ = _string.formatter_field_name_split(name)
             if isinstance(name, int) or not name:
-                raise ValueError(
-                    "positional format fields are not supported;"
-                    " use named format fields only"
-                )
+                raise ValueError("positional format fields are not supported;"
+                                 " use named format fields only")
             if name[:1].isdigit():
                 raise ValueError("invalid format field name: {}".format(name))
 
@@ -177,7 +178,8 @@ class Topic(str):
         return formatter.vformat(self, (), kwargs)
 
     def __repr__(self):
-        return "{}({})".format(self.__class__.__name__, super(Topic, self).__repr__())
+        return "{}({})".format(self.__class__.__name__,
+                               super(Topic, self).__repr__())
 
 
 class Header(str):

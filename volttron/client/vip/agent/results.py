@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import random
 from weakref import WeakValueDictionary
 
@@ -62,6 +61,7 @@ def counter(start=None, minimum=0, maximum=sys.maxsize - 1):
 
 
 class ResultsDictionary(WeakValueDictionary):
+
     def __init__(self):
         WeakValueDictionary.__init__(self)
         self._counter = counter()
