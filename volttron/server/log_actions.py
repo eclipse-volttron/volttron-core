@@ -4,13 +4,19 @@ import logging
 from volttron.utils.logging import AgentFormatter
 
 
-def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandler):
+def log_to_file(file_,
+                level=logging.WARNING,
+                handler_class=logging.StreamHandler):
     """
     Direct log output to a file (or something like one).
     """
     handler = handler_class(file_)
     handler.setLevel(level)
-    handler.setFormatter(AgentFormatter(fmt="%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"))
+    handler.setFormatter(
+        AgentFormatter(
+            fmt=
+            "%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"
+        ))
     root = logging.getLogger()
     if root.level < level:
         root.setLevel(level)
@@ -110,8 +116,7 @@ class LogLevelAction(argparse.Action):
                 logger_name, level_name = pair.rsplit(":", 1)
             except (ValueError, TypeError):
                 raise argparse.ArgumentError(
-                    self, "invalid log level pair: {}".format(values)
-                )
+                    self, "invalid log level pair: {}".format(values))
             try:
                 level = int(level_name)
             except (ValueError, TypeError):
@@ -119,7 +124,6 @@ class LogLevelAction(argparse.Action):
                     level = getattr(logging, level_name)
                 except AttributeError:
                     raise argparse.ArgumentError(
-                        self, "invalid log level {!r}".format(level_name)
-                    )
+                        self, "invalid log level {!r}".format(level_name))
             logger = logging.getLogger(logger_name)
             logger.setLevel(level)

@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import logging
 import os
 
@@ -46,7 +45,6 @@ from volttron.utils import get_address
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.client.vip.agent import Agent
 from volttron.client.vip.agent.connection import Connection
-
 
 _log = logging.getLogger(__name__)
 
@@ -65,33 +63,27 @@ def get_server_keys():
     except IOError as e:
         raise RuntimeError(
             "Exception accessing server keystore. Agents must use agent's public and private key"
-            "to build dynamic agents when running in secure mode. Exception:{}".format(
-                e
-            )
-        )
+            "to build dynamic agents when running in secure mode. Exception:{}"
+            .format(e))
 
     return ks.public, ks.secret
 
 
-def build_connection(
-    identity,
-    peer="",
-    address=None,
-    publickey=None,
-    secretkey=None,
-    message_bus=None,
-    **kwargs
-):
+def build_connection(identity,
+                     peer="",
+                     address=None,
+                     publickey=None,
+                     secretkey=None,
+                     message_bus=None,
+                     **kwargs):
     address = address if address is not None else get_address()
     if publickey is None or secretkey is None:
         publickey, secretkey = get_server_keys(publickey, secretkey)
-    cn = Connection(
-        address=address,
-        identity=identity,
-        peer=peer,
-        publickey=publickey,
-        secretkey=secretkey,
-        message_bus=message_bus,
-        **kwargs
-    )
+    cn = Connection(address=address,
+                    identity=identity,
+                    peer=peer,
+                    publickey=publickey,
+                    secretkey=secretkey,
+                    message_bus=message_bus,
+                    **kwargs)
     return cn

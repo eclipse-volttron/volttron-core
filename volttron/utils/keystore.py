@@ -39,8 +39,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 # }}}
-
-
 """Module for storing local public and secret keys and remote public keys"""
 import base64
 import binascii
@@ -53,7 +51,6 @@ from zmq import curve_keypair
 
 from . import jsonapi, ClientContext as cc
 from .file_access import create_file_if_missing
-
 
 _log = logging.getLogger(__name__)
 
@@ -68,10 +65,8 @@ def get_server_keys():
     except IOError as e:
         raise RuntimeError(
             "Exception accessing server keystore. Agents must use agent's public and private key"
-            "to build dynamic agents when running in secure mode. Exception:{}".format(
-                e
-            )
-        )
+            "to build dynamic agents when running in secure mode. Exception:{}"
+            .format(e))
 
     return ks.public, ks.secret
 
@@ -105,8 +100,8 @@ def encode_key(key):
         assert len(key) in (32, 40)
     except AssertionError:
         raise AssertionError(
-            "Assertion error while encoding key:{}, len:{}".format(key, len(key))
-        )
+            "Assertion error while encoding key:{}, len:{}".format(
+                key, len(key)))
     if len(key) == 40:
         key = z85.decode(key)
     return base64.urlsafe_b64encode(key)[:-1].decode("ASCII")
@@ -149,7 +144,8 @@ class BaseJSONStore(object):
             import traceback
 
             _log.error(traceback.print_exc())
-            raise RuntimeError("Failed to access KeyStore: {}".format(filename))
+            raise RuntimeError(
+                "Failed to access KeyStore: {}".format(filename))
 
     def store(self, data):
         fd = os.open(
@@ -189,18 +185,19 @@ class BaseJSONStore(object):
 class KeyStore(BaseJSONStore):
     """Handle generation, storage, and retrival of CURVE key pairs"""
 
-    def __init__(self, filename=None, encoded_public=None, encoded_secret=None):
+    def __init__(self,
+                 filename=None,
+                 encoded_public=None,
+                 encoded_secret=None):
         if filename is None:
             filename = self.get_default_path()
         super(KeyStore, self).__init__(filename)
         if not self.isvalid():
             if encoded_public and encoded_secret:
-                self.store(
-                    {
-                        "public": encoded_public,
-                        "secret": encode_key(encoded_secret),
-                    }
-                )
+                self.store({
+                    "public": encoded_public,
+                    "secret": encode_key(encoded_secret),
+                })
             else:
                 _log.debug("calling generate from keystore")
                 self.generate()
@@ -213,9 +210,8 @@ class KeyStore(BaseJSONStore):
     def get_agent_keystore_path(identity=None):
         if identity is None:
             raise AttributeError("invalid identity")
-        return os.path.join(
-            cc.get_volttron_home(), f"keystores/{identity}/keystore.json"
-        )
+        return os.path.join(cc.get_volttron_home(),
+                            f"keystores/{identity}/keystore.json")
 
     @staticmethod
     def generate_keypair_dict():
@@ -229,7 +225,8 @@ class KeyStore(BaseJSONStore):
         done = False
         while not done and attempts < max_attempts:
             # Keys that start with '-' are hard to use and cause issues with the platform
-            if encoded_secret.startswith("-") or encoded_public.startswith("-"):
+            if encoded_secret.startswith("-") or encoded_public.startswith(
+                    "-"):
                 # try generating public and secret key again
                 public, secret = curve_keypair()
                 encoded_public = encode_key(public)
@@ -258,9 +255,7 @@ class KeyStore(BaseJSONStore):
             except UnicodeEncodeError:
                 _log.warning(
                     "Non-ASCII character found for key {} in {}".format(
-                        keyname, self.filename
-                    )
-                )
+                        keyname, self.filename))
                 key = None
         return key
 

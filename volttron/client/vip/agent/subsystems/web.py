@@ -83,14 +83,17 @@ class WebSubSystem(SubsystemBase):
         core.onsetup.connect(onsetup, self)
 
     def get_user_claims(self, bearer):
-        return self._rpc().call(PLATFORM_WEB, "get_user_claims", bearer).get(timeout=10)
+        return self._rpc().call(PLATFORM_WEB, "get_user_claims",
+                                bearer).get(timeout=10)
 
     def unregister_all_routes(self):
-        self._rpc().call(PLATFORM_WEB, "unregister_all_agent_routes").get(timeout=10)
+        self._rpc().call(PLATFORM_WEB,
+                         "unregister_all_agent_routes").get(timeout=10)
 
-    def register_endpoint(
-        self, endpoint, callback, res_type: ResourceType = ResourceType.JSONRPC
-    ):
+    def register_endpoint(self,
+                          endpoint,
+                          callback,
+                          res_type: ResourceType = ResourceType.JSONRPC):
         """
         The :meth:`register_endpoint` method registers an endpoint with the
         :param res_type:
@@ -118,9 +121,8 @@ class WebSubSystem(SubsystemBase):
         self._endpoints[endpoint] = callback
         if isinstance(res_type, ResourceType):
             res_type = res_type.value
-        self._rpc().call(PLATFORM_WEB, "register_endpoint", endpoint, res_type).get(
-            timeout=10
-        )
+        self._rpc().call(PLATFORM_WEB, "register_endpoint", endpoint,
+                         res_type).get(timeout=10)
 
     def register_path(self, prefix, static_path):
         """
@@ -136,12 +138,16 @@ class WebSubSystem(SubsystemBase):
         :type prefix: str
         :type static_path: str
         """
-        _log.info("Registering path prefix: {}, path: {}".format(prefix, static_path))
-        self._rpc().call(PLATFORM_WEB, "register_path_route", prefix, static_path).get(
-            timeout=10
-        )
+        _log.info("Registering path prefix: {}, path: {}".format(
+            prefix, static_path))
+        self._rpc().call(PLATFORM_WEB, "register_path_route", prefix,
+                         static_path).get(timeout=10)
 
-    def register_websocket(self, endpoint, opened=None, closed=None, received=None):
+    def register_websocket(self,
+                           endpoint,
+                           opened=None,
+                           closed=None,
+                           received=None):
         """
         The :meth:`register_websocket` method registers a websocket endpoint
         that can be connected to through the
@@ -185,10 +191,12 @@ class WebSubSystem(SubsystemBase):
         """
         _log.info("Agent registering websocket at: {}".format(endpoint))
         self._ws_endpoint[endpoint] = (opened, closed, received)
-        self._rpc().call(PLATFORM_WEB, "register_websocket", endpoint).get(timeout=5)
+        self._rpc().call(PLATFORM_WEB, "register_websocket",
+                         endpoint).get(timeout=5)
 
     def unregister_websocket(self, endpoint):
-        self._rpc().call(PLATFORM_WEB, "unregister_websocket", endpoint).get(timeout=5)
+        self._rpc().call(PLATFORM_WEB, "unregister_websocket",
+                         endpoint).get(timeout=5)
 
     def send(self, endpoint, message=""):
         """
@@ -204,9 +212,8 @@ class WebSubSystem(SubsystemBase):
         :type endpoint: str
         :type message: str
         """
-        self._rpc().call(PLATFORM_WEB, "websocket_send", endpoint, message).get(
-            timeout=5
-        )
+        self._rpc().call(PLATFORM_WEB, "websocket_send", endpoint,
+                         message).get(timeout=5)
 
     def _route_callback(self, env, data):
         fn = self._endpoints.get(env["PATH_INFO"])
@@ -217,12 +224,12 @@ class WebSubSystem(SubsystemBase):
         return None
 
     def _opened(self, fromip, endpoint):
-        _log.info(
-            "Client opened websocket ip: {} endpoint: {}".format(fromip, endpoint)
-        )
+        _log.info("Client opened websocket ip: {} endpoint: {}".format(
+            fromip, endpoint))
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
-            _log.error("Websocket endpoint {} is not available".format(endpoint))
+            _log.error(
+                "Websocket endpoint {} is not available".format(endpoint))
         else:
             if callbacks[0]:
                 return callbacks[0](fromip, endpoint)
@@ -234,7 +241,8 @@ class WebSubSystem(SubsystemBase):
 
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
-            _log.error("Websocket endpoint {} is not available".format(endpoint))
+            _log.error(
+                "Websocket endpoint {} is not available".format(endpoint))
         else:
             if callbacks[1]:
                 callbacks[1](endpoint)
@@ -243,7 +251,8 @@ class WebSubSystem(SubsystemBase):
 
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
-            _log.error("Websocket endpoint {} is not available".format(endpoint))
+            _log.error(
+                "Websocket endpoint {} is not available".format(endpoint))
         else:
             if callbacks[2]:
                 callbacks[2](endpoint, message)

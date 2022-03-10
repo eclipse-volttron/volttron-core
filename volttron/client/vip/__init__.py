@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VIP - VOLTTRON™ Interconnect Protocol implementation
 
 See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html

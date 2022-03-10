@@ -37,10 +37,16 @@ class PersistentDict(dict):
     _event_queue = Queue()
     _process_thread = None
 
-    def __init__(self, filename, flag="c", mode=None, format="pickle", *args, **kwds):
-        self.flag = flag  # r=readonly, c=create, or n=new
-        self.mode = mode  # None or an octal triple like 0644
-        self.format = format  # 'csv', 'json', or 'pickle'
+    def __init__(self,
+                 filename,
+                 flag="c",
+                 mode=None,
+                 format="pickle",
+                 *args,
+                 **kwds):
+        self.flag = flag    # r=readonly, c=create, or n=new
+        self.mode = mode    # None or an octal triple like 0644
+        self.format = format    # 'csv', 'json', or 'pickle'
         self.filename = filename
         if flag != "n" and os.access(filename, os.R_OK):
             fileobj = open(filename, "rb" if format == "pickle" else "r")
@@ -48,9 +54,10 @@ class PersistentDict(dict):
                 self._load(fileobj)
 
         if PersistentDict._process_thread is None:
-            PersistentDict._process_thread = Thread(target=PersistentDict._process_loop)
+            PersistentDict._process_thread = Thread(
+                target=PersistentDict._process_loop)
             PersistentDict._process_thread.daemon = (
-                True  # Don't wait on thread to exit.
+                True    # Don't wait on thread to exit.
             )
             PersistentDict._process_thread.start()
 
@@ -72,15 +79,15 @@ class PersistentDict(dict):
         """Write dict to disk"""
         if self.flag == "r":
             return
-        PersistentDict._update_file(self.filename, self, self.format, self.mode)
+        PersistentDict._update_file(self.filename, self, self.format,
+                                    self.mode)
 
     def async_sync(self):
         """Write dict to disk via worker thread. Don't mix with sync if it can be helped"""
         if self.flag == "r":
             return
         PersistentDict._event_queue.put(
-            (self.filename, deepcopy(self), self.format, self.mode)
-        )
+            (self.filename, deepcopy(self), self.format, self.mode))
 
     @staticmethod
     def _update_file(filename, contents, format, mode):
@@ -102,7 +109,7 @@ class PersistentDict(dict):
         finally:
             fileobj.close()
         if os.path.exists(tempname):
-            shutil.move(tempname, filename)  # atomic commit
+            shutil.move(tempname, filename)    # atomic commit
 
         if mode is not None:
             os.chmod(filename, mode)
@@ -125,7 +132,8 @@ class PersistentDict(dict):
         elif format == "pickle":
             pickle.dump(dict(contents), fileobj, 2)
         else:
-            raise NotImplementedError("Unknown format: " + repr(PersistentDict.format))
+            raise NotImplementedError("Unknown format: " +
+                                      repr(PersistentDict.format))
 
     def _load(self, fileobj):
         # try formats from most restrictive to least restrictive

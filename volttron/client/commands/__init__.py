@@ -35,8 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
-
 """ Core package."""
 from gevent import monkey
 
@@ -54,7 +52,6 @@ from urllib.parse import urlparse
 
 from volttron.utils import jsonapi
 from volttron.utils.frozendict import FrozenDict
-
 
 _log = logging.getLogger(__name__)
 
@@ -78,169 +75,157 @@ pyproject = toml.load(tomle_file)
 
 __version__ = pyproject["tool"]["poetry"]["version"]
 
-
 # def get_volttron_root():
 #     """
 #     Returns the root folder where the volttron code base resideds on disk.
 
-#     :return: absolute path to root folder
-#     """
-#     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    #     :return: absolute path to root folder
+    #     """
+    #     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+    # def get_volttron_data():
+    #     root = get_volttron_root()
+    #     return os.path.join(root, "volttron_data")
 
-# def get_volttron_data():
-#     root = get_volttron_root()
-#     return os.path.join(root, "volttron_data")
+    # def get_services_core(agent_dir=None):
+    #     root = get_volttron_root()
+    #     services_core = os.path.join(root, "services/core")
+    #     if not agent_dir:
+    #         return services_core
+    #     return os.path.join(services_core, agent_dir)
 
+    # def get_ops(agent_dir=None):
+    #     root = get_volttron_root()
+    #     ops_dir = os.path.join(root, "services/ops")
+    #     if not agent_dir:
+    #         return ops_dir
+    #     return os.path.join(ops_dir, agent_dir)
 
-# def get_services_core(agent_dir=None):
-#     root = get_volttron_root()
-#     services_core = os.path.join(root, "services/core")
-#     if not agent_dir:
-#         return services_core
-#     return os.path.join(services_core, agent_dir)
+    # def get_examples(agent_dir):
+    #     root = get_volttron_root()
+    #     examples_dir = os.path.join(root, "examples")
+    #     if not agent_dir:
+    #         return examples_dir
+    #     return os.path.join(examples_dir, agent_dir)
 
+    # def is_instance_running(volttron_home=None):
 
-# def get_ops(agent_dir=None):
-#     root = get_volttron_root()
-#     ops_dir = os.path.join(root, "services/ops")
-#     if not agent_dir:
-#         return ops_dir
-#     return os.path.join(ops_dir, agent_dir)
+    #     if volttron_home is None:
+    #         volttron_home = get_home()
 
+    #     instance_file = os.path.expanduser("~/.volttron_instances")
+    #     if not os.path.isfile(instance_file):
+    #         return False
 
-# def get_examples(agent_dir):
-#     root = get_volttron_root()
-#     examples_dir = os.path.join(root, "examples")
-#     if not agent_dir:
-#         return examples_dir
-#     return os.path.join(examples_dir, agent_dir)
+    #     with open(instance_file, "r") as fp:
+    #         jsonobj = jsonapi.loads(fp.read())
 
+    #     if volttron_home not in jsonobj:
+    #         return False
 
-# def is_instance_running(volttron_home=None):
+    #     obj = jsonobj[volttron_home]
+    #     pid = obj.get("pid", None)
 
-#     if volttron_home is None:
-#         volttron_home = get_home()
+    #     if not pid:
+    #         return False
 
-#     instance_file = os.path.expanduser("~/.volttron_instances")
-#     if not os.path.isfile(instance_file):
-#         return False
+    #     return psutil.pid_exists(pid)
 
-#     with open(instance_file, "r") as fp:
-#         jsonobj = jsonapi.loads(fp.read())
+    # def is_rabbitmq_available():
+    #     rabbitmq_available = True
+    #     try:
+    #         import pika
 
-#     if volttron_home not in jsonobj:
-#         return False
+    #         rabbitmq_available = True
+    #     except ImportError:
+    #         os.environ["RABBITMQ_NOT_AVAILABLE"] = "True"
+    #         rabbitmq_available = False
+    #     return rabbitmq_available
 
-#     obj = jsonobj[volttron_home]
-#     pid = obj.get("pid", None)
+    # __config__ = None
 
-#     if not pid:
-#         return False
+    # def get_platform_config():
+    #     global __config__
+    #     if os.environ.get("VOLTTRON_HOME") is None:
+    #         raise Exception("VOLTTRON_HOME must be specified before calling this function.")
 
-#     return psutil.pid_exists(pid)
+    #     if __config__ is None:
+    #         __config__ = FrozenDict()
+    #         volttron_home = get_home()
+    #         config_file = os.path.join(volttron_home, "config")
+    #         if os.path.exists(config_file):
+    #             parser = ConfigParser()
+    #             parser.read(config_file)
+    #             options = parser.options("volttron")
+    #             for option in options:
+    #                 __config__[option] = parser.get("volttron", option)
+    #             __config__.freeze()
+    #     return __config__
 
+    # def update_platform_config(values: dict) -> None:
+    #     global __config__
 
-# def is_rabbitmq_available():
-#     rabbitmq_available = True
-#     try:
-#         import pika
+    #     if __config__ is None:
+    #         cfg = get_platform_config()
+    #     else:
+    #         cfg = __config__
+    #         # Make sure we can update items
+    #         cfg._frozen = False
 
-#         rabbitmq_available = True
-#     except ImportError:
-#         os.environ["RABBITMQ_NOT_AVAILABLE"] = "True"
-#         rabbitmq_available = False
-#     return rabbitmq_available
+    #     cfg.update(values)
 
+    #     config_file = get_config_path()
+    #     with open(config_file, "w") as fp:
+    #         p = ConfigParser()
+    #         p.add_section("volttron")
+    #         for k, v in cfg.items():
+    #             p.set("volttron", k, v)
 
-# __config__ = None
+    #         cfg.freeze()
+    #         p.write(fp)
 
+    #     return get_platform_config()
 
-# def get_platform_config():
-#     global __config__
-#     if os.environ.get("VOLTTRON_HOME") is None:
-#         raise Exception("VOLTTRON_HOME must be specified before calling this function.")
+    # def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
+    #     """Build a full vip address string based upon the passed arguments
 
-#     if __config__ is None:
-#         __config__ = FrozenDict()
-#         volttron_home = get_home()
-#         config_file = os.path.join(volttron_home, "config")
-#         if os.path.exists(config_file):
-#             parser = ConfigParser()
-#             parser.read(config_file)
-#             options = parser.options("volttron")
-#             for option in options:
-#                 __config__[option] = parser.get("volttron", option)
-#             __config__.freeze()
-#     return __config__
+    #     All arguments are required to be non-None in order for the string to be
+    #     created successfully.
 
+    #     :raises ValueError if one of the parameters is None.
+    #     """
+    #     _log.debug(
+    #         "root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
+    #             vip_root, serverkey, publickey, secretkey
+    #         )
+    #     )
+    #     parsed = urlparse(vip_root)
+    #     if parsed.scheme == "tcp":
+    #         if not (serverkey and publickey and secretkey and vip_root):
+    #             raise ValueError("All parameters must be entered.")
 
-# def update_platform_config(values: dict) -> None:
-#     global __config__
+    #         root = "{}?serverkey={}&publickey={}&secretkey={}".format(
+    #             vip_root, serverkey, publickey, secretkey
+    #         )
 
-#     if __config__ is None:
-#         cfg = get_platform_config()
-#     else:
-#         cfg = __config__
-#         # Make sure we can update items
-#         cfg._frozen = False
+    #     elif parsed.scheme == "ipc":
+    #         root = vip_root
+    #     else:
+    #         raise ValueError("Invalid vip root specified!")
 
-#     cfg.update(values)
+    #     return root
 
-#     config_file = get_config_path()
-#     with open(config_file, "w") as fp:
-#         p = ConfigParser()
-#         p.add_section("volttron")
-#         for k, v in cfg.items():
-#             p.set("volttron", k, v)
+    # def update_volttron_script_path(path: str) -> str:
+    #     """
+    #     Assumes that path's current working directory is in the root directory of the volttron codebase.
 
-#         cfg.freeze()
-#         p.write(fp)
-
-#     return get_platform_config()
-
-
-# def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
-#     """Build a full vip address string based upon the passed arguments
-
-#     All arguments are required to be non-None in order for the string to be
-#     created successfully.
-
-#     :raises ValueError if one of the parameters is None.
-#     """
-#     _log.debug(
-#         "root: {}, serverkey: {}, publickey: {}, secretkey: {}".format(
-#             vip_root, serverkey, publickey, secretkey
-#         )
-#     )
-#     parsed = urlparse(vip_root)
-#     if parsed.scheme == "tcp":
-#         if not (serverkey and publickey and secretkey and vip_root):
-#             raise ValueError("All parameters must be entered.")
-
-#         root = "{}?serverkey={}&publickey={}&secretkey={}".format(
-#             vip_root, serverkey, publickey, secretkey
-#         )
-
-#     elif parsed.scheme == "ipc":
-#         root = vip_root
-#     else:
-#         raise ValueError("Invalid vip root specified!")
-
-#     return root
-
-
-# def update_volttron_script_path(path: str) -> str:
-#     """
-#     Assumes that path's current working directory is in the root directory of the volttron codebase.
-
-#     Prepend 'VOLTTRON_ROOT' to internal volttron script if 'VOLTTRON_ROOT' is set and return new path;
-#     otherwise, return original path
-#     :param path: relative path to the internal volttron script
-#     :return: updated path to volttron script
-#     """
-#     if os.environ["VOLTTRON_ROOT"]:
-#         args = path.split("/")
-#         path = f"{os.path.join(os.environ['VOLTTRON_ROOT'], *args)}"
-#     _log.debug(f"Path to script: {path}")
-#     return path
+    #     Prepend 'VOLTTRON_ROOT' to internal volttron script if 'VOLTTRON_ROOT' is set and return new path;
+    #     otherwise, return original path
+    #     :param path: relative path to the internal volttron script
+    #     :return: updated path to volttron script
+    #     """
+    #     if os.environ["VOLTTRON_ROOT"]:
+    #         args = path.split("/")
+    #         path = f"{os.path.join(os.environ['VOLTTRON_ROOT'], *args)}"
+    #     _log.debug(f"Path to script: {path}")
+    #     return path

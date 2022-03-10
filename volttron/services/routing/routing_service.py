@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import os
 import re
 import zmq
@@ -61,8 +60,7 @@ _ROUTE_ERRORS = {
     errnum: (
         zmq.Frame(str(errnum).encode("ascii")),
         zmq.Frame(os.strerror(errnum).encode("ascii")),
-    )
-    for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
+    ) for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
 
 _log = logging.getLogger(__name__)
@@ -114,22 +112,23 @@ class RoutingService(object):
         result = False
 
         try:
-            sender, recipient, proto, usr_id, msg_id, subsystem, op = frames[:7]
+            sender, recipient, proto, usr_id, msg_id, subsystem, op = frames[:
+                                                                             7]
         except (
-            ValueError,
-            TypeError,
-        ):  # TypeError will happen if frames is not subscriptable.
+                ValueError,
+                TypeError,
+        ):    # TypeError will happen if frames is not subscriptable.
             _log.error(f"Invalid number of frames handle_subsystem {frames}")
             return False
 
         if subsystem == "routing_table":
             # If Setup mode of operation, setup authorization
             if op == "setupmode_platform_connection":
-                instance_config = frames[7]  # sonapi.loads(instance_config)
+                instance_config = frames[7]    # sonapi.loads(instance_config)
                 self._setup_authorization(instance_config)
             # If Normal mode of operation, build authorized connection
             elif op == "normalmode_platform_connection":
-                instance_config = frames[7]  # jsonapi.loads(instance_config)
+                instance_config = frames[7]    # jsonapi.loads(instance_config)
                 self._build_connection(instance_config)
                 return False
             # Respond to Hello/Welcome messages from other instances
@@ -141,14 +140,14 @@ class RoutingService(object):
                         name = frames[8]
                         frames.pop(0)
                         _log.debug(
-                            "HELLO Recieved hello, sending welcome to {}".format(name)
-                        )
+                            "HELLO Recieved hello, sending welcome to {}".
+                            format(name))
                         frames[6] = "welcome"
                         frames[7] = self._my_instance_name
                         try:
                             _log.debug(
-                                "Sending welcome message to sender {}".format(name)
-                            )
+                                "Sending welcome message to sender {}".format(
+                                    name))
                             self.send_external(name, frames)
                         except ZMQError as exc:
                             _log.error("ZMQ error: ")
@@ -156,21 +155,18 @@ class RoutingService(object):
                     elif handshake_request == "welcome":
                         name = frames[8]
                         _log.debug(
-                            "HELLO Received welcome. Connection established with: {}".format(
-                                name
-                            )
-                        )
+                            "HELLO Received welcome. Connection established with: {}"
+                            .format(name))
                         try:
                             self._instances[name]["status"] = STATUS_CONNECTED
                             self._onconnect_pubsub_handler(name)
                         except KeyError as exc:
                             _log.error(
-                                "Welcome message received from unknown platform: {}".format(
-                                    name
-                                )
-                            )
+                                "Welcome message received from unknown platform: {}"
+                                .format(name))
                 except IndexError as exc:
-                    _log.error("Insufficient frames in hello message {}".format(exc))
+                    _log.error(
+                        "Insufficient frames in hello message {}".format(exc))
             elif op == "web-addresses":
                 self._web_addresses = frames[7]
                 self._web_addresses = self._web_addresses
@@ -203,7 +199,8 @@ class RoutingService(object):
             address = instance_info["vip-address"]
             web_address = instance_info["web-address"]
         except KeyError as exc:
-            _log.error("Missing parameter in instance info message {}".format(exc))
+            _log.error(
+                "Missing parameter in instance info message {}".format(exc))
             return
 
         sock = zmq.Socket(zmq.Context(), zmq.DEALER)
@@ -238,7 +235,8 @@ class RoutingService(object):
             serverkey = instance_info["serverkey"]
             address = instance_info["vip-address"]
         except KeyError as exc:
-            _log.error("Missing parameter in instance info message {}".format(exc))
+            _log.error(
+                "Missing parameter in instance info message {}".format(exc))
             return
 
         # Return immediately if vip_address of external instance is same as self address
@@ -255,9 +253,9 @@ class RoutingService(object):
         num = random.random()
         sock.identity = f"instance.{instance_name}.{num}".encode("utf-8")
         sock.zap_domain = b"vip"
-        mon_sock = sock.get_monitor_socket(
-            zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED | zmq.EVENT_CONNECT_DELAYED
-        )
+        mon_sock = sock.get_monitor_socket(zmq.EVENT_CONNECTED |
+                                           zmq.EVENT_DISCONNECTED |
+                                           zmq.EVENT_CONNECT_DELAYED)
 
         self._poller.register(mon_sock, zmq.POLLIN)
         self._monitor_sockets.add(mon_sock)
@@ -286,18 +284,16 @@ class RoutingService(object):
         try:
             ext_platform_address.connect(sock)
             # Form VIP message to send to remote instance
-            frames = serialize_frames(
-                [
-                    "",
-                    "VIP1",
-                    "",
-                    "",
-                    "routing_table",
-                    "hello",
-                    "hello",
-                    self._my_instance_name,
-                ]
-            )
+            frames = serialize_frames([
+                "",
+                "VIP1",
+                "",
+                "",
+                "routing_table",
+                "hello",
+                "hello",
+                self._my_instance_name,
+            ])
             _log.debug(f"HELLO Sending hello to: {instance_name}")
             self.send_external(instance_name, frames)
         except zmq.error.ZMQError as ex:
@@ -313,28 +309,26 @@ class RoutingService(object):
             message = recv_monitor_message(monitor_sock)
             event = message["event"]
             instance_name = [
-                name
-                for name, instance_info in self._instances.items()
+                name for name, instance_info in self._instances.items()
                 if instance_info["monitor_socket"] == monitor_sock
             ]
 
             if event & zmq.EVENT_CONNECTED:
                 _log.debug(
-                    "CONNECTED to external platform: {}!! Sending MY subscriptions !!".format(
-                        instance_name[0]
-                    )
-                )
+                    "CONNECTED to external platform: {}!! Sending MY subscriptions !!"
+                    .format(instance_name[0]))
                 self._instances[instance_name[0]]["status"] = STATUS_CONNECTED
                 self._onconnect_pubsub_handler(instance_name[0])
             elif event & zmq.EVENT_CONNECT_DELAYED:
                 # _log.debug("ROUTINGSERVICE socket DELAYED...Lets wait")
-                self._instances[instance_name[0]]["status"] = STATUS_CONNECTION_DELAY
+                self._instances[
+                    instance_name[0]]["status"] = STATUS_CONNECTION_DELAY
             elif event & zmq.EVENT_DISCONNECTED:
-                _log.debug(
-                    "DISCONNECTED from external platform: {}. "
-                    "Subscriptions will be resent on reconnect".format(instance_name[0])
-                )
-                self._instances[instance_name[0]]["status"] = STATUS_DISCONNECTED
+                _log.debug("DISCONNECTED from external platform: {}. "
+                           "Subscriptions will be resent on reconnect".format(
+                               instance_name[0]))
+                self._instances[
+                    instance_name[0]]["status"] = STATUS_DISCONNECTED
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Trying to use a non socket {}".format(exc))
@@ -373,7 +367,8 @@ class RoutingService(object):
             mon_sock = instance_info["monitor_socket"]
             mon_sock.close()
         except KeyError as exc:
-            _log.error("Unknown external instance name: {}".format(instance_name))
+            _log.error(
+                "Unknown external instance name: {}".format(instance_name))
 
     def get_connected_platforms(self):
         """
@@ -416,9 +411,8 @@ class RoutingService(object):
                 # Send using external socket
                 success = self._send_to_socket(instance_info["socket"], frames)
             except ZMQError as exc:
-                _log.error(
-                    "Could not send to {} using new socket".format(instance_name)
-                )
+                _log.error("Could not send to {} using new socket".format(
+                    instance_name))
                 success = False
             # if not success:
             #     #Try sending through router socket
@@ -485,28 +479,22 @@ class RoutingService(object):
             routing_table = jsonapi.loads(routing_table)
             _log.debug(
                 "ROUTING SERVICE Ext routing TABLE: {0}, MY {1} ".format(
-                    routing_table, self._routing_table
-                )
-            )
+                    routing_table, self._routing_table))
             for vip_id in routing_table:
                 if vip_id in self._routing_table:
                     if vip_id != self._my_vip_id:
                         my_route_list = self._routing_table[vip_id]
                         if len(routing_table[vip_id]) > 0 and len(
-                            routing_table[vip_id]
-                        ) < len(my_route_list):
+                                routing_table[vip_id]) < len(my_route_list):
                             my_route_list = [sender]
                             self._routing_table[vip_id] = my_route_list.extend(
-                                routing_table[vip_id]
-                            )
+                                routing_table[vip_id])
                 else:
                     route_list = [sender]
                     self._routing_table[vip_id] = route_list.extend(
-                        routing_table[vip_id]
-                    )
-            _log.debug(
-                "ROUTING SERVICE my routing TABLE: {} ".format(self._routing_table)
-            )
+                        routing_table[vip_id])
+            _log.debug("ROUTING SERVICE my routing TABLE: {} ".format(
+                self._routing_table))
             return True
         else:
             return False

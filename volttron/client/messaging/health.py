@@ -40,7 +40,6 @@ import logging
 
 from volttron.utils import jsonapi, get_aware_utc_now, format_timestamp
 
-
 CURRENT_STATUS = "current_status"
 LAST_UPDATED = "utc_last_updated"
 CONTEXT = "context"
@@ -129,9 +128,9 @@ class Status(object):
 
         @return:
         """
-        cp = dict(
-            status=self.status, context=self.context, last_updated=self.last_updated
-        )
+        cp = dict(status=self.status,
+                  context=self.context,
+                  last_updated=self.last_updated)
         return cp
 
     def as_json(self):

@@ -45,7 +45,6 @@ from volttron.client.messaging import topics
 from volttron.client.messaging.headers import DATE
 from volttron.client.messaging.health import *
 from .base import SubsystemBase
-
 """
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
@@ -58,13 +57,13 @@ _log = logging.getLogger(__name__)
 
 
 class Health(SubsystemBase):
+
     def __init__(self, owner, core, rpc):
         self._owner = owner
         self._core = weakref.ref(core)
         self._rpc = weakref.ref(rpc)
         self._statusobj = Status.build(
-            STATUS_GOOD, status_changed_callback=self._status_changed
-        )
+            STATUS_GOOD, status_changed_callback=self._status_changed)
         self._status_callbacks = set()
 
         def onsetup(sender, **kwargs):
@@ -91,14 +90,15 @@ class Health(SubsystemBase):
         fq_identity = get_fq_identity(self._core().identity)
         # RMQ and other message buses can't handle '.' because it's used as the separator.  This
         # causes us to change the alert topic's agent_identity to have '_' rather than '.'.
-        topic = topics.ALERTS(
-            agent_class=agent_class, agent_identity=fq_identity.replace(".", "_")
-        )
+        topic = topics.ALERTS(agent_class=agent_class,
+                              agent_identity=fq_identity.replace(".", "_"))
         headers = dict(alert_key=alert_key)
 
         self._owner.vip.pubsub.publish(
-            "pubsub", topic=topic.format(), headers=headers, message=statusobj.as_json()
-        ).get(timeout=10)
+            "pubsub",
+            topic=topic.format(),
+            headers=headers,
+            message=statusobj.as_json()).get(timeout=10)
 
     def add_status_callback(self, fn):
         """
@@ -154,7 +154,7 @@ class Health(SubsystemBase):
             }
 
         """
-        return self._statusobj.as_dict()  # .as_json()
+        return self._statusobj.as_dict()    # .as_json()
 
     # TODO fetch status value from status object
     def get_status_value(self):

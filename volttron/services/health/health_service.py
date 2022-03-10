@@ -52,6 +52,7 @@ _log = logging.getLogger(__name__)
 
 
 class HealthService(Agent):
+
     def __init__(self, **kwargs):
         super(HealthService, self).__init__(**kwargs)
 
@@ -74,7 +75,8 @@ class HealthService(Agent):
 
     def peer_dropped(self, peer):
         # TODO: Should there be an option for  a db/log file for agents coming and going from the platform?
-        self._health_dict[peer]["disconnected"] = format_timestamp(datetime.now())
+        self._health_dict[peer]["disconnected"] = format_timestamp(
+            datetime.now())
         del self._health_dict[peer]
 
     @RPC.export
@@ -135,6 +137,6 @@ class HealthService(Agent):
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
         # Start subscribing to heartbeat topic to get updates from the health subsystem.
-        self.vip.pubsub.subscribe(
-            "pubsub", "heartbeat", callback=self._heartbeat_updates
-        )
+        self.vip.pubsub.subscribe("pubsub",
+                                  "heartbeat",
+                                  callback=self._heartbeat_updates)

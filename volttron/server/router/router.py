@@ -115,11 +115,9 @@ class Router(BaseRouter):
         for address in self.addresses:
             if not address.identity:
                 address.identity = identity
-            if (
-                address.secretkey is None
-                and address.server not in ["NULL", "PLAIN"]
-                and self._secretkey
-            ):
+            if (address.secretkey is None
+                    and address.server not in ["NULL", "PLAIN"]
+                    and self._secretkey):
                 address.server = "CURVE"
                 address.secretkey = self._secretkey
             if not address.domain:
@@ -137,9 +135,8 @@ class Router(BaseRouter):
             self._instance_name,
         )
 
-        self.pubsub = PubSubService(
-            self.socket, self._protected_topics, self._ext_routing
-        )
+        self.pubsub = PubSubService(self.socket, self._protected_topics,
+                                    self._ext_routing)
         self.ext_rpc = ExternalRPCService(self.socket, self._ext_routing)
         self._poller.register(sock, zmq.POLLIN)
         _log.debug("ZMQ version: {}".format(zmq.zmq_version()))
@@ -164,22 +161,18 @@ class Router(BaseRouter):
             if not self._message_debugger_socket:
                 # Initialize a ZMQ IPC socket on which to publish all messages to MessageDebuggerAgent.
                 socket_path = os.path.expandvars(
-                    "$VOLTTRON_HOME/run/messagedebug"
-                )
+                    "$VOLTTRON_HOME/run/messagedebug")
                 socket_path = os.path.expanduser(socket_path)
-                socket_path = (
-                    "ipc://{}".format(
-                        "@" if sys.platform.startswith("linux") else ""
-                    )
-                    + socket_path
-                )
+                socket_path = ("ipc://{}".format(
+                    "@" if sys.platform.startswith("linux") else "") +
+                               socket_path)
                 self._message_debugger_socket = zmq.Context().socket(zmq.PUB)
                 self._message_debugger_socket.connect(socket_path)
             # Publish the routed message, including the "topic" (status/direction), for use by MessageDebuggerAgent.
             frame_bytes = [topic]
             frame_bytes.extend(
                 frames
-            )  # [frame if type(frame) is bytes else frame.bytes for frame in frames])
+            )    # [frame if type(frame) is bytes else frame.bytes for frame in frames])
             frame_bytes = serialize_frames(frames)
             # TODO we need to fix the msgdebugger socket if we need it to be connected
             # frame_bytes = [f.bytes for f in frame_bytes]
@@ -197,8 +190,7 @@ class Router(BaseRouter):
 
     def handle_subsystem(self, frames, user_id):
         _log.debug(
-            f"Handling subsystem with frames: {frames} user_id: {user_id}"
-        )
+            f"Handling subsystem with frames: {frames} user_id: {user_id}")
 
         subsystem = frames[5]
         if subsystem == "quit":
@@ -213,8 +205,7 @@ class Router(BaseRouter):
                 raise KeyboardInterrupt()
             else:
                 _log.error(
-                    f"Sender {sender} not authorized to shutdown platform"
-                )
+                    f"Sender {sender} not authorized to shutdown platform")
         elif subsystem == "agentstop":
             try:
                 drop = frames[6]
@@ -224,10 +215,8 @@ class Router(BaseRouter):
                     self._service_notifier.peer_dropped(drop)
 
                 _log.debug(
-                    "ROUTER received agent stop message. dropping peer: {}".format(
-                        drop
-                    )
-                )
+                    "ROUTER received agent stop message. dropping peer: {}".
+                    format(drop))
             except IndexError:
                 _log.error(
                     f"agentstop called but unable to determine agent from frames sent {frames}"
