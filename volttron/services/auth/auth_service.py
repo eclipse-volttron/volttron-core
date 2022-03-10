@@ -37,8 +37,8 @@
 # }}}
 
 __all__ = [
-    "AuthService", "AuthFile", "AuthEntry", "AuthFileEntryAlreadyExists",
-    "AuthFileIndexError", "AuthException"
+    "AuthService", "AuthFile", "AuthEntry", "AuthFileEntryAlreadyExists", "AuthFileIndexError",
+    "AuthException"
 ]
 
 import bisect
@@ -113,8 +113,7 @@ class AuthException(Exception):
 
 class AuthService(Agent):
 
-    def __init__(self, auth_file, protected_topics_file, setup_mode, aip,
-                 *args, **kwargs):
+    def __init__(self, auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
         self.allow_any = kwargs.pop("allow_any", False)
         super(AuthService, self).__init__(*args, **kwargs)
 
@@ -132,8 +131,7 @@ class AuthService(Agent):
         self.auth_entries = []
         self._is_connected = False
         self._protected_topics_file = protected_topics_file
-        self._protected_topics_file_path = os.path.abspath(
-            protected_topics_file)
+        self._protected_topics_file_path = os.path.abspath(protected_topics_file)
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
         self._setup_mode = setup_mode
         self._auth_pending = []
@@ -174,13 +172,9 @@ class AuthService(Agent):
                 "retries": 0,
             })
         if is_allow:
-            self._auth_approved = [
-                entry for entry in auth_list if entry["address"] is not None
-            ]
+            self._auth_approved = [entry for entry in auth_list if entry["address"] is not None]
         else:
-            self._auth_denied = [
-                entry for entry in auth_list if entry["address"] is not None
-            ]
+            self._auth_denied = [entry for entry in auth_list if entry["address"] is not None]
 
     def read_auth_file(self):
         _log.info("loading auth file %s", self.auth_file_path)
@@ -202,8 +196,7 @@ class AuthService(Agent):
                 gevent.sleep(2)
                 self._send_update()
             except BaseException as e:
-                _log.error(
-                    "Exception sending auth updates to peer. {}".format(e))
+                _log.error("Exception sending auth updates to peer. {}".format(e))
                 raise e
         _log.info("auth file %s loaded", self.auth_file_path)
 
@@ -223,8 +216,7 @@ class AuthService(Agent):
                     self._load_protected_topics_for_rmq()
                     # Deferring the RMQ topic permissions to after "onstart" event
                 else:
-                    self._send_protected_update_to_pubsub(
-                        self._protected_topics)
+                    self._send_protected_update_to_pubsub(self._protected_topics)
         except Exception:
             _log.exception("error loading %s", self._protected_topics_file)
 
@@ -240,12 +232,9 @@ class AuthService(Agent):
                 i = i + 1
                 peers = self.vip.peerlist().get(timeout=0.5)
             except BaseException as e:
-                _log.warning(
-                    "Attempt {} to get peerlist failed with exception {}".
-                    format(i, e))
+                _log.warning("Attempt {} to get peerlist failed with exception {}".format(i, e))
                 peers = list(self.vip.peerlist.peers_list)
-                _log.warning(
-                    "Get list of peers from subsystem directly".format(peers))
+                _log.warning("Get list of peers from subsystem directly".format(peers))
                 exception = e
 
         if not peers:
@@ -273,18 +262,13 @@ class AuthService(Agent):
     def _send_protected_update_to_pubsub(self, contents):
         protected_topics_msg = jsonapi.dumpb(contents)
 
-        frames = [
-            zmq.Frame(b"protected_update"),
-            zmq.Frame(protected_topics_msg)
-        ]
+        frames = [zmq.Frame(b"protected_update"), zmq.Frame(protected_topics_msg)]
         if self._is_connected:
             try:
                 # <recipient, subsystem, args, msg_id, flags>
                 self.core.socket.send_vip(b"", b"pubsub", frames, copy=False)
             except VIPError as ex:
-                _log.error(
-                    "Error in sending protected topics update to clear PubSub: "
-                    + str(ex))
+                _log.error("Error in sending protected topics update to clear PubSub: " + str(ex))
 
     @Core.receiver("onstop")
     def stop_zap(self, sender, **kwargs):
@@ -341,8 +325,7 @@ class AuthService(Agent):
                 address = address.decode("utf-8")
                 kind = kind.decode("utf-8")
                 user = self.authenticate(domain, address, kind, credentials)
-                _log.info(
-                    f"AUTH: After authenticate user id: {user}, {userid}")
+                _log.info(f"AUTH: After authenticate user id: {user}, {userid}")
                 if user:
                     _log.info(
                         "authentication success: userid=%r domain=%r, address=%r, "
@@ -354,9 +337,7 @@ class AuthService(Agent):
                         credentials[:1],
                         user,
                     )
-                    response.extend(
-                        [b"200", b"SUCCESS",
-                         user.encode("utf-8"), b""])
+                    response.extend([b"200", b"SUCCESS", user.encode("utf-8"), b""])
                     sock.send_multipart(response)
                 else:
                     userid = str(uuid.uuid4())
@@ -371,8 +352,7 @@ class AuthService(Agent):
                     )
                     # If in setup mode, add/update auth entry
                     if self._setup_mode:
-                        self._update_auth_entry(domain, address, kind,
-                                                credentials[0], userid)
+                        self._update_auth_entry(domain, address, kind, credentials[0], userid)
                         _log.info(
                             "new authentication entry added in setup mode: domain=%r, address=%r, "
                             "mechanism=%r, credentials=%r, user_id=%r",
@@ -388,8 +368,7 @@ class AuthService(Agent):
                     else:
                         if type(userid) == bytes:
                             userid = userid.decode("utf-8")
-                        self._update_auth_pending(domain, address, kind,
-                                                  credentials[0], userid)
+                        self._update_auth_pending(domain, address, kind, credentials[0], userid)
 
                     try:
                         expire, delay = blocked[address]
@@ -422,8 +401,7 @@ class AuthService(Agent):
     def authenticate(self, domain, address, mechanism, credentials):
         for entry in self.auth_entries:
             if entry.match(domain, address, mechanism, credentials):
-                return entry.user_id or dump_user(domain, address, mechanism, *
-                                                  credentials[:1])
+                return entry.user_id or dump_user(domain, address, mechanism, *credentials[:1])
         if mechanism == "NULL" and address.startswith("localhost:"):
             parts = address.split(":")[1:]
             if len(parts) > 2:
@@ -492,17 +470,14 @@ class AuthService(Agent):
             # Will fail with ValueError when a zmq credential user_id is passed.
             try:
                 self._certs.approve_csr(user_id)
-                permissions = self.core.rmq_mgmt.get_default_permissions(
-                    user_id)
+                permissions = self.core.rmq_mgmt.get_default_permissions(user_id)
 
                 if (
                         "federation" in user_id
                 ):    # federation needs more than the current default permissions # TODO: Fix authorization in rabbitmq
                     permissions = dict(configure=".*", read=".*", write=".*")
-                self.core.rmq_mgmt.create_user_with_permissions(
-                    user_id, permissions, True)
-                _log.debug("Created cert and permissions for user: {}".format(
-                    user_id))
+                self.core.rmq_mgmt.create_user_with_permissions(user_id, permissions, True)
+                _log.debug("Created cert and permissions for user: {}".format(user_id))
             # Stores error message in case it is caused by an unexpected failure
             except ValueError as e:
                 val_err = e
@@ -818,13 +793,7 @@ class AuthService(Agent):
         """
         return self._get_authorizations(user_id, 2)
 
-    def _update_auth_entry(self,
-                           domain,
-                           address,
-                           mechanism,
-                           credential,
-                           user_id,
-                           is_allow=True):
+    def _update_auth_entry(self, domain, address, mechanism, credential, user_id, is_allow=True):
         # Make a new entry
         fields = {
             "domain": domain,
@@ -850,8 +819,7 @@ class AuthService(Agent):
         except AuthException as err:
             _log.error("ERROR: %s\n" % str(err))
 
-    def _update_auth_pending(self, domain, address, mechanism, credential,
-                             user_id):
+    def _update_auth_pending(self, domain, address, mechanism, credential, user_id):
         for entry in self._auth_denied:
             # Check if failure entry has been denied. If so, increment the failure's denied count
             if ((entry["domain"] == domain) and (entry["address"] == address)
@@ -908,8 +876,7 @@ class AuthService(Agent):
         # Get agent to capabilities mapping
         user_to_caps = self.get_user_to_capabilities()
         # Get topics to capabilities mapping
-        topic_to_caps = self._protected_topics_for_rmq.get_topic_caps(
-        )    # topic to caps
+        topic_to_caps = self._protected_topics_for_rmq.get_topic_caps()    # topic to caps
 
         peers = self.vip.peerlist().get(timeout=5)
         # _log.debug("USER TO CAPS: {0}, TOPICS TO CAPS: {1}, {2}".format(user_to_caps,
@@ -924,8 +891,7 @@ class AuthService(Agent):
                 for user in user_to_caps:
                     try:
                         caps_for_user = user_to_caps[user]
-                        common_caps = list(
-                            set(caps_for_user).intersection(caps_for_topic))
+                        common_caps = list(set(caps_for_user).intersection(caps_for_topic))
                         if common_caps:
                             self._user_to_permissions[user].add(topic)
                         else:
@@ -958,24 +924,17 @@ class AuthService(Agent):
         :return:
         """
         read_tokens = [
-            "{instance}.{identity}".format(instance=self.core.instance_name,
-                                           identity=identity),
+            "{instance}.{identity}".format(instance=self.core.instance_name, identity=identity),
             "__pubsub__.*",
         ]
-        write_tokens = [
-            "{instance}.*".format(instance=self.core.instance_name,
-                                  identity=identity)
-        ]
+        write_tokens = ["{instance}.*".format(instance=self.core.instance_name, identity=identity)]
 
         if not not_allowed:
-            write_tokens.append("__pubsub__.{instance}.*".format(
-                instance=self.core.instance_name))
+            write_tokens.append("__pubsub__.{instance}.*".format(instance=self.core.instance_name))
         else:
             not_allowed_string = "|".join(not_allowed)
-            write_tokens.append("__pubsub__.{instance}.".format(
-                instance=self.core.instance_name) +
-                                "^(!({not_allow})).*$".format(
-                                    not_allow=not_allowed_string))
+            write_tokens.append("__pubsub__.{instance}.".format(instance=self.core.instance_name) +
+                                "^(!({not_allow})).*$".format(not_allow=not_allowed_string))
         current = self.core.rmq_mgmt.get_topic_permissions_for_user(identity)
         # _log.debug("CURRENT for identity: {0}, {1}".format(identity, current))
         if current and isinstance(current, list):
@@ -1083,16 +1042,14 @@ class AuthEntry(object):
         self.credentials = AuthEntry._build_field(credentials)
         self.groups = AuthEntry._build_field(groups) or []
         self.roles = AuthEntry._build_field(roles) or []
-        self.capabilities = AuthEntry.build_capabilities_field(
-            capabilities) or {}
+        self.capabilities = AuthEntry.build_capabilities_field(capabilities) or {}
         self.comments = AuthEntry._build_field(comments)
         if user_id is None:
             user_id = str(uuid.uuid4())
         self.user_id = user_id
         self.enabled = enabled
         if kwargs:
-            _log.debug("auth record has unrecognized keys: %r" %
-                       (list(kwargs.keys()),))
+            _log.debug("auth record has unrecognized keys: %r" % (list(kwargs.keys()),))
         self._check_validity()
 
     def __lt__(self, other):
@@ -1157,14 +1114,12 @@ class AuthEntry(object):
                 and (self.address is None or self.address.match(address))
                 and self.mechanism == mechanism
                 and (self.mechanism == "NULL" or
-                     (len(self.credentials) > 0
-                      and self.credentials.match(credentials[0]))))
+                     (len(self.credentials) > 0 and self.credentials.match(credentials[0]))))
 
     def __str__(self):
         return ("domain={0.domain!r}, address={0.address!r}, "
                 "mechanism={0.mechanism!r}, credentials={0.credentials!r}, "
-                "user_id={0.user_id!r}, capabilities={0.capabilities!r}".
-                format(self))
+                "user_id={0.user_id!r}, capabilities={0.capabilities!r}".format(self))
 
     def __repr__(self):
         cls = self.__class__
@@ -1178,8 +1133,7 @@ class AuthEntry(object):
             return
         if cred is None:
             raise AuthEntryInvalid(
-                "credentials parameter is required for mechanism {}".format(
-                    mechanism))
+                "credentials parameter is required for mechanism {}".format(mechanism))
         if isregex(cred):
             return
         if mechanism == "CURVE" and len(cred) != BASE64_ENCODED_CURVE_KEY_LEN:
@@ -1189,8 +1143,7 @@ class AuthEntry(object):
     def valid_mechanism(mechanism):
         """Raises AuthEntryInvalid if mechanism is invalid"""
         if mechanism not in ("NULL", "PLAIN", "CURVE"):
-            raise AuthEntryInvalid(
-                'mechanism must be either "NULL", "PLAIN" or "CURVE"')
+            raise AuthEntryInvalid('mechanism must be either "NULL", "PLAIN" or "CURVE"')
 
     def _check_validity(self):
         """Raises AuthEntryInvalid if entry is invalid"""
@@ -1228,8 +1181,7 @@ class AuthFile(object):
                 # Use gevent FileObject to avoid blocking the thread
                 before_strip_comments = FileObject(fil, close=False).read()
                 if isinstance(before_strip_comments, bytes):
-                    before_strip_comments = before_strip_comments.decode(
-                        "utf-8")
+                    before_strip_comments = before_strip_comments.decode("utf-8")
                 data = strip_comments(before_strip_comments)
                 if data:
                     auth_data = jsonapi.loads(data)
@@ -1261,8 +1213,7 @@ class AuthFile(object):
         _log.info("Created backup of {} at {}".format(self.auth_file, backup))
 
         def warn_invalid(entry, msg=""):
-            _log.warning("Invalid entry {} in auth file {}. {}".format(
-                entry, self.auth_file, msg))
+            _log.warning("Invalid entry {} in auth file {}. {}".format(entry, self.auth_file, msg))
 
         def upgrade_0_to_1(allow_list):
             new_allow_list = []
@@ -1332,11 +1283,8 @@ class AuthFile(object):
                 if user_id in [CONTROL, VOLTTRON_CENTRAL_PLATFORM]:
                     user_id = "/.*/"
                 capabilities = entry.get("capabilities")
-                entry["capabilities"] = (
-                    AuthEntry.build_capabilities_field(capabilities) or {})
-                entry["capabilities"]["edit_config_store"] = {
-                    "identity": user_id
-                }
+                entry["capabilities"] = (AuthEntry.build_capabilities_field(capabilities) or {})
+                entry["capabilities"]["edit_config_store"] = {"identity": user_id}
                 new_allow_list.append(entry)
             return new_allow_list
 
@@ -1394,8 +1342,7 @@ class AuthFile(object):
             try:
                 entry = AuthEntry(**file_entry)
             except TypeError:
-                _log.warning("invalid entry %r in auth file %s", file_entry,
-                             self.auth_file)
+                _log.warning("invalid entry %r in auth file %s", file_entry, self.auth_file)
             except AuthEntryInvalid as e:
                 _log.warning(
                     "invalid entry %r in auth file %s (%s)",
@@ -1411,8 +1358,7 @@ class AuthFile(object):
             try:
                 entry = AuthEntry(**file_entry)
             except TypeError:
-                _log.warn("invalid entry %r in auth file %s", file_entry,
-                          self.auth_file)
+                _log.warn("invalid entry %r in auth file %s", file_entry, self.auth_file)
             except AuthEntryInvalid as e:
                 _log.warn(
                     "invalid entry %r in auth file %s (%s)",
@@ -1446,8 +1392,7 @@ class AuthFile(object):
 
                 # Compare AuthEntry objects component-wise, rather than
                 # using match, because match will evaluate regex.
-                if (prev_entry.domain == entry.domain
-                        and prev_entry.address == entry.address
+                if (prev_entry.domain == entry.domain and prev_entry.address == entry.address
                         and prev_entry.mechanism == entry.mechanism
                         and prev_entry.credentials == entry.credentials):
                     raise AuthFileEntryAlreadyExists([index])
@@ -1458,8 +1403,7 @@ class AuthFile(object):
 
                 # Compare AuthEntry objects component-wise, rather than
                 # using match, because match will evaluate regex.
-                if (prev_entry.domain == entry.domain
-                        and prev_entry.address == entry.address
+                if (prev_entry.domain == entry.domain and prev_entry.address == entry.address
                         and prev_entry.mechanism == entry.mechanism
                         and prev_entry.credentials == entry.credentials):
                     raise AuthFileEntryAlreadyExists([index])
@@ -1489,8 +1433,7 @@ class AuthFile(object):
             self._check_if_exists(auth_entry, is_allow)
         except AuthFileEntryAlreadyExists as err:
             if overwrite:
-                _log.debug(
-                    "Updating existing auth entry with {} ".format(auth_entry))
+                _log.debug("Updating existing auth entry with {} ".format(auth_entry))
                 self._update_by_indices(auth_entry, err.indices, is_allow)
             else:
                 if not no_error:
@@ -1642,8 +1585,7 @@ class AuthFileIndexError(AuthException, IndexError):
         if not isinstance(indices, list):
             indices = [indices]
         if message is None:
-            message = "Invalid {}: {}".format(
-                "indicies" if len(indices) > 1 else "index", indices)
+            message = "Invalid {}: {}".format("indicies" if len(indices) > 1 else "index", indices)
         super(AuthFileIndexError, self).__init__(message)
         self.indices = indices
 

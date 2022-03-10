@@ -61,9 +61,7 @@ def fun2(messages):
 
 
 def test_yielding(messages):
-    gevent.joinall(
-        [gevent.spawn(fun1, messages),
-         gevent.spawn(fun2, messages)])
+    gevent.joinall([gevent.spawn(fun1, messages), gevent.spawn(fun2, messages)])
     messages.put(StopIteration)
 
     assert messages.get() == "fun1-1"

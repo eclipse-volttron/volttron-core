@@ -55,8 +55,7 @@ plugin_disabled = ["volttron.services.health"]
 
 for p in plugin_startup_order:
     if p not in discovered_plugins:
-        raise ValueError(
-            f"Invalid plugin specified in plugin_startup_order {p}")
+        raise ValueError(f"Invalid plugin specified in plugin_startup_order {p}")
     _log.info(f"Starting plugin: {p}, {discovered_plugins[p]}")
 
 for p, v in discovered_plugins.items():

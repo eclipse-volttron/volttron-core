@@ -217,10 +217,8 @@ class BasicCore(object):
 
         def setup(member):    # pylint: disable=redefined-outer-name
             periodics.extend(
-                periodic.get(member)
-                for periodic in annotations(member, list, "core.periodics"))
-            for deadline, args, kwargs in annotations(member, list,
-                                                      "core.schedule"):
+                periodic.get(member) for periodic in annotations(member, list, "core.periodics"))
+            for deadline, args, kwargs in annotations(member, list, "core.schedule"):
                 self.schedule(deadline, member, *args, **kwargs)
             for name in annotations(member, set, "core.signals"):
                 findsignal(self, owner, name).connect(member, owner)
@@ -453,8 +451,7 @@ class BasicCore(object):
 
     def _schedule_callback(self, deadline, callback):
         deadline = utils.get_utc_seconds_from_epoch(deadline)
-        heapq.heappush(self._schedule,
-                       (deadline, self.get_tie_breaker(), callback))
+        heapq.heappush(self._schedule, (deadline, self.get_tie_breaker(), callback))
         if self._schedule_event:
             self._schedule_event.set()
 
@@ -528,8 +525,7 @@ class Core(BasicCore):
         self.configuration = Signal()
         super(Core, self).__init__(owner)
         self.address = address if address is not None else get_address()
-        self.identity = str(identity) if identity is not None else str(
-            uuid.uuid4())
+        self.identity = str(identity) if identity is not None else str(uuid.uuid4())
         self.agent_uuid = agent_uuid
         self.publickey = publickey
         self.secretkey = secretkey
@@ -580,13 +576,11 @@ class Core(BasicCore):
             # this is an installed agent, put keystore in its agent's directory
             if self.identity is None:
                 raise ValueError("Agent's VIP identity is not set")
-            keystore_dir = os.path.join(self.volttron_home, "agents",
-                                        self.identity)
+            keystore_dir = os.path.join(self.volttron_home, "agents", self.identity)
         else:
             if not self.volttron_home:
                 raise ValueError("VOLTTRON_HOME must be specified.")
-            keystore_dir = os.path.join(self.volttron_home, "keystores",
-                                        self.identity)
+            keystore_dir = os.path.join(self.volttron_home, "keystores", self.identity)
 
         keystore_path = os.path.join(keystore_dir, "keystore.json")
         keystore = KeyStore(keystore_path)
@@ -611,8 +605,7 @@ class Core(BasicCore):
             error = VIPError.from_errno(*args)
             self.onviperror.send(self, error=error, message=message)
 
-    def create_event_handlers(self, state, hello_response_event,
-                              running_event):
+    def create_event_handlers(self, state, hello_response_event, running_event):
 
         def connection_failed_check():
             # If we don't have a verified connection after 10.0 seconds
@@ -621,13 +614,11 @@ class Core(BasicCore):
                 return
             _log.error("No response to hello message after 10 seconds.")
             _log.error("Type of message bus used {}".format(self.messagebus))
-            _log.error(
-                "A common reason for this is a conflicting VIP IDENTITY.")
+            _log.error("A common reason for this is a conflicting VIP IDENTITY.")
             _log.error("Another common reason is not having an auth entry on"
                        "the target instance.")
             _log.error("Shutting down agent.")
-            _log.error("Possible conflicting identity is: {}".format(
-                self.identity))
+            _log.error("Possible conflicting identity is: {}".format(self.identity))
 
             self.stop(timeout=10.0)
 
@@ -637,16 +628,12 @@ class Core(BasicCore):
             state.ident = ident = "connect.hello.%d" % state.count
             state.count += 1
             self.spawn(connection_failed_check)
-            message = Message(peer="",
-                              subsystem="hello",
-                              id=ident,
-                              args=["hello"])
+            message = Message(peer="", subsystem="hello", id=ident, args=["hello"])
             self.connection.send_vip_object(message)
 
         def hello_response(sender, version="", router="", identity=""):
             _log.info("Connected to platform: "
-                      "router: {} version: {} identity: {}".format(
-                          router, version, identity))
+                      "router: {} version: {} identity: {}".format(router, version, identity))
             _log.debug("Running onstart methods.")
             hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)
@@ -702,8 +689,7 @@ class ZMQCore(Core):
 
         _log.debug("AGENT RUNNING on ZMQ Core {}".format(self.identity))
         _log.debug(
-            f"keys: server: {self.serverkey} public: {self.publickey}, secret: {self.secretkey}"
-        )
+            f"keys: server: {self.serverkey} public: {self.publickey}, secret: {self.secretkey}")
         self.socket = None
 
     def get_connected(self):
@@ -747,8 +733,7 @@ class ZMQCore(Core):
             self.publickey = os.environ.get("AGENT_PUBLICKEY")
             self.secretkey = os.environ.get("AGENT_SECRETKEY")
             _log.debug(
-                f" after setting agent provate and public key {self.publickey} {self.secretkey}"
-            )
+                f" after setting agent provate and public key {self.publickey} {self.secretkey}")
         if self.publickey is None or self.secretkey is None:
             self.publickey, self.secretkey, _ = self._get_keys_from_addr()
         if self.publickey is None or self.secretkey is None:
@@ -757,16 +742,15 @@ class ZMQCore(Core):
     def _set_server_key(self):
         if self.serverkey is None:
             _log.debug(f" environ keys: {dict(os.environ).keys()}")
-            _log.debug(
-                f"server key from env {os.environ.get('VOLTTRON_SERVERKEY')}")
+            _log.debug(f"server key from env {os.environ.get('VOLTTRON_SERVERKEY')}")
             self.serverkey = os.environ.get("VOLTTRON_SERVERKEY")
         known_serverkey = self._get_serverkey_from_known_hosts()
 
         if (self.serverkey is not None and known_serverkey is not None
                 and self.serverkey != known_serverkey):
             raise Exception("Provided server key ({}) for {} does "
-                            "not match known serverkey ({}).".format(
-                                self.serverkey, self.address, known_serverkey))
+                            "not match known serverkey ({}).".format(self.serverkey, self.address,
+                                                                     known_serverkey))
 
         # Until we have containers for agents we should not require all
         # platforms that connect to be in the known host file.
@@ -863,8 +847,7 @@ class ZMQCore(Core):
                         if self.socket is not None:
                             self.socket.monitor(None, 0)
                     except Exception as exc:
-                        _log.debug(
-                            "Error in closing the socket: {}".format(exc))
+                        _log.debug("Error in closing the socket: {}".format(exc))
 
         self.onconnected.connect(hello_response)
         self.ondisconnected.connect(close_socket)
@@ -899,14 +882,10 @@ class ZMQCore(Core):
 
                 # Handle hellos sent by CONNECTED event
                 if (str(subsystem) == "hello" and message.id == state.ident
-                        and len(message.args) > 3
-                        and message.args[0] == "welcome"):
+                        and len(message.args) > 3 and message.args[0] == "welcome"):
                     version, server, identity = message.args[1:4]
                     self.connected = True
-                    self.onconnected.send(self,
-                                          version=version,
-                                          router=server,
-                                          identity=identity)
+                    self.onconnected.send(self, version=version, router=server, identity=identity)
                     continue
 
                 try:
@@ -1009,12 +988,10 @@ if cc.is_rabbitmq_available():
             else:
                 self.instance_name = instance_name
 
-            assert (
-                self.instance_name
-            ), "Instance name must have been set in the platform config file."
-            assert (
-                not volttron_central_instance_name
-            ), "Please report this as volttron_central_instance_name shouldn't be passed."
+            assert (self.instance_name
+                   ), "Instance name must have been set in the platform config file."
+            assert (not volttron_central_instance_name
+                   ), "Please report this as volttron_central_instance_name shouldn't be passed."
 
             # self._event_queue = gevent.queue.Queue
             self._event_queue = Queue()
@@ -1050,15 +1027,13 @@ if cc.is_rabbitmq_available():
             else:
                 try:
                     if self.instance_name == cc.get_instance_name():
-                        param = self.rmq_mgmt.build_agent_connection(
-                            self.identity, self.instance_name)
+                        param = self.rmq_mgmt.build_agent_connection(self.identity,
+                                                                     self.instance_name)
                     else:
                         param = self.rmq_mgmt.build_remote_connection_param(
                             self.rmq_user, self.rmq_address, True)
                 except AttributeError:
-                    _log.error(
-                        "RabbitMQ broker may not be running. Restart the broker first"
-                    )
+                    _log.error("RabbitMQ broker may not be running. Restart the broker first")
                     param = None
 
             return param
@@ -1099,8 +1074,8 @@ if cc.is_rabbitmq_available():
                     bindings = self.rmq_mgmt.get_bindings("volttron")
                 except AttributeError:
                     bindings = None
-                router_user = router_key = "{inst}.{ident}".format(
-                    inst=self.instance_name, ident="router")
+                router_user = router_key = "{inst}.{ident}".format(inst=self.instance_name,
+                                                                   ident="router")
                 if bindings:
                     for binding in bindings:
                         if (binding["destination"] == router_user
@@ -1142,12 +1117,10 @@ if cc.is_rabbitmq_available():
                             subsystem = message.subsystem
 
                             if subsystem == "hello":
-                                if (subsystem == "hello"
-                                        and message.id == state.ident
+                                if (subsystem == "hello" and message.id == state.ident
                                         and len(message.args) > 3
                                         and message.args[0] == "welcome"):
-                                    version, server, identity = message.args[
-                                        1:4]
+                                    version, server, identity = message.args[1:4]
                                     self.connected = True
                                     self.onconnected.send(
                                         self,

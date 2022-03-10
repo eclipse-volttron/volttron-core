@@ -128,13 +128,11 @@ def _coallesce_ranges(fieldname, ranges, minimum, maximum, translate=None):
         if not rng:
             continue
         if rng[0] < minimum:
-            raise ValueError(
-                "{} value of {} is below the minimum of {}".format(
-                    fieldname, rng[0], minimum))
+            raise ValueError("{} value of {} is below the minimum of {}".format(
+                fieldname, rng[0], minimum))
         if rng[-1] > maximum:
-            raise ValueError(
-                "{} value of {} is above the maximum of {}".format(
-                    fieldname, rng[-1], maximum))
+            raise ValueError("{} value of {} is above the maximum of {}".format(
+                fieldname, rng[-1], maximum))
         result |= set(rng)
     return tuple(sorted(result)) or None
 
@@ -163,8 +161,7 @@ def _translate_month(month, pos):
 def _translate_weekday(weekday, pos):
     """Translate weekday names to integers."""
     try:
-        index = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].index(
-            weekday[:3].lower()) + 1
+        index = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"].index(weekday[:3].lower()) + 1
     except ValueError:
         raise ValueError("invalid day name: {}".format(weekday))
     # If Sunday is is in the start position, return it as 0
@@ -293,17 +290,14 @@ def cron(cron_string, start=None, stop=None, second=0):
         dt = date(year, month, day)
         weekday = dt.isoweekday()
         i = bisect_left(weekdays, weekday)
-        dt += timedelta(weekdays[i] -
-                        weekday if i < len(weekdays) else weekdays[0] + 7 -
-                        weekday)
+        dt += timedelta(weekdays[i] - weekday if i < len(weekdays) else weekdays[0] + 7 - weekday)
         day, weekday = dt.day, dt.isoweekday()
         for next in chain(weekdays[i + 1:], cycle(weekdays)):
             if day > 31:
                 break
             yield day
             day, weekday = (
-                day +
-                (next - weekday if next > weekday else next + 7 - weekday),
+                day + (next - weekday if next > weekday else next + 7 - weekday),
                 next,
             )
 
@@ -338,8 +332,7 @@ def cron(cron_string, start=None, stop=None, second=0):
     # Iterate over all values until stop is hit
     for year, month, first_day in chain(
             first_month,
-        ((start.year, m, 1)
-         for m in months[bisect_right(months, start.month):]),
+        ((start.year, m, 1) for m in months[bisect_right(months, start.month):]),
         ((y, m, 1) for y in count(start.year + 1) for m in months),
     ):
         try:

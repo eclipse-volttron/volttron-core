@@ -57,8 +57,7 @@ def test_can_serialize_homogeneous_strings():
     frames = serialize_frames(original)
 
     for r in range(len(original)):
-        assert original[r] == frames[r].bytes.decode(
-            "utf-8"), f"Element {r} is not the same."
+        assert original[r] == frames[r].bytes.decode("utf-8"), f"Element {r} is not the same."
 
 
 def test_mixed_array():
@@ -75,5 +74,4 @@ def test_mixed_array():
     after_deserialize = deserialize_frames(frames)
 
     for r in range(len(original)):
-        assert original[r] == after_deserialize[
-            r], f"Element {r} is not the same."
+        assert original[r] == after_deserialize[r], f"Element {r} is not the same."

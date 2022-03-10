@@ -83,9 +83,7 @@ def install_requirements(agent_source):
         _log.info(f"Installing requirements for agent from {req_file}.")
         cmds = ["pip", "install", "-r", req_file]
         try:
-            execute_command(cmds,
-                            logger=_log,
-                            err_prefix="Error installing requirements")
+            execute_command(cmds, logger=_log, err_prefix="Error installing requirements")
         except InstallRuntimeError:
             sys.exit(1)
 
@@ -108,8 +106,7 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
         cmd = ["poetry", "build"]
     else:
         raise InstallRuntimeError(
-            f"Unable to build file. No setup.py or poetry.lock file exists in {opts.install_path}"
-        )
+            f"Unable to build file. No setup.py or poetry.lock file exists in {opts.install_path}")
     output = execute_command(cmd, cwd=opts.install_path)
     # wheel should be in dist dir
     dist_path = os.path.abspath(os.path.join(opts.install_path, "dist"))
@@ -149,8 +146,7 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
     if not isinstance(agent_config, dict):
         config_file = agent_config
         if not Path(config_file).exists():
-            raise InstallRuntimeError(
-                f"Config file {config_file} does not exist!")
+            raise InstallRuntimeError(f"Config file {config_file} does not exist!")
     else:
         cfg = tempfile.NamedTemporaryFile()
         with open(cfg.name, "w") as fout:
@@ -193,8 +189,7 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
         _log.debug(f"Prioritinzing agent {agent_uuid},{opts.priority}")
         output_dict["priority"] = opts.priority
 
-        opts.connection.call("prioritize_agent", agent_uuid,
-                             str(opts.priority))
+        opts.connection.call("prioritize_agent", agent_uuid, str(opts.priority))
 
     try:
 
@@ -220,9 +215,7 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
         sys.stdout.write("%s\n" % jsonapi.dumps(output_dict, indent=4))
     else:
         if output_dict.get("started"):
-            sys.stdout.write(
-                f"Agent {agent_uuid} installed and started [{output_dict['pid']}]\n"
-            )
+            sys.stdout.write(f"Agent {agent_uuid} installed and started [{output_dict['pid']}]\n")
         else:
             sys.stdout.write(f"Agent {agent_uuid} installed\n")
     if opts.csv:
@@ -280,9 +273,7 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
                         opts.package,
                     ])
                     # there should be a single wheel file in dir
-                    opts.package = os.path.join(
-                        pip_download_dir,
-                        os.listdir(pip_download_dir)[0])
+                    opts.package = os.path.join(pip_download_dir, os.listdir(pip_download_dir)[0])
                 except RuntimeError as r:
                     raise InstallRuntimeError(
                         f" Invalid wheel {opts.package}. It is not a local wheel file. Error"
@@ -341,8 +332,7 @@ def send_agent(
             nonlocal protocol_message, protocol_headers, response_received
 
             protocol_message = message
-            protocol_message = base64.b64decode(
-                protocol_message.encode("utf-8"))
+            protocol_message = base64.b64decode(protocol_message.encode("utf-8"))
             protocol_headers = headers
             response_received = True
 
@@ -376,9 +366,7 @@ def send_agent(
                         op = resp[0]
 
                     if op != "fetch":
-                        raise ValueError(
-                            f"First channel response must be fetch but was {op}"
-                        )
+                        raise ValueError(f"First channel response must be fetch but was {op}")
                 response_received = False
                 if op == "fetch":
                     chunk = wheel.read(size)
@@ -405,8 +393,7 @@ def send_agent(
                 elif op == "checksum":
                     _log.debug(f"sending checksum {sha512.hexdigest()}")
                     message = base64.b64encode(sha512.digest()).decode("utf-8")
-                    server.vip.pubsub.publish("pubsub",
-                                              topic=rmq_send_topic,
+                    server.vip.pubsub.publish("pubsub", topic=rmq_send_topic,
                                               message=message).get(timeout=10)
 
                 _log.debug("Waiting for next response")
@@ -414,8 +401,7 @@ def send_agent(
                 with gevent.Timeout(30):
                     while not response_received:
                         gevent.sleep(0.1)
-                _log.debug(
-                    f"Response received bottom of loop {protocol_message}")
+                _log.debug(f"Response received bottom of loop {protocol_message}")
                 # wait for next response
                 resp = jsonapi.loads(protocol_message)
 
@@ -454,9 +440,7 @@ def send_agent(
                         op = resp[0]
 
                     if op != "fetch":
-                        raise ValueError(
-                            f"First channel response must be fetch but was {op}"
-                        )
+                        raise ValueError(f"First channel response must be fetch but was {op}")
 
                 if op == "fetch":
                     chunk = wheel.read(size)
@@ -490,9 +474,7 @@ def send_agent(
             del channel
 
     if server.core.messagebus == "rmq":
-        _log.debug(
-            f"calling install_agent on {peer} sending to topic {rmq_send_topic}"
-        )
+        _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
         task = gevent.spawn(send_rmq)
         # TODO: send config
         result = server.vip.rpc.call(
@@ -508,8 +490,7 @@ def send_agent(
             rmq_response_topic,
         )
     elif server.core.messagebus == "zmq":
-        _log.debug(
-            f"calling install_agent on {peer} using channel {channel.name}")
+        _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
         task = gevent.spawn(send_zmq)
         result = server.vip.rpc.call(
             peer,
@@ -608,8 +589,7 @@ def add_install_agent_parser(add_parser_fn):
         "--agent-start-time",
         default=5,
         type=int,
-        help=
-        "the amount of time to wait and verify that the agent has started up.",
+        help="the amount of time to wait and verify that the agent has started up.",
     )
 
     install.set_defaults(func=install_agent_vctl, verify_agents=True)

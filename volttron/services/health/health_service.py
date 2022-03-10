@@ -75,8 +75,7 @@ class HealthService(Agent):
 
     def peer_dropped(self, peer):
         # TODO: Should there be an option for  a db/log file for agents coming and going from the platform?
-        self._health_dict[peer]["disconnected"] = format_timestamp(
-            datetime.now())
+        self._health_dict[peer]["disconnected"] = format_timestamp(datetime.now())
         del self._health_dict[peer]
 
     @RPC.export
@@ -105,9 +104,7 @@ class HealthService(Agent):
         """
         # Ignore the connection from control in the health as it will only be around for a short while.
         agents = {
-            k: v
-            for k, v in self._health_dict.items()
-            if not v.get("peer") == CONTROL_CONNECTION
+            k: v for k, v in self._health_dict.items() if not v.get("peer") == CONTROL_CONNECTION
         }
         return agents
 
@@ -137,6 +134,4 @@ class HealthService(Agent):
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
         # Start subscribing to heartbeat topic to get updates from the health subsystem.
-        self.vip.pubsub.subscribe("pubsub",
-                                  "heartbeat",
-                                  callback=self._heartbeat_updates)
+        self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)

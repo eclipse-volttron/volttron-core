@@ -29,8 +29,7 @@ class ControlConnection(object):
         return self._server
 
     def call(self, method, *args, **kwargs):
-        return self.server.vip.rpc.call(self.peer, method, *args,
-                                        **kwargs).get(timeout=20)
+        return self.server.vip.rpc.call(self.peer, method, *args, **kwargs).get(timeout=20)
 
     def call_no_get(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs)

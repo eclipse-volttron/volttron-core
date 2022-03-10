@@ -29,8 +29,7 @@ if HAS_SYSLOG:
 
         def format(self, record):
             level = self._level_map.get(record.levelno, syslog.LOG_INFO)
-            return "<{}>".format(level) + super(SyslogFormatter,
-                                                self).format(record)
+            return "<{}>".format(level) + super(SyslogFormatter, self).format(record)
 
 
 def isapipe(fd):
@@ -61,8 +60,7 @@ class AgentFormatter(logging.Formatter):
         if record.name == "agents.log":
             cname = "(%(processName)s %(process)d) %(remote_name)s"
         elif record.name.startswith("agents.std"):
-            cname = "(%(processName)s %(process)d) <{}>".format(
-                record.name.split(".", 2)[1])
+            cname = "(%(processName)s %(process)d) <{}>".format(record.name.split(".", 2)[1])
         else:
             cname = "() %(name)s"
         return cname % record.__dict__
@@ -70,8 +68,7 @@ class AgentFormatter(logging.Formatter):
     def format(self, record):
         if "composite_name" not in record.__dict__:
             record.__dict__["composite_name"] = self.composite_name(record)
-        if (len(record.args) > 0
-                and "tornado.access" in record.__dict__["composite_name"]):
+        if (len(record.args) > 0 and "tornado.access" in record.__dict__["composite_name"]):
             record.__dict__["msg"] = ",".join([str(b) for b in record.args])
             record.__dict__["args"] = []
         return super(AgentFormatter, self).format(record)
@@ -88,15 +85,12 @@ class FramesFormatter(object):
     __str__ = __repr__
 
 
-def log_to_file(file,
-                level=logging.WARNING,
-                handler_class=logging.StreamHandler):
+def log_to_file(file, level=logging.WARNING, handler_class=logging.StreamHandler):
     """Direct log output to a file (or something like one)."""
     handler = handler_class(file)
     handler.setLevel(level)
     handler.setFormatter(
-        AgentFormatter(
-            "%(asctime)s %(composite_name)s %(levelname)s: %(message)s"))
+        AgentFormatter("%(asctime)s %(composite_name)s %(levelname)s: %(message)s"))
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)
@@ -111,8 +105,7 @@ def setup_logging(level=logging.DEBUG, console=False):
             handler.setFormatter(JsonFormatter())
         elif console:
             # Below format is more readable for console
-            handler.setFormatter(
-                logging.Formatter("%(levelname)s: %(message)s"))
+            handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
         else:
             fmt = "%(asctime)s %(name)s %(levelname)s: %(message)s"
             handler.setFormatter(logging.Formatter(fmt))

@@ -58,16 +58,13 @@ from zmq.green import ENOTSOCK
 
 __all__ = ["RPC"]
 
-_ROOT_PACKAGE_PATH = (
-    os.path.dirname(__import__(__name__.split(".", 1)[0]).__path__[-1]) +
-    os.sep)
+_ROOT_PACKAGE_PATH = (os.path.dirname(__import__(__name__.split(".", 1)[0]).__path__[-1]) + os.sep)
 
 _log = logging.getLogger(__name__)
 
 
 def _isregex(obj):
-    return (obj is not None and isinstance(obj, str) and len(obj) > 1
-            and obj[0] == obj[-1] == "/")
+    return (obj is not None and isinstance(obj, str) and len(obj) > 1 and obj[0] == obj[-1] == "/")
 
 
 class Dispatcher(jsonrpc.Dispatcher):
@@ -100,8 +97,7 @@ class Dispatcher(jsonrpc.Dispatcher):
     def call(self, method, args=None, kwargs=None):
         # pylint: disable=arguments-differ
         result = next(self._results)
-        return super(Dispatcher, self).call(result.ident, method, args,
-                                            kwargs), result
+        return super(Dispatcher, self).call(result.ident, method, args, kwargs), result
 
     def result(self, response, ident, value, context=None):
         try:
@@ -131,14 +127,7 @@ class Dispatcher(jsonrpc.Dispatcher):
             return
         result.set_exception(exc)
 
-    def method(self,
-               request,
-               ident,
-               name,
-               args,
-               kwargs,
-               batch=None,
-               context=None):
+    def method(self, request, ident, name, args, kwargs, batch=None, context=None):
         if kwargs:
             try:
                 args, kwargs = kwargs["*args"], kwargs["**kwargs"]
@@ -165,8 +154,7 @@ class Dispatcher(jsonrpc.Dispatcher):
             return method(*args, **kwargs)
         except Exception as exc:    # pylint: disable=broad-except
             exc_tb = traceback.format_exc()
-            _log.error("unhandled exception in JSON-RPC method %r: \n%s", name,
-                       exc_tb)
+            _log.error("unhandled exception in JSON-RPC method %r: \n%s", name, exc_tb)
             if getattr(method, "traceback", True):
                 exc.exc_info = {"exc_tb": exc_tb}
             raise
@@ -185,8 +173,7 @@ class Dispatcher(jsonrpc.Dispatcher):
                 response["params"][p.name]["default"] = p.default
             if p.annotation is not inspect.Parameter.empty:
                 annotation = (p.annotation.__name__
-                              if type(p.annotation) is type else str(
-                                  p.annotation))
+                              if type(p.annotation) is type else str(p.annotation))
                 response["params"][p.name]["annotation"] = annotation
         doc = inspect.getdoc(method)
         if doc:
@@ -301,28 +288,23 @@ class RPC(SubsystemBase):
             if required_caps == {""}:
                 pass
             elif not required_caps.issubset(user_capabilities_names):
-                msg = (
-                    "method '{}' requires capabilities {}, but capability {} "
-                    "was provided for user {}").format(method.__name__,
-                                                       required_caps,
-                                                       user_capabilites, user)
+                msg = ("method '{}' requires capabilities {}, but capability {} "
+                       "was provided for user {}").format(method.__name__, required_caps,
+                                                          user_capabilites, user)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
             else:
                 # Now check if args passed to method are the ones allowed.
 
                 for cap_name, param_dict in user_capabilites.items():
-                    if (param_dict and required_caps
-                            and cap_name in required_caps):
+                    if (param_dict and required_caps and cap_name in required_caps):
                         # if the method has required capabilities and
                         # if the user capability has argument restrictions,
                         # check if the args passed to method match the
                         # requirement
                         _log.debug("args = {} kwargs= {}".format(args, kwargs))
-                        args_dict = inspect.getcallargs(
-                            method, *args, **kwargs)
+                        args_dict = inspect.getcallargs(method, *args, **kwargs)
                         _log.debug("dict = {}".format(args_dict))
-                        _log.debug("name= %r parameters allowed=%r", cap_name,
-                                   param_dict)
+                        _log.debug("name= %r parameters allowed=%r", cap_name, param_dict)
                         for name, value in param_dict.items():
                             _log.debug("name= {} value={}".format(name, value))
                             if name not in args_dict:
@@ -330,8 +312,7 @@ class RPC(SubsystemBase):
                                     jsonrpc.UNAUTHORIZED,
                                     "User {} capability is not defined "
                                     "properly. method {} does not have "
-                                    "a parameter {}".format(
-                                        user, method.__name__, name),
+                                    "a parameter {}".format(user, method.__name__, name),
                                 )
                             if _isregex(value):
                                 regex = re.compile("^" + value[1:-1] + "$")
@@ -384,8 +365,8 @@ class RPC(SubsystemBase):
             # _log.debug("External RPC IN message args {}".format(message))
 
             responses = [
-                response for response in (dispatch(msg, message)
-                                          for msg in message.args) if response
+                response for response in (dispatch(msg, message) for msg in message.args)
+                if response
             ]
             # _log.debug("External RPC Responses {}".format(responses))
             if responses:
@@ -434,13 +415,13 @@ class RPC(SubsystemBase):
                     message.args[idx] = jsonapi.loads(msg)
 
             responses = [
-                response for response in (dispatch(msg, message)
-                                          for msg in message.args) if response
+                response for response in (dispatch(msg, message) for msg in message.args)
+                if response
             ]
         else:
             responses = [
-                response for response in (dispatch(msg, message)
-                                          for msg in message.args) if response
+                response for response in (dispatch(msg, message) for msg in message.args)
+                if response
             ]
         if responses:
             message.user = ""
@@ -448,8 +429,7 @@ class RPC(SubsystemBase):
             try:
                 if self._isconnected:
                     if self._message_bus == "zmq":
-                        self.core().connection.send_vip_object(message,
-                                                               copy=False)
+                        self.core().connection.send_vip_object(message, copy=False)
                     else:
                         # Agent is running on RMQ message bus.
                         # Adding backward compatibility support for ZMQ.
@@ -463,15 +443,12 @@ class RPC(SubsystemBase):
                         if msg_bus == "zmq":
                             # If peer connected to ZMQ bus,
                             # send via proxy router agent
-                            self.core().connection.send_vip_object_via_proxy(
-                                message)
+                            self.core().connection.send_vip_object_via_proxy(message)
                         else:
-                            self.core().connection.send_vip_object(message,
-                                                                   copy=False)
+                            self.core().connection.send_vip_object(message, copy=False)
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
-                    _log.debug("Socket send on non-socket %s",
-                               self.core().identity)
+                    _log.debug("Socket send on non-socket %s", self.core().identity)
 
     def _handle_error(self, sender, message, error, **kwargs):
         result = self._outstanding.pop(message.id, None)
@@ -516,13 +493,10 @@ class RPC(SubsystemBase):
         if request:
             if self._isconnected:
                 try:
-                    self.core().connection.send_vip(peer,
-                                                    "RPC", [request],
-                                                    msg_id=ident)
+                    self.core().connection.send_vip(peer, "RPC", [request], msg_id=ident)
                 except ZMQError as exc:
                     if exc.errno == ENOTSOCK:
-                        _log.debug("Socket send on non-socket %r",
-                                   self.core().identity)
+                        _log.debug("Socket send on non-socket %r", self.core().identity)
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
@@ -556,14 +530,10 @@ class RPC(SubsystemBase):
                 peer = ""
 
             try:
-                self.core().connection.send_vip(peer,
-                                                subsystem,
-                                                args=frames,
-                                                msg_id=ident)
+                self.core().connection.send_vip(peer, subsystem, args=frames, msg_id=ident)
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
-                    _log.debug("Socket send on non-socket %r",
-                               self.core().identity)
+                    _log.debug("Socket send on non-socket %r", self.core().identity)
         else:
             # Agent running on RMQ message bus.
             # Adding backward compatibility support for ZMQ. Check if peer
@@ -575,10 +545,7 @@ class RPC(SubsystemBase):
                 peer_msg_bus = self._message_bus
             if peer_msg_bus == "zmq":
                 # peer connected to ZMQ bus, send via proxy router agent
-                self.core().connection.send_via_proxy(peer,
-                                                      "RPC",
-                                                      msg_id=ident,
-                                                      args=[request])
+                self.core().connection.send_via_proxy(peer, "RPC", msg_id=ident, args=[request])
             else:
                 self.core().connection.send_vip(peer,
                                                 "RPC",
@@ -620,8 +587,7 @@ class RPC(SubsystemBase):
                 self.core().connection.send_vip(peer, subsystem, args=frames)
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
-                    _log.debug("Socket send on non-socket %r",
-                               self.core().identity)
+                    _log.debug("Socket send on non-socket %r", self.core().identity)
         else:
             # Agent running on RMQ message bus.
             # Adding backward compatibility support for ZMQ. Check if peer
@@ -633,14 +599,9 @@ class RPC(SubsystemBase):
                 peer_msg_bus = self._message_bus
             if peer_msg_bus == "zmq":
                 # peer connected to ZMQ bus, send via proxy router agent
-                self.core().connection.send_via_proxy(peer,
-                                                      "RPC",
-                                                      args=[request])
+                self.core().connection.send_via_proxy(peer, "RPC", args=[request])
             else:
-                self.core().connection.send_vip(peer,
-                                                "RPC",
-                                                args=[request],
-                                                platform=platform)
+                self.core().connection.send_vip(peer, "RPC", args=[request], platform=platform)
 
     @dualmethod
     def allow(self, method, capabilities):
@@ -651,8 +612,7 @@ class RPC(SubsystemBase):
         # Necessary if you have provided an alias for the rpc method.
         if isinstance(method, str):
             if method in self._exports:
-                self._exports[method] = self._add_auth_check(
-                    self._exports[method], cap)
+                self._exports[method] = self._add_auth_check(self._exports[method], cap)
             else:
                 _log.error("Method alias is not in RPC export list.")
         else:

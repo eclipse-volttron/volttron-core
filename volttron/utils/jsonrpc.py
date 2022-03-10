@@ -206,8 +206,7 @@ class RemoteError(Exception):
     def __repr__(self):
         exc_type = self.exc_info.get("exc_type", "<unknown>")
         try:
-            exc_args = ", ".join(
-                repr(arg) for arg in self.exc_info["exc_args"])
+            exc_args = ", ".join(repr(arg) for arg in self.exc_info["exc_args"])
         except KeyError:
             exc_args = "..."
         return "%s(%s)" % (exc_type, exc_args)
@@ -228,8 +227,7 @@ class RemoteError(Exception):
 def exception_from_json(code, message, data=None):
     """Return an exception suitable for raising in a caller."""
     if code == UNHANDLED_EXCEPTION:
-        return RemoteError(data.get("detail", message),
-                           **data.get("exception.py", {}))
+        return RemoteError(data.get("detail", message), **data.get("exception.py", {}))
     elif code == METHOD_NOT_FOUND:
         return MethodNotFound(code, message, data)
     return Error(code, message, data)
@@ -263,20 +261,16 @@ class Dispatcher(object):
         required by the call() method. The first (ident) element may be
         None to indicate a notification.
         """
-        return self.serialize([
-            json_method(ident, method, args, kwargs)
-            for ident, method, args, kwargs in requests
-        ])
+        return self.serialize(
+            [json_method(ident, method, args, kwargs) for ident, method, args, kwargs in requests])
 
     def call(self, ident, method, args=None, kwargs=None):
         """Create and return a request for a single method call."""
-        return self.serialize(
-            json_method(ident, method, args or (), kwargs or {}))
+        return self.serialize(json_method(ident, method, args or (), kwargs or {}))
 
     def notify(self, method, args=None, kwargs=None):
         """Create and return a request for a single notification."""
-        return self.serialize(
-            json_method(None, method, args or (), kwargs or {}))
+        return self.serialize(json_method(None, method, args or (), kwargs or {}))
 
     def exception(self, response, ident, message, context=None):
         """Called for response errors.
@@ -296,14 +290,7 @@ class Dispatcher(object):
         """Called when an error resposne is received."""
         pass
 
-    def method(self,
-               request,
-               ident,
-               name,
-               args,
-               kwargs,
-               batch=None,
-               context=None):
+    def method(self, request, ident, name, args, kwargs, batch=None, context=None):
         """Called to get make method call and return results.
 
         request is the original JSON request (as dict). name is the name
@@ -414,12 +401,7 @@ class Dispatcher(object):
                     context=context,
                 )
                 return
-            self.error(msg,
-                       ident,
-                       code,
-                       message,
-                       error.get("data"),
-                       context=context)
+            self.error(msg, ident, code, message, error.get("data"), context=context)
         elif "result" in msg:
             self.result(msg, ident, msg["result"], context=context)
         elif "method" in msg:
@@ -467,8 +449,7 @@ class Dispatcher(object):
                     if exc_type.__module__ == "exceptions":
                         exc_info["exc_type"] = exc_type.__name__
                     else:
-                        exc_info["exc_type"] = ".".join(
-                            [exc_type.__module__, exc_type.__name__])
+                        exc_info["exc_type"] = ".".join([exc_type.__module__, exc_type.__name__])
                 if "exc_args" not in exc_info:
                     try:
                         exc_info["exc_args"] = exc.args

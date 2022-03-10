@@ -62,8 +62,7 @@ class Health(SubsystemBase):
         self._owner = owner
         self._core = weakref.ref(core)
         self._rpc = weakref.ref(rpc)
-        self._statusobj = Status.build(
-            STATUS_GOOD, status_changed_callback=self._status_changed)
+        self._statusobj = Status.build(STATUS_GOOD, status_changed_callback=self._status_changed)
         self._status_callbacks = set()
 
         def onsetup(sender, **kwargs):
@@ -94,11 +93,10 @@ class Health(SubsystemBase):
                               agent_identity=fq_identity.replace(".", "_"))
         headers = dict(alert_key=alert_key)
 
-        self._owner.vip.pubsub.publish(
-            "pubsub",
-            topic=topic.format(),
-            headers=headers,
-            message=statusobj.as_json()).get(timeout=10)
+        self._owner.vip.pubsub.publish("pubsub",
+                                       topic=topic.format(),
+                                       headers=headers,
+                                       message=statusobj.as_json()).get(timeout=10)
 
     def add_status_callback(self, fn):
         """

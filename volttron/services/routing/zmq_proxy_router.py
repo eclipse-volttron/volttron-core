@@ -71,12 +71,9 @@ class ZMQProxyRouter(Agent):
         self.zmq_router = zmq_router
         self._routing_key = self.core.instance_name + "." + "proxy"
         rmq_user = self.core.instance_name + "." + identity
-        self._outbound_response_queue = "{user}.zmq.outbound.response".format(
-            user=rmq_user)
-        self._outbound_request_queue = "{user}.zmq.outbound.request".format(
-            user=rmq_user)
-        self._rpc_handler_queue = "{user}.zmq.outbound.subsystem".format(
-            user=rmq_user)
+        self._outbound_response_queue = "{user}.zmq.outbound.response".format(user=rmq_user)
+        self._outbound_request_queue = "{user}.zmq.outbound.request".format(user=rmq_user)
+        self._rpc_handler_queue = "{user}.zmq.outbound.subsystem".format(user=rmq_user)
         self._vip_loop_running = False
         self._zmq_peers = set()
 
@@ -110,13 +107,10 @@ class ZMQProxyRouter(Agent):
         channel.queue_bind(
             exchange=connection.exchange,
             queue=self._rpc_handler_queue,
-            routing_key=self.core.instance_name +
-            ".proxy.router.zmq.outbound.subsystem",
+            routing_key=self.core.instance_name + ".proxy.router.zmq.outbound.subsystem",
             callback=None,
         )
-        channel.basic_consume(self.rpc_message_handler,
-                              queue=self._rpc_handler_queue,
-                              no_ack=True)
+        channel.basic_consume(self.rpc_message_handler, queue=self._rpc_handler_queue, no_ack=True)
         # --------------------------------------------------------------------------------------
 
         # Create a queue to receive messages from local platform
@@ -179,13 +173,9 @@ class ZMQProxyRouter(Agent):
         :param kwargs:
         :return:
         """
-        _log.debug(
-            "********************************************************************"
-        )
+        _log.debug("********************************************************************")
         _log.debug("Stopping ZMQ Router")
-        _log.debug(
-            "********************************************************************"
-        )
+        _log.debug("********************************************************************")
         self.zmq_router.stop()
 
     def outbound_response_handler(self, ch, method, props, body):
@@ -229,8 +219,7 @@ class ZMQProxyRouter(Agent):
             _log.error("Invalid json format {}".format(e))
             return
 
-        _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(
-            to_identity, args))
+        _log.debug("Proxy ZMQ Router Outbound handler {0}, {1}".format(to_identity, args))
         frames = serialize_frames(frames)
         try:
             self.zmq_router.socket.send_multipart(frames, copy=True)
@@ -281,8 +270,7 @@ class ZMQProxyRouter(Agent):
         appropriate external platform subscribers.
         :return:
         """
-        json_msg = jsonapi.dumps(
-            dict(bus=bus, headers=headers, message=message))
+        json_msg = jsonapi.dumps(dict(bus=bus, headers=headers, message=message))
         # Reformat the message into ZMQ VIP message frames
         frames = [
             sender,
@@ -314,8 +302,7 @@ class ZMQProxyRouter(Agent):
             try:
                 frames = self.zmq_router.socket.recv_multipart(copy=False)
                 frames = deserialize_frames(frames)
-                sender, recipient, proto, auth_token, msg_id, subsystem = frames[:
-                                                                                 6]
+                sender, recipient, proto, auth_token, msg_id, subsystem = frames[:6]
                 sender = sender
                 recipient = recipient
                 subsystem = subsystem
@@ -350,8 +337,7 @@ class ZMQProxyRouter(Agent):
         #     _log.debug("Frames:; {}".format(f))
         connection = self.core.connection
 
-        app_id = "{instance}.{identity}".format(
-            instance=self.core.instance_name, identity=sender)
+        app_id = "{instance}.{identity}".format(instance=self.core.instance_name, identity=sender)
         # Change queue binding for the Response message
         # After sending the message (request) on behalf of ZMQ client, the response has to
         # routed back to the caller. Queue binding is modified for that purpose.
@@ -365,8 +351,7 @@ class ZMQProxyRouter(Agent):
         )
 
         # Set the destination routing key to destination agent
-        destination_routing_key = "{0}.{1}".format(self.core.instance_name,
-                                                   recipient)
+        destination_routing_key = "{0}.{1}".format(self.core.instance_name, recipient)
 
         # Fit VIP frames into the PIKA properties dictionary
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
