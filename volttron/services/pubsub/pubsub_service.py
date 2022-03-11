@@ -59,7 +59,8 @@ _ROUTE_ERRORS = {
     errnum: (
         zmq.Frame(str(errnum).encode("ascii")),
         zmq.Frame(os.strerror(errnum).encode("ascii")),
-    ) for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
+    )
+    for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
 
 _log = logging.getLogger(__name__)
@@ -138,8 +139,9 @@ class PubSubService(object):
         :type dict
         """
         # self._logger.debug("SYNC before: {0}, {1}".format(peer, items))
-        items = {(platform, bus, prefix) for platform, buses in items.items()
-                 for bus, topics in buses.items() for prefix in topics}
+        items = {(platform, bus, prefix)
+                 for platform, buses in items.items() for bus, topics in buses.items()
+                 for prefix in topics}
         # self._logger.debug("SYNC after: {}".format(items))
         remove = []
         for platform, bus_subscriptions in self._peer_subscriptions.items():

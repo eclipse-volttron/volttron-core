@@ -191,7 +191,7 @@ class ExecutionEnvironment(object):
         except OSError as e:
             if e.filename:
                 raise
-            raise OSError(*(e.args + (args[0],)))
+            raise OSError(*(e.args + (args[0], )))
 
     def stop(self):
         if self.process.poll() is None:
@@ -235,7 +235,7 @@ class SecureExecutionEnvironment(object):
         except OSError as e:
             if e.filename:
                 raise
-            raise OSError(*(e.args + (args[0],)))
+            raise OSError(*(e.args + (args[0], )))
 
     def stop(self):
         if self.process.poll() is None:
@@ -867,7 +867,7 @@ class AIPplatform(object):
 
         if not vip_identity:
             if "/" in agent_uuid or agent_uuid in [".", ".."
-                                                  ] or not self.uuid_vip_id_map.get(agent_uuid):
+                                                   ] or not self.uuid_vip_id_map.get(agent_uuid):
                 raise ValueError("invalid agent")
             vip_identity = self.uuid_vip_id_map[agent_uuid]
 

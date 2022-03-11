@@ -370,7 +370,8 @@ class ArgumentParser(_argparse.ArgumentParser):
             return config_args, cli_args
         if self._subparsers is not None:
             subcommands = {
-                name for action in self._subparsers._group_actions
+                name
+                for action in self._subparsers._group_actions
                 if hasattr(action, "_name_parser_map") for name in action._name_parser_map
             }
         else:
@@ -494,8 +495,7 @@ class ArgumentParser(_argparse.ArgumentParser):
             args = [default_prefix + "h", default_prefix * 2 + "help"]
         kwargs.setdefault("action", "help")
         kwargs.setdefault("default", _argparse.SUPPRESS)
-        kwargs.setdefault("help",
-                          _argparse._("show this help message and exit"))
+        kwargs.setdefault("help", _argparse._("show this help message and exit"))
         self.add_argument(*args, **kwargs)
 
     def add_version_argument(self, *args, **kwargs):
@@ -505,8 +505,7 @@ class ArgumentParser(_argparse.ArgumentParser):
             args = [default_prefix * 2 + "version"]
         kwargs.setdefault("action", "version")
         kwargs.setdefault("default", _argparse.SUPPRESS)
-        kwargs.setdefault(
-            "help", _argparse._("show program's version number and exit"))
+        kwargs.setdefault("help", _argparse._("show program's version number and exit"))
         self.add_argument(*args, **kwargs)
 
 
@@ -534,7 +533,7 @@ class TrackingArgumentParser(ArgumentParser):
             cls = action.__class__
             if getattr(cls, "_trackable", False):
                 continue
-            action.__class__ = type(cls.__name__, (cls,), {
+            action.__class__ = type(cls.__name__, (cls, ), {
                 "__call__": __call__,
                 "_trackable": True
             })

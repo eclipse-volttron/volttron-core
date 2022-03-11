@@ -60,7 +60,8 @@ _ROUTE_ERRORS = {
     errnum: (
         zmq.Frame(str(errnum).encode("ascii")),
         zmq.Frame(os.strerror(errnum).encode("ascii")),
-    ) for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
+    )
+    for errnum in [zmq.EHOSTUNREACH, zmq.EAGAIN]
 }
 
 _log = logging.getLogger(__name__)
@@ -243,8 +244,8 @@ class RoutingService(object):
         num = random.random()
         sock.identity = f"instance.{instance_name}.{num}".encode("utf-8")
         sock.zap_domain = b"vip"
-        mon_sock = sock.get_monitor_socket(zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED |
-                                           zmq.EVENT_CONNECT_DELAYED)
+        mon_sock = sock.get_monitor_socket(zmq.EVENT_CONNECTED | zmq.EVENT_DISCONNECTED
+                                           | zmq.EVENT_CONNECT_DELAYED)
 
         self._poller.register(mon_sock, zmq.POLLIN)
         self._monitor_sockets.add(mon_sock)

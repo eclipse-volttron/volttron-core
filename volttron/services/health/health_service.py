@@ -104,7 +104,8 @@ class HealthService(Agent):
         """
         # Ignore the connection from control in the health as it will only be around for a short while.
         agents = {
-            k: v for k, v in self._health_dict.items() if not v.get("peer") == CONTROL_CONNECTION
+            k: v
+            for k, v in self._health_dict.items() if not v.get("peer") == CONTROL_CONNECTION
         }
         return agents
 

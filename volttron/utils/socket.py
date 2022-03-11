@@ -165,8 +165,7 @@ class Address(object):
         params = ((name, getattr(self, name)) for name in self._KEYS)
         return urllib.parse.urlencode({
             name: ("XXXXX" if name in self._MASK_KEYS and value else value)
-            for name, value in params
-            if value is not None
+            for name, value in params if value is not None
         })
 
     def __str__(self):

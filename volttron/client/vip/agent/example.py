@@ -46,11 +46,11 @@ class ExampleAgent(Agent):
 
     @RPC.export
     def hello(self, name):
-        return "Hello, %s!" % (name,)
+        return "Hello, %s!" % (name, )
 
     @RPC.export("bye")
     def goodbye(self, name):
-        return "Bye, %s!" % (name,)
+        return "Bye, %s!" % (name, )
 
     def foo(self):
         return "foo"

@@ -357,22 +357,22 @@ class ZMQProxyRouter(Agent):
         # VIP format - [SENDER, RECIPIENT, PROTO, USER_ID, MSG_ID, SUBSYS, ARGS...]
         dct = {
             "user_id":
-                self.core.instance_name + "." + self.core.identity,
+            self.core.instance_name + "." + self.core.identity,
             "app_id":
-                app_id,    # Routing key of SOURCE AGENT
+            app_id,    # Routing key of SOURCE AGENT
             "headers":
-                dict(
-                    sender=sender,    # SENDER
-                    recipient=destination_routing_key,    # RECEIVER
-                    proto="VIP",    # PROTO
-                    user=auth_token,    # USER_ID
-                ),
+            dict(
+                sender=sender,    # SENDER
+                recipient=destination_routing_key,    # RECEIVER
+                proto="VIP",    # PROTO
+                user=auth_token,    # USER_ID
+            ),
             "message_id":
-                msg_id,    # MSG_ID
+            msg_id,    # MSG_ID
             "type":
-                subsystem,    # SUBSYS
+            subsystem,    # SUBSYS
             "content_type":
-                "application/json",
+            "application/json",
         }
         properties = pika.BasicProperties(**dct)
         # _log.debug("PROXY PUBLISHING TO CHANNEL {0}, {1}, {2}".format(destination_routing_key, app_id, properties))

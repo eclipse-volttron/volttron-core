@@ -267,7 +267,7 @@ def cron(cron_string, start=None, stop=None, second=0):
     minutes, hours, days, months, weekdays = parse_cron_string(cron_string)
     # Convert 0-Sunday to 7-Sunday to match datetime.isoweekday()
     if weekdays and weekdays[0] == 0:
-        weekdays = weekdays[1:] + (() if weekdays[-1] == 7 else (7,))
+        weekdays = weekdays[1:] + (() if weekdays[-1] == 7 else (7, ))
     # Check that there are some valid month/day combinations.
     if months and days and not weekdays:
         unsafe = set([(2, 30), (2, 31), (4, 31), (6, 31), (9, 31), (11, 31)])

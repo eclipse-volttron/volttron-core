@@ -460,7 +460,7 @@ def start_volttron_process(opts):
             protected_topics = auth.get_protected_topics()
             _log.debug("MAIN: protected topics content {}".format(protected_topics))
             # Start ZMQ router in separate thread to remain responsive
-            thread = threading.Thread(target=zmq_router, args=(config_store.core.stop,))
+            thread = threading.Thread(target=zmq_router, args=(config_store.core.stop, ))
             thread.daemon = True
             thread.start()
 
@@ -496,7 +496,7 @@ def start_volttron_process(opts):
                 message_bus=opts.message_bus,
             )
 
-            thread = threading.Thread(target=rmq_router, args=(config_store.core.stop,))
+            thread = threading.Thread(target=rmq_router, args=(config_store.core.stop, ))
             thread.daemon = True
             thread.start()
 

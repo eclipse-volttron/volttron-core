@@ -1049,7 +1049,7 @@ class AuthEntry(object):
         self.user_id = user_id
         self.enabled = enabled
         if kwargs:
-            _log.debug("auth record has unrecognized keys: %r" % (list(kwargs.keys()),))
+            _log.debug("auth record has unrecognized keys: %r" % (list(kwargs.keys()), ))
         self._check_validity()
 
     def __lt__(self, other):
