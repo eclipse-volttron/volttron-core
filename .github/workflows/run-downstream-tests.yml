@@ -21,20 +21,29 @@ env:
   LANG: en_US.utf-8
   LC_ALL: en_US.utf-8
   PYTHON_VERSION: '3.8'
+  EVENT_TYPE: downstream-testing
 
 jobs:
-
-  dispatch:
-    runs-on: ubuntu-20.04
-
+  initiate_downstream_testing:
     strategy:
       matrix:
-        repo: [ 'VOLTTRON/volttron-openadr-ven', 'VOLTTRON/volttron-listener-agent' ]
+        # To add more Volttron modular repos that need to be tested against a version of volttron-core,
+        # add the name of repo to the list below.
+        # The name of the repo takes the following form: <OWNER>/<REPO NAME>
+        # For example, to add the OpenADR agent repo, use the following name:
+        # VOLTTRON/volttron-openadr-ven
+        repo: [ VOLTTRON/volttron-listener-agent ]
+          # , 'VOLTTRON/volttron-openadr-ven' ]
+
+    runs-on: ubuntu-20.04
 
     steps:
+        - run: env
         - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
         - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
         - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+        - run: echo ${{ github.run_id }}
+        - run: echo ${{ github.run_number }}
 
         #----------------------------------------------
         #       check-out repo and set-up python
@@ -84,7 +93,7 @@ jobs:
           with:
             token: ${{ secrets.ACTION_HOOK_TOKEN }}
             repository: ${{ matrix.repo }}
-            event-type: downstream-testing
+            event-type: ${{ env.EVENT_TYPE }}
             client-payload: '{"ref": "${{ github.ref }}", "sha": "${{ github.sha }}", "repository": "${{ github.repository }}", "api_url": "${{ github.api_url }}" }'
 
 
