@@ -57,13 +57,13 @@ def test_sqlite_fix_current():
     cur.execute("create table test(ts timestamp)")
 
     cur.execute("delete from test")
-    cur.execute("insert into test(ts) values (?)", (now,))
+    cur.execute("insert into test(ts) values (?)", (now, ))
 
     cur.execute("select * from test")
     test_now = cur.fetchone()[0]
 
     cur.execute("delete from test")
-    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    cur.execute("insert into test(ts) values (?)", (now_tz, ))
 
     cur.execute("select * from test")
     test_now_tz = cur.fetchone()[0]

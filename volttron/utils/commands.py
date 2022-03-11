@@ -122,7 +122,7 @@ def vip_main(agent_class, identity=None, version="0.1", **kwargs):
 
         # Quiet printing of KeyboardInterrupt by greenlets
         Hub = gevent.hub.Hub
-        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
+        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt, )
 
         config = os.environ.get("AGENT_CONFIG")
         identity = os.environ.get("AGENT_VIP_IDENTITY", identity)
