@@ -36,41 +36,38 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-#from pbr.version import VersionInfo
-import yaml
+__all__ = ["get_version"]
 
-from .context import *
-from .identities import *
-from .time import *
-from .file_access import *
-from .frame_serialization import *
-from .network import *
-from .commands import *
-from .jsonapi import strip_comments, parse_json_config
-from .messagebus import store_message_bus_config
-from .logging import *
+from pathlib import Path
+import importlib.metadata as importlib_metadata
 
-from .version import get_version
+# Try to get the version from written metadata, but
+# if failed then get it from the pyproject.toml file
+try:
+    # Note this is the wheel prefix or the name attribute in pyproject.toml file.
+    # this is the version of the program that is used when the application is installed
+    # via a wheel.
+    __version__ = importlib_metadata.version('volttron')
+except importlib_metadata.PackageNotFoundError:
+    # We should be in a develop environment therefore
+    # we can get the version from the toml pyproject.toml
+    root = Path(__file__).parent.parent.parent
+    tomle_file = root.joinpath("pyproject.toml")
+    if not tomle_file.exists():
+        raise ValueError(
+            f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})"
+        )
+    import toml
 
-_log = logging.getLogger(__name__)
-#__version__ = VersionInfo("volttron.utils")
+    pyproject = toml.load(tomle_file)
+
+    __version__ = pyproject["tool"]["poetry"]["version"]
 
 
-def load_config(config_path):
-    """Load a JSON-encoded configuration file."""
-
-    if not config_path or not os.path.exists(config_path):
-        raise ValueError("Invalid config_path sent to function.")
-
-    # First attempt parsing the file with a yaml parser (allows comments natively)
-    # Then if that fails we fallback to our modified json parser.
-    try:
-        with open(config_path) as f:
-            return yaml.safe_load(f.read())
-    except yaml.scanner.ScannerError as e:
-        try:
-            with open(config_path) as f:
-                return parse_json_config(f.read())
-        except Exception as e:
-            _log.error("Problem parsing agent configuration")
-            raise
+def get_version():
+    """
+    Return the version number of the platform.  This function handles both cases where
+    we are in developer mode (i.e. there is a pyproject.toml file) and when it is
+    installed in a deployed environment where the version is looked up from the parent.
+    """
+    return __version__
