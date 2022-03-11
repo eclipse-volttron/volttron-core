@@ -77,7 +77,7 @@ class Router(BaseRouter):
             ), "volttron central address must begin with http(s) or tcp found"
             if parsed.scheme == "tcp":
                 assert (volttron_central_serverkey
-                       ), "volttron central serverkey must be set if address is tcp."
+                        ), "volttron central serverkey must be set if address is tcp."
         self._volttron_central_serverkey = volttron_central_serverkey
         self._instance_name = instance_name
         self._bind_web_address = bind_web_address

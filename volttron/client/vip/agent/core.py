@@ -165,7 +165,7 @@ def findsignal(obj, owner, name):
         signal = owner
         for part in parts:
             signal = getattr(signal, part)
-    assert isinstance(signal, Signal), "bad signal name %r" % (name,)
+    assert isinstance(signal, Signal), "bad signal name %r" % (name, )
     return signal
 
 
@@ -805,7 +805,7 @@ class ZMQCore(Core):
             # get_monitor_socket() so we can use green sockets with
             # regular contexts (get_monitor_socket() uses
             # self.context.socket()).
-            addr = "inproc://monitor.v-%d" % (id(self.socket),)
+            addr = "inproc://monitor.v-%d" % (id(self.socket), )
             sock = None
             if self.socket is not None:
                 try:
@@ -989,9 +989,9 @@ if cc.is_rabbitmq_available():
                 self.instance_name = instance_name
 
             assert (self.instance_name
-                   ), "Instance name must have been set in the platform config file."
+                    ), "Instance name must have been set in the platform config file."
             assert (not volttron_central_instance_name
-                   ), "Please report this as volttron_central_instance_name shouldn't be passed."
+                    ), "Please report this as volttron_central_instance_name shouldn't be passed."
 
             # self._event_queue = gevent.queue.Queue
             self._event_queue = Queue()

@@ -156,7 +156,7 @@ class Channel(SubsystemBase):
         else:
             channel = (peer, name)
             if channel in self._channels:
-                raise ValueError('channel %r is unavailable' % (name,))
+                raise ValueError('channel %r is unavailable' % (name, ))
         _log.debug(f"Connecting to channel {channel}")
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1

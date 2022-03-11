@@ -47,7 +47,7 @@ __all__ = ["counter", "ResultsDictionary"]
 
 
 class AsyncResult(AsyncResult):
-    __slots__ = AsyncResult.__slots__ + ("ident",)
+    __slots__ = AsyncResult.__slots__ + ("ident", )
 
 
 def counter(start=None, minimum=0, maximum=sys.maxsize - 1):

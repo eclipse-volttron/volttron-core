@@ -237,7 +237,8 @@ class PubSub(SubsystemBase):
         subscriptions = {
             platform: {
                 bus: list(subscriptions.keys())
-            } for platform, bus_subscriptions in self._my_subscriptions.items()
+            }
+            for platform, bus_subscriptions in self._my_subscriptions.items()
             for bus, subscriptions in bus_subscriptions.items()
         }
         sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions))
@@ -249,7 +250,8 @@ class PubSub(SubsystemBase):
         items = [{
             platform: {
                 bus: list(subscriptions.keys())
-            } for platform, bus_subscriptions in self._my_subscriptions.items()
+            }
+            for platform, bus_subscriptions in self._my_subscriptions.items()
             for bus, subscriptions in bus_subscriptions.items()
         }]
         for subscriptions in items:
@@ -301,7 +303,7 @@ class PubSub(SubsystemBase):
     def _add_subscription(self, prefix, callback, bus="", all_platforms=False):
         # _log.debug(f"Adding subscription prefix: {prefix} allplatforms: {all_platforms}")
         if not callable(callback):
-            raise ValueError("callback %r is not callable" % (callback,))
+            raise ValueError("callback %r is not callable" % (callback, ))
         try:
             if not all_platforms:
                 self._my_subscriptions["internal"][bus][prefix].add(callback)

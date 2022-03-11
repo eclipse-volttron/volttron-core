@@ -457,7 +457,7 @@ class ConfigStore(SubsystemBase):
         :type pattern: str
         """
         if isinstance(actions, str):
-            actions = (actions,)
+            actions = (actions, )
 
         actions = set(action.upper() for action in actions)
 

@@ -815,7 +815,7 @@ def tag_agent(opts):
             msg = "agent not found"
         _stderr.write("{}: error: {}: {}\n".format(opts.command, msg, opts.agent))
         return 10
-    (agent,) = agents
+    (agent, ) = agents
     if opts.tag:
         _stdout.write("Tagging {} {}\n".format(agent.uuid, agent.name))
         opts.aip.tag_agent(agent.uuid, opts.tag)

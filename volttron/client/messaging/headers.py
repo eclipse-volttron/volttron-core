@@ -41,7 +41,7 @@ __author__ = "Brandon Carpenter <brandon.carpenter@pnnl.gov>"
 __copyright__ = "Copyright (c) 2016, Battelle Memorial Institute"
 __license__ = "Apache 2.0"
 
-CONTENT_TYPE = type("ContentTypeStr", (str,), {
+CONTENT_TYPE = type("ContentTypeStr", (str, ), {
     "JSON": "application/json",
     "PLAIN_TEXT": "text/plain"
 })("Content-Type")

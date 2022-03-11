@@ -167,7 +167,7 @@ class VolttronPackageWheelFileNoSign:
     def pop_records_file(self):
         """Pop off the last records file that was added"""
         records = ZipPackageVerifier(self.filename).get_records()
-        topop = (os.path.join(self.distinfo_name, records[0]),)
+        topop = (os.path.join(self.distinfo_name, records[0]), )
         self.remove_files(topop)
 
     def pop_record_and_files(self):
@@ -178,11 +178,10 @@ class VolttronPackageWheelFileNoSign:
         records = ZipPackageVerifier(self.filename).get_records()
         record = records.pop(0)
         zf = self.zipfile
-        keep = set(row[0]
-                   for name in records
+        keep = set(row[0] for name in records
                    for row in csv.reader(zf.open(posixpath.join(self.distinfo_name, name))))
-        drop = set(
-            row[0] for row in csv.reader(zf.open(posixpath.join(self.distinfo_name, record))))
+        drop = set(row[0]
+                   for row in csv.reader(zf.open(posixpath.join(self.distinfo_name, record))))
         # These two should already be listed, but add them just in case
         drop.add(posixpath.join(self.distinfo_name, record))
         self.remove_files(drop - keep)

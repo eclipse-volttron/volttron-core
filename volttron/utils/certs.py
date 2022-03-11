@@ -96,17 +96,17 @@ class Subject(
     def create_from_x509_subject(subject):
         mapping = {
             "common_name":
-                subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
             "country":
-                subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
             "state":
-                subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[0].value,
             "location":
-                subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
             "organization":
-                subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value,
             "organization_unit":
-                subject.get_attributes_for_oid(NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value,
         }
         return Subject(**mapping)
 
@@ -629,17 +629,17 @@ class Certs(object):
         subject = self.cert(name).subject
         return {
             "common-name":
-                subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
             "country":
-                subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
             "state":
-                subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[0].value,
             "location":
-                subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
             "organization":
-                subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value,
             "organization-unit":
-                subject.get_attributes_for_oid(NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value,
+            subject.get_attributes_for_oid(NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value,
         }
 
     @staticmethod
@@ -1061,7 +1061,7 @@ def _create_signed_certificate(
         # if server cert specify that the certificate can be used as an SSL
         # server certificate
         cert_builder = cert_builder.add_extension(
-            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH, )),
             critical=False,
         )
         if hostname and fqdn != hostname:
@@ -1077,7 +1077,7 @@ def _create_signed_certificate(
         # specify that the certificate can be used as an SSL
         # client certificate to enable TLS Web Client Authentication
         cert_builder = cert_builder.add_extension(
-            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH, )),
             critical=False,
         )
 
