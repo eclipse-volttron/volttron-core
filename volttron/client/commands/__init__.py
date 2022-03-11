@@ -50,28 +50,14 @@ import sys
 from configparser import ConfigParser
 from urllib.parse import urlparse
 
-from volttron.utils import jsonapi
+from volttron.utils import jsonapi, get_version
 from volttron.utils.frozendict import FrozenDict
 
 _log = logging.getLogger(__name__)
 
-# python3.8 and above have this implementation.
-try:
-    import importlib.metadata as importlib_metadata
-except ModuleNotFoundError:
-    import importlib_metadata
 
-# We should be in a develop environment therefore
-# we can get the version from the toml pyproject.toml
-root = Path(__file__).parent.parent.parent.parent
-tomle_file = root.joinpath("pyproject.toml")
-if not tomle_file.exists():
-    raise ValueError(f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})")
-import toml
+__version__ = get_version()
 
-pyproject = toml.load(tomle_file)
-
-__version__ = pyproject["tool"]["poetry"]["version"]
 
 # def get_volttron_root():
 #     """
