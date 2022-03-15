@@ -39,7 +39,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 # }}}
-
 """Utilities for tracking VIP message statistics at the router."""
 
 import gevent
@@ -80,10 +79,26 @@ class Tracker(object):
     def _reset(self):
         """Initialize statistics counters."""
         self.stats = {
-            "error": {"error": {}, "peer": {}, "user": {}, "subsystem": {}},
-            "unroutable": {"error": {}, "peer": {}},
-            "incoming": {"peer": {}, "user": {}, "subsystem": {}},
-            "outgoing": {"peer": {}, "user": {}, "subsystem": {}},
+            "error": {
+                "error": {},
+                "peer": {},
+                "user": {},
+                "subsystem": {}
+            },
+            "unroutable": {
+                "error": {},
+                "peer": {}
+            },
+            "incoming": {
+                "peer": {},
+                "user": {},
+                "subsystem": {}
+            },
+            "outgoing": {
+                "peer": {},
+                "user": {},
+                "subsystem": {}
+            },
         }
 
     def hit(self, topic, frames, extra):
@@ -99,9 +114,7 @@ class Tracker(object):
                     stat = self.stats["error"]
                     increment(stat["error"], bytes(extra[0]))
                 else:
-                    stat = self.stats[
-                        "incoming" if topic == INCOMING else "outgoing"
-                    ]
+                    stat = self.stats["incoming" if topic == INCOMING else "outgoing"]
                 increment(stat["user"], user)
                 increment(stat["subsystem"], subsystem)
             increment(stat["peer"], pick(frames, 0))

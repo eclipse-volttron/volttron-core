@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import logging
 import weakref
 
@@ -49,11 +48,11 @@ from zmq.green import ENOTSOCK
 
 __all__ = ["PeerList"]
 
-
 _log = logging.getLogger(__name__)
 
 
 class PeerList(SubsystemBase):
+
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()
@@ -79,9 +78,10 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip(
-                "", "peerlist", args=["add", peer, message_bus], msg_id=result.ident
-            )
+            connection.send_vip("",
+                                "peerlist",
+                                args=["add", peer, message_bus],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -93,9 +93,10 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip(
-                "", "peerlist", args=["drop", peer, message_bus], msg_id=result.ident
-            )
+            connection.send_vip("",
+                                "peerlist",
+                                args=["drop", peer, message_bus],
+                                msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -106,9 +107,7 @@ class PeerList(SubsystemBase):
         result = next(self._results)
 
         try:
-            connection.send_vip(
-                "", "peerlist", args=["list_with_messagebus"], msg_id=result.ident
-            )
+            connection.send_vip("", "peerlist", args=["list_with_messagebus"], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))

@@ -38,6 +38,7 @@ def isapipe(fd):
 
 
 class JsonFormatter(logging.Formatter):
+
     def format(self, record):
         dct = record.__dict__.copy()
         dct["msg"] = record.getMessage()
@@ -49,6 +50,7 @@ class JsonFormatter(logging.Formatter):
 
 
 class AgentFormatter(logging.Formatter):
+
     def __init__(self, fmt=None, datefmt=None):
         if fmt is None:
             fmt = "%(asctime)s %(composite_name)s %(levelname)s: %(message)s"
@@ -58,9 +60,7 @@ class AgentFormatter(logging.Formatter):
         if record.name == "agents.log":
             cname = "(%(processName)s %(process)d) %(remote_name)s"
         elif record.name.startswith("agents.std"):
-            cname = "(%(processName)s %(process)d) <{}>".format(
-                record.name.split(".", 2)[1]
-            )
+            cname = "(%(processName)s %(process)d) <{}>".format(record.name.split(".", 2)[1])
         else:
             cname = "() %(name)s"
         return cname % record.__dict__
@@ -68,16 +68,14 @@ class AgentFormatter(logging.Formatter):
     def format(self, record):
         if "composite_name" not in record.__dict__:
             record.__dict__["composite_name"] = self.composite_name(record)
-        if (
-            len(record.args) > 0
-            and "tornado.access" in record.__dict__["composite_name"]
-        ):
+        if (len(record.args) > 0 and "tornado.access" in record.__dict__["composite_name"]):
             record.__dict__["msg"] = ",".join([str(b) for b in record.args])
             record.__dict__["args"] = []
         return super(AgentFormatter, self).format(record)
 
 
 class FramesFormatter(object):
+
     def __init__(self, frames):
         self.frames = frames
 
@@ -86,16 +84,13 @@ class FramesFormatter(object):
 
     __str__ = __repr__
 
-def log_to_file(file, level=logging.WARNING,
-                handler_class=logging.StreamHandler):
+
+def log_to_file(file, level=logging.WARNING, handler_class=logging.StreamHandler):
     """Direct log output to a file (or something like one)."""
     handler = handler_class(file)
     handler.setLevel(level)
     handler.setFormatter(
-        AgentFormatter(
-            "%(asctime)s %(composite_name)s %(levelname)s: %(message)s"
-        )
-    )
+        AgentFormatter("%(asctime)s %(composite_name)s %(levelname)s: %(message)s"))
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)

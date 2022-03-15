@@ -51,21 +51,19 @@ def test_sqlite_fix_current():
     # Patch the global sqlite3
     fix_sqlite3_datetime()
 
-    conn = sql.connect(
-        ":memory:", detect_types=sql.PARSE_DECLTYPES | sql.PARSE_COLNAMES
-    )
+    conn = sql.connect(":memory:", detect_types=sql.PARSE_DECLTYPES | sql.PARSE_COLNAMES)
 
     cur = conn.cursor()
     cur.execute("create table test(ts timestamp)")
 
     cur.execute("delete from test")
-    cur.execute("insert into test(ts) values (?)", (now,))
+    cur.execute("insert into test(ts) values (?)", (now, ))
 
     cur.execute("select * from test")
     test_now = cur.fetchone()[0]
 
     cur.execute("delete from test")
-    cur.execute("insert into test(ts) values (?)", (now_tz,))
+    cur.execute("insert into test(ts) values (?)", (now_tz, ))
 
     cur.execute("select * from test")
     test_now_tz = cur.fetchone()[0]

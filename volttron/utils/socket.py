@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VIP - VOLTTRON™ Interconnect Protocol implementation
 
 See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
@@ -46,7 +45,6 @@ provide missing features for different threading models. The standard
 Socket class is defined in __init__.py. A gevent-friendly version is
 defined in green.py.
 """
-
 
 import base64
 import binascii
@@ -79,9 +77,7 @@ from volttron.utils.frame_serialization import (
 from volttron.utils.keystore import BASE64_ENCODED_CURVE_KEY_LEN
 from volttron.utils.keystore import decode_key
 
-
 __all__ = ["Address", "ProtocolError", "Message", "nonblocking"]
-
 
 _log = logging.getLogger(__name__)
 
@@ -161,21 +157,16 @@ class Address(object):
                     if value not in ["NULL", "PLAIN", "CURVE"]:
                         raise ValueError("bad value for server parameter: %r" % value)
                 elif name == "ipv6":
-                    value = bool(
-                        re.sub(r"\s*(0|false|no|off)\s*", r"", value, flags=re.I)
-                    )
+                    value = bool(re.sub(r"\s*(0|false|no|off)\s*", r"", value, flags=re.I))
                 setattr(self, name, value)
 
     @property
     def qs(self):
         params = ((name, getattr(self, name)) for name in self._KEYS)
-        return urllib.parse.urlencode(
-            {
-                name: ("XXXXX" if name in self._MASK_KEYS and value else value)
-                for name, value in params
-                if value is not None
-            }
-        )
+        return urllib.parse.urlencode({
+            name: ("XXXXX" if name in self._MASK_KEYS and value else value)
+            for name, value in params if value is not None
+        })
 
     def __str__(self):
         parts = [self.base]
@@ -274,14 +265,10 @@ class Message(object):
         self.__dict__ = kwargs
 
     def __repr__(self):
-        attrs = ", ".join(
-            "%r: %r"
-            % (
-                name,
-                [x for x in value] if isinstance(value, (list, tuple)) else value,
-            )
-            for name, value in self.__dict__.items()
-        )
+        attrs = ", ".join("%r: %r" % (
+            name,
+            [x for x in value] if isinstance(value, (list, tuple)) else value,
+        ) for name, value in self.__dict__.items())
         return "%s(**{%s})" % (self.__class__.__name__, attrs)
 
 
@@ -389,9 +376,7 @@ class _Socket(object):
             if not flags & SNDMORE:
                 # Must have SNDMORE flag until sending SUBSYSTEM frame.
                 if state < 4:
-                    raise ProtocolError(
-                        "expecting at least %d more frames" % (4 - state - 1)
-                    )
+                    raise ProtocolError("expecting at least %d more frames" % (4 - state - 1))
                 # Reset the send state when the last frame is sent
                 self._send_state = -1 if self.type == ROUTER else 0
             elif state < 5:
@@ -410,9 +395,7 @@ class _Socket(object):
         parts = serialize_frames(msg_parts)
         # _log.debug("Sending parts on multiparts: {}".format(parts))
         with self._sending(flags) as flags:
-            super(_Socket, self).send_multipart(
-                parts, flags=flags, copy=copy, track=track
-            )
+            super(_Socket, self).send_multipart(parts, flags=flags, copy=copy, track=track)
 
     def send_vip(
         self,
@@ -461,9 +444,8 @@ class _Socket(object):
                 raise ProtocolError("previous send operation is not complete")
             elif state == -1:
                 if via is None:
-                    raise ValueError(
-                        "missing 'via' argument " "required by ROUTER sockets"
-                    )
+                    raise ValueError("missing 'via' argument "
+                                     "required by ROUTER sockets")
                 self.send(via, flags=flags | SNDMORE, copy=copy, track=track)
 
             if user is None:
@@ -477,9 +459,7 @@ class _Socket(object):
                 track=track,
             )
             if args:
-                send = (
-                    self.send if isinstance(args, (bytes, str)) else self.send_multipart
-                )
+                send = (self.send if isinstance(args, (bytes, str)) else self.send_multipart)
                 send(args, flags=flags, copy=copy, track=track)
 
     def send_vip_dict(self, dct, flags=0, copy=True, track=False):
@@ -527,18 +507,13 @@ class _Socket(object):
             state += 1
             self._recv_state = state
             if proto != b"VIP1":
-                raise ProtocolError(
-                    "invalid protocol: {!r}{}".format(
-                        proto[:30], "..." if len(proto) > 30 else ""
-                    )
-                )
+                raise ProtocolError("invalid protocol: {!r}{}".format(
+                    proto[:30], "..." if len(proto) > 30 else ""))
         result = super(_Socket, self).recv(flags=flags, copy=copy, track=track)
         if not self.getsockopt(RCVMORE):
             # Ensure SUBSYSTEM is received
             if state < 4:
-                raise ProtocolError(
-                    "expected at least {} more frames".format(4 - state - 1)
-                )
+                raise ProtocolError("expected at least {} more frames".format(4 - state - 1))
             self._recv_state = -1 if self.type == ROUTER else 0
         elif state < 5:
             self._recv_state = state + 1
