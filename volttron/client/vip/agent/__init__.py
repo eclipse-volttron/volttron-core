@@ -50,7 +50,9 @@ from volttron.utils.keystore import get_server_keys
 
 
 class Agent(object):
+
     class Subsystems(object):
+
         def __init__(
             self,
             owner,
@@ -96,8 +98,8 @@ class Agent(object):
         publickey=None,
         secretkey=None,
         serverkey=None,
-        # Since heartbeat is now 100% tied to status on the vctl change the defaults
-        # to auto start the heartbeat.
+    # Since heartbeat is now 100% tied to status on the vctl change the defaults
+    # to auto start the heartbeat.
         heartbeat_autostart=True,
         heartbeat_period=60,
         volttron_home=None,
@@ -121,11 +123,8 @@ class Agent(object):
 
             if identity is not None and not is_valid_identity(identity):
                 _log.warning("Deprecation warning")
-                _log.warning(
-                    "All characters in {identity} are not in the valid set.".format(
-                        identity=identity
-                    )
-                )
+                _log.warning("All characters in {identity} are not in the valid set.".format(
+                    identity=identity))
 
             if message_bus is not None and message_bus.lower() == "rmq":
                 _log.debug("Creating RMQ Core {}".format(identity))
@@ -179,24 +178,23 @@ class Agent(object):
 
 
 class BasicAgent(object):
+
     def __init__(self, **kwargs):
         kwargs.pop("identity", None)
         super(BasicAgent, self).__init__(**kwargs)
         self.core = BasicCore(self)
 
 
-def build_agent(
-    address=None,
-    identity=None,
-    publickey=None,
-    secretkey=None,
-    timeout=10,
-    serverkey=None,
-    agent_class=Agent,
-    volttron_central_address=None,
-    volttron_central_instance_name=None,
-    **kwargs
-) -> Agent:
+def build_agent(address=None,
+                identity=None,
+                publickey=None,
+                secretkey=None,
+                timeout=10,
+                serverkey=None,
+                agent_class=Agent,
+                volttron_central_address=None,
+                volttron_central_instance_name=None,
+                **kwargs) -> Agent:
     """Builds a dynamic agent connected to the specifiedd address.
 
     All key parameters should have been encoded with
@@ -228,18 +226,16 @@ def build_agent(
     except KeyError:
         enable_store = False
 
-    agent = agent_class(
-        address=address,
-        identity=identity,
-        publickey=publickey,
-        secretkey=secretkey,
-        serverkey=serverkey,
-        volttron_central_address=volttron_central_address,
-        volttron_central_instance_name=volttron_central_instance_name,
-        message_bus=message_bus,
-        enable_store=enable_store,
-        **kwargs
-    )
+    agent = agent_class(address=address,
+                        identity=identity,
+                        publickey=publickey,
+                        secretkey=secretkey,
+                        serverkey=serverkey,
+                        volttron_central_address=volttron_central_address,
+                        volttron_central_instance_name=volttron_central_instance_name,
+                        message_bus=message_bus,
+                        enable_store=enable_store,
+                        **kwargs)
     event = gevent.event.Event()
     gevent.spawn(agent.core.run, event)
     with gevent.Timeout(timeout):

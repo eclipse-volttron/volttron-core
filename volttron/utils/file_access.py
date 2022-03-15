@@ -42,7 +42,6 @@ import os
 import errno
 import logging
 
-
 _log = logging.getLogger(__name__)
 
 
@@ -66,11 +65,7 @@ def create_file_if_missing(path, permission=0o660, contents=None):
         success = False
         try:
             if contents:
-                contents = (
-                    contents
-                    if isinstance(contents, bytes)
-                    else contents.encode("utf-8")
-                )
+                contents = (contents if isinstance(contents, bytes) else contents.encode("utf-8"))
                 os.write(fd, contents)
                 success = True
         except Exception as e:

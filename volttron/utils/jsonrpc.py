@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """Implementation of JSON-RPC 2.0 with support for bi-directional calls.
 
 See http://www.jsonrpc.org/specification for the complete specification.
@@ -55,7 +54,6 @@ __all__ = [
     "json_validate_request",
     "json_validate_response",
 ]
-
 
 PARSE_ERROR = -32700
 INVALID_REQUEST = -32600
@@ -160,7 +158,7 @@ class Error(Exception):
 
     def __init__(self, code, message, data=None):
         args = (code, message, data) if data is not None else (code, message)
-        super(Error, self).__init__(*args)  # pylint: disable=star-args
+        super(Error, self).__init__(*args)    # pylint: disable=star-args
         self.code = code
         self.message = message
         self.data = data
@@ -264,11 +262,7 @@ class Dispatcher(object):
         None to indicate a notification.
         """
         return self.serialize(
-            [
-                json_method(ident, method, args, kwargs)
-                for ident, method, args, kwargs in requests
-            ]
-        )
+            [json_method(ident, method, args, kwargs) for ident, method, args, kwargs in requests])
 
     def call(self, ident, method, args=None, kwargs=None):
         """Create and return a request for a single method call."""
@@ -446,7 +440,7 @@ class Dispatcher(object):
                     "unimplemented method",
                     detail="method {!r} is not implemented".format(name),
                 )
-            except Exception as exc:  # pylint: disable=broad-except
+            except Exception as exc:    # pylint: disable=broad-except
                 if ident is None:
                     return
                 exc_info = getattr(exc, "exc_info", {})
@@ -455,9 +449,7 @@ class Dispatcher(object):
                     if exc_type.__module__ == "exceptions":
                         exc_info["exc_type"] = exc_type.__name__
                     else:
-                        exc_info["exc_type"] = ".".join(
-                            [exc_type.__module__, exc_type.__name__]
-                        )
+                        exc_info["exc_type"] = ".".join([exc_type.__module__, exc_type.__name__])
                 if "exc_args" not in exc_info:
                     try:
                         exc_info["exc_args"] = exc.args
@@ -466,9 +458,8 @@ class Dispatcher(object):
                 error = {"detail": str(exc), "exception.py": exc_info}
                 return json_error(
                     ident,
-                    UNHANDLED_EXCEPTION,  # pylint: disable=star-args
+                    UNHANDLED_EXCEPTION,    # pylint: disable=star-args
                     "unhandled exception",
-                    **error
-                )
+                    **error)
             if ident is not None:
                 return json_result(ident, result)

@@ -58,7 +58,6 @@ from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 from ..utils import jsonapi, ClientContext as cc, get_hostname
 from ..utils.commands import execute_command
 
-
 # from volttron.platform.agent.utils import (get_platform_instance_name,
 #                                           get_fq_identity,
 #                                           execute_command)
@@ -81,33 +80,33 @@ class CertError(Exception):
 
 
 class Subject(
-    namedtuple(
-        "SubjectObj",
-        (
-            "country",
-            "state",
-            "location",
-            "organization",
-            "organization_unit",
-            "common_name",
-        ),
-    )
-):
+        namedtuple(
+            "SubjectObj",
+            (
+                "country",
+                "state",
+                "location",
+                "organization",
+                "organization_unit",
+                "common_name",
+            ),
+        )):
+
     @staticmethod
     def create_from_x509_subject(subject):
         mapping = {
-            "common_name": subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
-            "country": subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
-            "state": subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[
-                0
-            ].value,
-            "location": subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
-            "organization": subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[
-                0
-            ].value,
-            "organization_unit": subject.get_attributes_for_oid(
-                NameOID.ORGANIZATIONAL_UNIT_NAME
-            )[0].value,
+            "common_name":
+            subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
+            "country":
+            subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
+            "state":
+            subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[0].value,
+            "location":
+            subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
+            "organization":
+            subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value,
+            "organization_unit":
+            subject.get_attributes_for_oid(NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value,
         }
         return Subject(**mapping)
 
@@ -157,33 +156,21 @@ def _create_fingerprint(public_key):
 
 
 def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
-    key = rsa.generate_private_key(
-        public_exponent=65537, key_size=2048, backend=default_backend()
-    )
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
 
     issuer = subject = _create_subject(**kwargs)
     cert_builder = (
-        x509.CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(issuer)
-        .public_key(key.public_key())
-        .not_valid_before(datetime.datetime.utcnow())
-        .not_valid_after(
-            # Our certificate will be valid for 365 days
-            datetime.datetime.utcnow()
-            + datetime.timedelta(days=valid_days)
-        )
-        .add_extension(
-            # set CA to true
-            x509.BasicConstraints(ca=True, path_length=1),
-            critical=True,
-        )
-        .serial_number(int(time.time()))
-        .add_extension(
-            x509.SubjectKeyIdentifier(_create_fingerprint(key.public_key())),
-            critical=False,
-        )
-    )
+        x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(
+            key.public_key()).not_valid_before(datetime.datetime.utcnow()).not_valid_after(
+    # Our certificate will be valid for 365 days
+                datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)).add_extension(
+    # set CA to true
+                    x509.BasicConstraints(ca=True, path_length=1),
+                    critical=True,
+                ).serial_number(int(time.time())).add_extension(
+                    x509.SubjectKeyIdentifier(_create_fingerprint(key.public_key())),
+                    critical=False,
+                ))
     cert_builder = cert_builder.add_extension(
         x509.KeyUsage(
             digital_signature=False,
@@ -223,9 +210,7 @@ def _load_cert(cert_loc):
     return cert
 
 
-def get_passphrase(
-    verify=True, prompt1="Enter passphrase:", prompt2="Verify passphrase:"
-):
+def get_passphrase(verify=True, prompt1="Enter passphrase:", prompt2="Verify passphrase:"):
     """
     Prompt passphrase from user and return it
     :param verify: If user should be prompt twice for verification
@@ -350,18 +335,10 @@ class Certs(object):
         self.cert_dir = os.path.join(os.path.expanduser(certificate_dir), "certs")
         self.private_dir = os.path.join(os.path.expanduser(certificate_dir), "private")
         self.ca_db_dir = os.path.join(os.path.expanduser(certificate_dir), "ca_db")
-        self.csr_pending_dir = os.path.join(
-            os.path.expanduser(certificate_dir), "pending_csr"
-        )
-        self.remote_cert_dir = os.path.join(
-            os.path.expanduser(certificate_dir), "remote_certs"
-        )
-        self.certs_pending_dir = os.path.join(
-            os.path.expanduser(certificate_dir), "pending_certs"
-        )
-        self.rejected_dir = os.path.join(
-            os.path.expanduser(certificate_dir), "rejected"
-        )
+        self.csr_pending_dir = os.path.join(os.path.expanduser(certificate_dir), "pending_csr")
+        self.remote_cert_dir = os.path.join(os.path.expanduser(certificate_dir), "remote_certs")
+        self.certs_pending_dir = os.path.join(os.path.expanduser(certificate_dir), "pending_certs")
+        self.rejected_dir = os.path.join(os.path.expanduser(certificate_dir), "rejected")
 
         required_paths = (
             self.cert_dir,
@@ -543,17 +520,12 @@ class Certs(object):
         """
         assert fully_qualified_identity
         remote_rmq_user = "{}.{}".format(remote_instance_name, fully_qualified_identity)
-        xname = x509.Name(
-            [
-                x509.NameAttribute(NameOID.COMMON_NAME, six.u(remote_rmq_user)),
-            ]
-        )
+        xname = x509.Name([
+            x509.NameAttribute(NameOID.COMMON_NAME, six.u(remote_rmq_user)),
+        ])
         key = _load_key(self.private_key_file(fully_qualified_identity))
-        csr = (
-            x509.CertificateSigningRequestBuilder()
-            .subject_name(xname)
-            .sign(key, hashes.SHA256(), default_backend())
-        )
+        csr = (x509.CertificateSigningRequestBuilder().subject_name(xname).sign(
+            key, hashes.SHA256(), default_backend()))
         # with open(self.csr_create_file(name, target_volttron), "wb") as fw:
         #     fw.write(csr.public_bytes(serialization.Encoding.PEM))
         return csr.public_bytes(serialization.Encoding.PEM)
@@ -569,9 +541,7 @@ class Certs(object):
     def get_cert_from_csr(self, common_name):
         status = self.get_csr_status(common_name)
         if status == "APPROVED":
-            return self.cert(common_name, True).public_bytes(
-                encoding=serialization.Encoding.PEM
-            )
+            return self.cert(common_name, True).public_bytes(encoding=serialization.Encoding.PEM)
 
     def approve_csr(self, common_name):
         metafile = os.path.join(self.csr_pending_dir, common_name + ".json")
@@ -579,9 +549,7 @@ class Certs(object):
         if not os.path.isfile(metafile):
             raise ValueError("Unknown csr for common_name {}".format(common_name))
         if not os.path.isfile(csrfile):
-            raise ValueError(
-                "Bad state unknown CSR for common_name {}".format(common_name)
-            )
+            raise ValueError("Bad state unknown CSR for common_name {}".format(common_name))
 
         cert = self.sign_csr(csrfile)
         self.save_remote_cert(common_name, cert)
@@ -608,9 +576,7 @@ class Certs(object):
         if not os.path.isfile(metafile):
             raise ValueError("Unknown csr for common_name {}".format(common_name))
         if not os.path.isfile(csrfile):
-            raise ValueError(
-                "Bad state unknown CSR for common_name {}".format(common_name)
-            )
+            raise ValueError("Bad state unknown CSR for common_name {}".format(common_name))
 
         self.delete_remote_cert(common_name)
         meta = jsonapi.loads(open(metafile, "r").read())
@@ -623,12 +589,8 @@ class Certs(object):
         with open(csr_file, "rb") as f:
             csr = x509.load_pem_x509_csr(data=f.read(), backend=default_backend())
 
-        subject_common_name = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[
-            0
-        ].value
-        cert, _ = self.create_signed_cert_files(
-            name=subject_common_name, overwrite=False, csr=csr
-        )
+        subject_common_name = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
+        cert, _ = self.create_signed_cert_files(name=subject_common_name, overwrite=False, csr=csr)
         return cert.public_bytes(encoding=serialization.Encoding.PEM)
 
     def cert_exists(self, cert_name, remote=False):
@@ -666,18 +628,18 @@ class Certs(object):
 
         subject = self.cert(name).subject
         return {
-            "common-name": subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
-            "country": subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
-            "state": subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[
-                0
-            ].value,
-            "location": subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
-            "organization": subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[
-                0
-            ].value,
-            "organization-unit": subject.get_attributes_for_oid(
-                NameOID.ORGANIZATIONAL_UNIT_NAME
-            )[0].value,
+            "common-name":
+            subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value,
+            "country":
+            subject.get_attributes_for_oid(NameOID.COUNTRY_NAME)[0].value,
+            "state":
+            subject.get_attributes_for_oid(NameOID.STATE_OR_PROVINCE_NAME)[0].value,
+            "location":
+            subject.get_attributes_for_oid(NameOID.LOCALITY_NAME)[0].value,
+            "organization":
+            subject.get_attributes_for_oid(NameOID.ORGANIZATION_NAME)[0].value,
+            "organization-unit":
+            subject.get_attributes_for_oid(NameOID.ORGANIZATIONAL_UNIT_NAME)[0].value,
         }
 
     @staticmethod
@@ -711,9 +673,8 @@ class Certs(object):
                 "-in",
                 os.path.expanduser(os.path.expandvars(public_key_file)),
             ]
-            mod_pub = execute_command(
-                cmd, err_prefix="Error getting modulus of " "public key"
-            )
+            mod_pub = execute_command(cmd, err_prefix="Error getting modulus of "
+                                      "public key")
             cmd = [
                 "openssl",
                 "rsa",
@@ -722,9 +683,8 @@ class Certs(object):
                 "-in",
                 os.path.expanduser(os.path.expandvars(private_key_file)),
             ]
-            mod_key = execute_command(
-                cmd, err_prefix="Error getting modulus of " "private key"
-            )
+            mod_key = execute_command(cmd, err_prefix="Error getting modulus of "
+                                      "private key")
         except RuntimeError as e:
             return False
 
@@ -801,9 +761,8 @@ class Certs(object):
             with open(cert_file, "wb") as fp:
                 fp.write(cert_string)
         except Exception as e:
-            raise RuntimeError(
-                "Error saving remote cert {}. " "Exception: {}".format(cert_file, e)
-            )
+            raise RuntimeError("Error saving remote cert {}. "
+                               "Exception: {}".format(cert_file, e))
 
     def save_cert(self, file_path):
         cert_file = self.cert_file(os.path.splitext(os.path.basename(file_path))[0])
@@ -815,9 +774,7 @@ class Certs(object):
             copyfile(file_path, cert_file)
 
     def save_key(self, file_path):
-        key_file = self.private_key_file(
-            os.path.splitext(os.path.basename(file_path))[0]
-        )
+        key_file = self.private_key_file(os.path.splitext(os.path.basename(file_path))[0])
         directory = os.path.dirname(key_file)
         if not os.path.exists(directory):
             # make directory accessible to all.
@@ -910,10 +867,8 @@ class Certs(object):
             encryption = serialization.NoEncryption()
             if PROMPT_PASSPHRASE:
                 encryption = serialization.BestAvailableEncryption(
-                    get_passphrase(
-                        prompt1="Enter passphrase for private " "key " + name + ":"
-                    )
-                )
+                    get_passphrase(prompt1="Enter passphrase for private "
+                                   "key " + name + ":"))
 
             # Write our key to disk for safe keeping
             key_file = self.private_key_file(name)
@@ -923,8 +878,7 @@ class Certs(object):
                         encoding=serialization.Encoding.PEM,
                         format=serialization.PrivateFormat.TraditionalOpenSSL,
                         encryption_algorithm=encryption,
-                    )
-                )
+                    ))
             os.chmod(key_file, 0o600)
 
     def update_ca_db(self, cert, ca_name, serial):
@@ -948,14 +902,15 @@ class Certs(object):
                 ca_db = jsonapi.load(f)
         entries = ca_db.get(dn, {})
         entries["status"] = "valid"
-        entries["expiry"] = cert.not_valid_after.strftime("%Y-%m-%d " "%H:%M:%S.%f%z")
+        entries["expiry"] = cert.not_valid_after.strftime("%Y-%m-%d "
+                                                          "%H:%M:%S.%f%z")
         entries["serial_number"] = cert.serial_number
         ca_db[dn] = entries
         with open(db_file, "w+") as outfile:
             jsonapi.dump(ca_db, outfile, indent=4)
 
         with open(self.ca_serial_file(ca_name), "w+") as f:
-            f.write(str(serial + 1))  # next available serial is current + 1
+            f.write(str(serial + 1))    # next available serial is current + 1
 
     def verify_cert(self, cert_name):
         """
@@ -1000,9 +955,9 @@ class Certs(object):
 
 
 def _create_private_key():
-    return rsa.generate_private_key(
-        public_exponent=65537, key_size=2048, backend=default_backend()
-    )
+    return rsa.generate_private_key(public_exponent=65537,
+                                    key_size=2048,
+                                    backend=default_backend())
 
 
 def _create_signed_certificate(
@@ -1056,43 +1011,30 @@ def _create_signed_certificate(
                         fqdn = getfqdn(hostname)
                     new_attrs.append(
                         RelativeDistinguishedName(
-                            [x509.NameAttribute(NameOID.COMMON_NAME, hostname)]
-                        )
-                    )
+                            [x509.NameAttribute(NameOID.COMMON_NAME, hostname)]))
                 else:
                     new_attrs.append(
-                        RelativeDistinguishedName(
-                            [x509.NameAttribute(NameOID.COMMON_NAME, name)]
-                        )
-                    )
+                        RelativeDistinguishedName([x509.NameAttribute(NameOID.COMMON_NAME, name)]))
             else:
                 new_attrs.append(i)
         subject = x509.Name(new_attrs)
 
     cert_builder = (
-        x509.CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(issuer)
-        .public_key(public_key)
-        .not_valid_before(datetime.datetime.utcnow())
-        .not_valid_after(
-            # Our certificate will be valid for 3650 days
-            datetime.datetime.utcnow()
-            + datetime.timedelta(days=valid_days)
-        )
-        .add_extension(
-            x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
-            critical=False,
-        )
-    )
+        x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(
+            public_key).not_valid_before(datetime.datetime.utcnow()).not_valid_after(
+    # Our certificate will be valid for 3650 days
+                datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)).add_extension(
+                    x509.AuthorityKeyIdentifier.from_issuer_subject_key_identifier(ski),
+                    critical=False,
+                ))
     if type == "CA":
         # create a intermediate CA
-        cert_builder = cert_builder.add_extension(
-            x509.BasicConstraints(ca=True, path_length=0), critical=True
-        ).add_extension(
-            x509.SubjectKeyIdentifier(_create_fingerprint(public_key)),
-            critical=False,
-        )
+        cert_builder = cert_builder.add_extension(x509.BasicConstraints(ca=True, path_length=0),
+                                                  critical=True).add_extension(
+                                                      x509.SubjectKeyIdentifier(
+                                                          _create_fingerprint(public_key)),
+                                                      critical=False,
+                                                  )
         # cryptography 2.7
         # .add_extension(
         #     x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
@@ -1119,7 +1061,7 @@ def _create_signed_certificate(
         # if server cert specify that the certificate can be used as an SSL
         # server certificate
         cert_builder = cert_builder.add_extension(
-            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH,)),
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.SERVER_AUTH, )),
             critical=False,
         )
         if hostname and fqdn != hostname:
@@ -1128,15 +1070,14 @@ def _create_signed_certificate(
                 critical=True,
             )
         else:
-            cert_builder = cert_builder.add_extension(
-                x509.SubjectAlternativeName([DNSName(fqdn)]), critical=True
-            )
+            cert_builder = cert_builder.add_extension(x509.SubjectAlternativeName([DNSName(fqdn)]),
+                                                      critical=True)
 
     elif type == "client":
         # specify that the certificate can be used as an SSL
         # client certificate to enable TLS Web Client Authentication
         cert_builder = cert_builder.add_extension(
-            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH,)),
+            x509.ExtendedKeyUsage((ExtendedKeyUsageOID.CLIENT_AUTH, )),
             critical=False,
         )
 
@@ -1179,9 +1120,7 @@ class CertWrapper(object):
     @staticmethod
     def make_signed_cert(ca_cert, ca_key, common_name, **kwargs):
         kwargs["CN"] = common_name
-        cert, key, serial = _create_signed_certificate(
-            ca_cert, ca_key, common_name, **kwargs
-        )
+        cert, key, serial = _create_signed_certificate(ca_cert, ca_key, common_name, **kwargs)
         return cert, key
 
     @staticmethod

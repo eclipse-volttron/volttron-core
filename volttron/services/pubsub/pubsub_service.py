@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import logging
 import logging.config
 import os
@@ -55,7 +54,6 @@ from volttron.utils.frame_serialization import serialize_frames
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
 from volttron.client.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 
-
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {
     errnum: (
@@ -69,6 +67,7 @@ _log = logging.getLogger(__name__)
 
 
 class PubSubService(object):
+
     def __init__(self, socket, protected_topics, routing_service, *args, **kwargs):
         self._logger = logging.getLogger(__name__)
 
@@ -127,10 +126,7 @@ class PubSubService(object):
     def external_platform_drop(self, instance_name):
         if instance_name in self._ext_subscriptions:
             self._logger.debug(
-                "PUBSUBSERVICE dropping external subscriptions for {}".format(
-                    instance_name
-                )
-            )
+                "PUBSUBSERVICE dropping external subscriptions for {}".format(instance_name))
             del self._ext_subscriptions[instance_name]
 
     def _sync(self, peer, items):
@@ -143,12 +139,9 @@ class PubSubService(object):
         :type dict
         """
         # self._logger.debug("SYNC before: {0}, {1}".format(peer, items))
-        items = {
-            (platform, bus, prefix)
-            for platform, buses in items.items()
-            for bus, topics in buses.items()
-            for prefix in topics
-        }
+        items = {(platform, bus, prefix)
+                 for platform, buses in items.items() for bus, topics in buses.items()
+                 for prefix in topics}
         # self._logger.debug("SYNC after: {}".format(items))
         remove = []
         for platform, bus_subscriptions in self._peer_subscriptions.items():
@@ -192,9 +185,7 @@ class PubSubService(object):
                     assert isinstance(items, dict)
                     self._sync(peer, items)
                 except KeyError as exc:
-                    self._logger.error(
-                        "Missing key in _peer_sync message {}".format(exc)
-                    )
+                    self._logger.error("Missing key in _peer_sync message {}".format(exc))
 
     def _peer_subscribe(self, frames):
         """It stores the subscription information sent by the agent. It unpacks the frames to get identity of the
@@ -213,9 +204,7 @@ class PubSubService(object):
                 prefix = msg["prefix"]
                 bus = msg["bus"]
             except KeyError as exc:
-                self._logger.error(
-                    "Missing key in _peer_subscribe message {}".format(exc)
-                )
+                self._logger.error("Missing key in _peer_subscribe message {}".format(exc))
                 return False
 
             is_all = msg.get("all_platforms", False)
@@ -226,9 +215,10 @@ class PubSubService(object):
                 platform = "internal"
                 if self._rabbitmq_agent:
                     # Subscribe to RMQ bus
-                    self._rabbitmq_agent.vip.pubsub.subscribe(
-                        "pubsub", prefix, self.publish_callback, all_platforms=is_all
-                    )
+                    self._rabbitmq_agent.vip.pubsub.subscribe("pubsub",
+                                                              prefix,
+                                                              self.publish_callback,
+                                                              all_platforms=is_all)
 
             for prefix in prefix if isinstance(prefix, list) else [prefix]:
                 self._add_peer_subscription(peer, bus, prefix, platform)
@@ -315,9 +305,7 @@ class PubSubService(object):
                 pub_msg = dict(sender=peer, bus=bus, headers=headers, message=message)
                 frames[8] = pub_msg
             except KeyError as exc:
-                self._logger.error(
-                    "Missing key in _peer_publish message {}".format(exc)
-                )
+                self._logger.error("Missing key in _peer_publish message {}".format(exc))
                 return 0
             except ValueError:
                 self._logger.error("JSON decode error. Invalid character")
@@ -544,9 +532,7 @@ class PubSubService(object):
                             subsystem,
                         ]
                         try:
-                            self._vip_sock.send_multipart(
-                                frames, flags=NOBLOCK, copy=False
-                            )
+                            self._vip_sock.send_multipart(frames, flags=NOBLOCK, copy=False)
                         except ZMQError as exc:
                             # raise
                             pass
@@ -627,8 +613,7 @@ class PubSubService(object):
                 self._user_capabilities = msg["capabilities"]
             except KeyError as exc:
                 self._logger.error(
-                    "Missing key in update auth capabilities message {}".format(exc)
-                )
+                    "Missing key in update auth capabilities message {}".format(exc))
             except ValueError:
                 pass
 
@@ -682,9 +667,9 @@ class PubSubService(object):
         try:
             sender, recipient, proto, usr_id, msg_id, subsystem, op = frames[:7]
         except (
-            ValueError,
-            TypeError,
-        ):  # TypeError will happen if frames is not subscriptable.
+                ValueError,
+                TypeError,
+        ):    # TypeError will happen if frames is not subscriptable.
             _log.error(f"Invalid number of frames handle_subsystem {frames}")
             return False
 
@@ -726,9 +711,8 @@ class PubSubService(object):
             elif op == "request_response":
                 pass
             else:
-                self._logger.error(
-                    "PUBSUBSERVICE Unknown pubsub request {}".format(op.decode("utf-8"))
-                )
+                self._logger.error("PUBSUBSERVICE Unknown pubsub request {}".format(
+                    op.decode("utf-8")))
                 pass
 
         if result is not None:
@@ -762,11 +746,9 @@ class PubSubService(object):
             except KeyError:
                 return
             if not set(required_caps) <= set(caps):
-                msg = (
-                    'to publish to topic "{}" requires capabilities {},'
-                    " but capability list {} was"
-                    " provided"
-                ).format(topic, required_caps, caps)
+                msg = ('to publish to topic "{}" requires capabilities {},'
+                       " but capability list {} was"
+                       " provided").format(topic, required_caps, caps)
         return msg
 
     def _get_external_prefix_list(self):
@@ -821,31 +803,24 @@ class PubSubService(object):
                 this_platform_instance_name = cc.get_instance_name()
                 for instance_name in msg:
                     if instance_name == this_platform_instance_name:
-                        _log.error(
-                            "Invalid configuraiton of external instances!\n"
-                            f"The name {instance_name} is specified as local and "
-                            "external instance name.  Please fix this issue in the "
-                            "external_platform_discovery.json file in the "
-                            "the VOLTTRON_HOME of the external instance."
-                        )
+                        _log.error("Invalid configuraiton of external instances!\n"
+                                   f"The name {instance_name} is specified as local and "
+                                   "external instance name.  Please fix this issue in the "
+                                   "external_platform_discovery.json file in the "
+                                   "the VOLTTRON_HOME of the external instance.")
                         continue
                     prefixes = msg[instance_name]
                     # Store external subscription list for later use (during publish)
                     self._ext_subscriptions[instance_name] = prefixes
                     self._logger.debug(
                         "PUBSUBSERVICE New external list from {0}: List: {1}".format(
-                            instance_name, self._ext_subscriptions
-                        )
-                    )
+                            instance_name, self._ext_subscriptions))
                     if self._rabbitmq_agent:
                         for prefix in prefixes:
                             self._rabbitmq_agent.vip.pubsub.subscribe(
-                                "pubsub", prefix, self.publish_callback
-                            )
+                                "pubsub", prefix, self.publish_callback)
             except KeyError as exc:
-                self._logger.error(
-                    "Unknown external instance name: {}".format(instance_name)
-                )
+                self._logger.error("Unknown external instance name: {}".format(instance_name))
                 return False
             return True
 
@@ -944,9 +919,7 @@ class PubSubService(object):
         :return:
         """
         # self._logger.debug("PubSubService message: {}".format(message))
-        json_msg = jsonapi.dumps(
-            dict(sender=peer, bus=bus, headers=headers, message=message)
-        )
+        json_msg = jsonapi.dumps(dict(sender=peer, bus=bus, headers=headers, message=message))
         frames = [sender, "", "VIP1", "", "", "pubsub", "publish", topic, json_msg]
         # Send it through ZMQ bus
         self._distribute(frames, "")
@@ -969,9 +942,11 @@ class PubSubService(object):
         except ValueError:
             self._logger.error("JSON decode error. Invalid character")
         if self._rabbitmq_agent:
-            self._rabbitmq_agent.vip.pubsub.publish(
-                "pubsub", topic, msg["headers"], msg["message"], bus=bus
-            )
+            self._rabbitmq_agent.vip.pubsub.publish("pubsub",
+                                                    topic,
+                                                    msg["headers"],
+                                                    msg["message"],
+                                                    bus=bus)
 
 
 class ProtectedPubSubTopics(object):
@@ -1007,7 +982,7 @@ class ProtectedPubSubTopics(object):
 
     def _isprefix(self, topic):
         for prefix in self._dict:
-            if topic[: len(prefix)] == prefix:
+            if topic[:len(prefix)] == prefix:
                 _log.debug(f"Prefix is {prefix}")
                 return prefix
         return None
