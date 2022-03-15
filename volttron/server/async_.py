@@ -35,12 +35,10 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """Run gevent Greenlets in their own threads.
 
 Supports killing threads and executing callbacks from other threads.
 """
-
 
 import functools
 import sys
@@ -48,7 +46,6 @@ import threading
 
 import gevent
 from gevent import GreenletExit
-
 
 __all__ = ["AsyncCall", "GreenletExit"]
 
@@ -100,14 +97,14 @@ class AsyncCall(object):
     def _run_call(receiver, func, args, kwargs):
         """Run a pending call in its own greenlet."""
         try:
-            exc_info, result = None, func(*args, **kwargs)  # pylint: disable=star-args
-        except Exception:  # pylint: disable=broad-except
+            exc_info, result = None, func(*args, **kwargs)    # pylint: disable=star-args
+        except Exception:    # pylint: disable=broad-except
             exc_info, result = sys.exc_info(), None
         if receiver is not None:
             receiver((exc_info, result))
         elif exc_info:
             hub = gevent.get_hub()
-            hub.handle_error(func, *exc_info)  # pylint: disable=star-args
+            hub.handle_error(func, *exc_info)    # pylint: disable=star-args
 
     # This method is static to prevent a reference loop so the object
     # can be garbage collected without stopping the async handler.
@@ -116,4 +113,4 @@ class AsyncCall(object):
         """Execute pending calls."""
         while calls:
             args = calls.pop()
-            gevent.spawn(cls._run_call, *args)  # pylint: disable=star-args
+            gevent.spawn(cls._run_call, *args)    # pylint: disable=star-args

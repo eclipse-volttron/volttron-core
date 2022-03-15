@@ -63,9 +63,7 @@ def test_default_VOLTTRON_HOME(undocontext):
     assert Path(path).exists()
 
 
-def test_can_use_VOLTTRON_HOME_DIR(
-    create_volttron_home_fun_scope, monkeypatch, undocontext
-):
+def test_can_use_VOLTTRON_HOME_DIR(create_volttron_home_fun_scope, monkeypatch, undocontext):
 
     original_volttron_home = create_volttron_home_fun_scope
     monkeypatch.setenv("VOLTTRON_HOME", original_volttron_home)
@@ -76,9 +74,8 @@ def test_can_use_VOLTTRON_HOME_DIR(
     assert Path(volttron_home).exists()
 
 
-def test_change_VOLTTRON_HOME_raises_exception(
-    create_volttron_home_fun_scope, monkeypatch, undocontext
-):
+def test_change_VOLTTRON_HOME_raises_exception(create_volttron_home_fun_scope, monkeypatch,
+                                               undocontext):
 
     volttron_home = ClientContext.get_volttron_home()
 

@@ -52,6 +52,7 @@ _log = logging.getLogger(__name__)
 
 
 class HealthService(Agent):
+
     def __init__(self, **kwargs):
         super(HealthService, self).__init__(**kwargs)
 
@@ -104,8 +105,7 @@ class HealthService(Agent):
         # Ignore the connection from control in the health as it will only be around for a short while.
         agents = {
             k: v
-            for k, v in self._health_dict.items()
-            if not v.get("peer") == CONTROL_CONNECTION
+            for k, v in self._health_dict.items() if not v.get("peer") == CONTROL_CONNECTION
         }
         return agents
 
@@ -135,6 +135,4 @@ class HealthService(Agent):
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
         # Start subscribing to heartbeat topic to get updates from the health subsystem.
-        self.vip.pubsub.subscribe(
-            "pubsub", "heartbeat", callback=self._heartbeat_updates
-        )
+        self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
