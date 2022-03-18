@@ -54,7 +54,6 @@ from volttron.utils import jsonapi
 # from wheel.install import WheelFile
 # from wheel.util import native, open_for_csv
 
-
 __all__ = (
     "BasePackageVerifier",
     "VolttronPackageWheelFileNoSign",
@@ -63,6 +62,7 @@ __all__ = (
 )
 
 _log = logging.getLogger(__name__)
+
 
 # TODO: Make this this base class and have auth extend it
 class VolttronPackageWheelFileNoSign:
@@ -96,12 +96,8 @@ class VolttronPackageWheelFileNoSign:
         tmp_dir = tempfile.mkdtemp()
         try:
             record_path = "/".join((self.distinfo_name, last_record_name))
-            tmp_new_record_file = "/".join(
-                (tmp_dir, self.distinfo_name, last_record_name)
-            )
-            self.zipfile.extract(
-                "/".join((self.distinfo_name, last_record_name)), path=tmp_dir
-            )
+            tmp_new_record_file = "/".join((tmp_dir, self.distinfo_name, last_record_name))
+            self.zipfile.extract("/".join((self.distinfo_name, last_record_name)), path=tmp_dir)
 
             self.remove_files("/".join((self.distinfo_name, "config")))
 
@@ -113,14 +109,10 @@ class VolttronPackageWheelFileNoSign:
                         try:
                             data = open(files_to_add["config_file"]).read()
                         except OSError as e:
-                            _log.error(
-                                "couldn't access {}" % files_to_add["config_file"]
-                            )
+                            _log.error("couldn't access {}" % files_to_add["config_file"])
                             raise
 
-                        self.zipfile.writestr(
-                            "%s/%s" % (self.distinfo_name, "config"), data
-                        )
+                        self.zipfile.writestr("%s/%s" % (self.distinfo_name, "config"), data)
 
                         (hash_data, size, digest) = self._record_digest(data)
                         record_path = "/".join((self.distinfo_name, "config"))
@@ -130,25 +122,17 @@ class VolttronPackageWheelFileNoSign:
                         try:
                             data = open(files_to_add["identity_file"]).read()
                         except OSError as e:
-                            _log.error(
-                                "couldn't access {}" % files_to_add["identity_file"]
-                            )
+                            _log.error("couldn't access {}" % files_to_add["identity_file"])
                             raise
 
-                        self.zipfile.writestr(
-                            "%s/%s" % (self.distinfo_name, "IDENTITY_TEMPLATE"), data
-                        )
+                        self.zipfile.writestr("%s/%s" % (self.distinfo_name, "IDENTITY_TEMPLATE"),
+                                              data)
 
                         (hash_data, size, digest) = self._record_digest(data)
-                        record_path = "/".join(
-                            (self.distinfo_name, "IDENTITY_TEMPLATE")
-                        )
+                        record_path = "/".join((self.distinfo_name, "IDENTITY_TEMPLATE"))
                         writer.writerow((record_path, hash_data, size))
 
-                    if (
-                        "contract" in files_to_add
-                        and files_to_add["contract"] is not None
-                    ):
+                    if ("contract" in files_to_add and files_to_add["contract"] is not None):
                         try:
                             data = open(files_to_add["contract"]).read()
                         except OSError as e:
@@ -157,15 +141,13 @@ class VolttronPackageWheelFileNoSign:
 
                         if files_to_add["contract"] != "execreqs.json":
                             msg = "WARNING: renaming passed contract file: {}".format(
-                                files_to_add["contract"]
-                            )
+                                files_to_add["contract"])
                             msg += " to execreqs.json"
                             sys.stderr.write(msg)
                             _log.warning(msg)
 
-                        self.zipfile.writestr(
-                            "%s/%s" % (self.distinfo_name, "execreqs.json"), data
-                        )
+                        self.zipfile.writestr("%s/%s" % (self.distinfo_name, "execreqs.json"),
+                                              data)
                         (hash_data, size, digest) = self._record_digest(data)
                         record_path = "/".join((self.distinfo_name, "execreqs.json"))
                         writer.writerow((record_path, hash_data, size))
@@ -175,9 +157,7 @@ class VolttronPackageWheelFileNoSign:
             self.pop_records_file()
 
             new_record_content = open(tmp_new_record_file, "r").read()
-            self.zipfile.writestr(
-                self.distinfo_name + "/" + last_record_name, new_record_content
-            )
+            self.zipfile.writestr(self.distinfo_name + "/" + last_record_name, new_record_content)
 
             self.zipfile.close()
             self.__setupzipfile__()
@@ -187,7 +167,7 @@ class VolttronPackageWheelFileNoSign:
     def pop_records_file(self):
         """Pop off the last records file that was added"""
         records = ZipPackageVerifier(self.filename).get_records()
-        topop = (os.path.join(self.distinfo_name, records[0]),)
+        topop = (os.path.join(self.distinfo_name, records[0]), )
         self.remove_files(topop)
 
     def pop_record_and_files(self):
@@ -198,15 +178,10 @@ class VolttronPackageWheelFileNoSign:
         records = ZipPackageVerifier(self.filename).get_records()
         record = records.pop(0)
         zf = self.zipfile
-        keep = set(
-            row[0]
-            for name in records
-            for row in csv.reader(zf.open(posixpath.join(self.distinfo_name, name)))
-        )
-        drop = set(
-            row[0]
-            for row in csv.reader(zf.open(posixpath.join(self.distinfo_name, record)))
-        )
+        keep = set(row[0] for name in records
+                   for row in csv.reader(zf.open(posixpath.join(self.distinfo_name, name))))
+        drop = set(row[0]
+                   for row in csv.reader(zf.open(posixpath.join(self.distinfo_name, record))))
         # These two should already be listed, but add them just in case
         drop.add(posixpath.join(self.distinfo_name, record))
         self.remove_files(drop - keep)
@@ -325,9 +300,7 @@ class BasePackageVerifier(object):
         to the package), computed hash (just calculated), and expected
         hash (from RECORD file).
         """
-        hashless = [
-            posixpath.join(self.dist_info, name + ext) for ext in ["", ".jws", ".p7s"]
-        ]
+        hashless = [posixpath.join(self.dist_info, name + ext) for ext in ["", ".jws", ".p7s"]]
         path = posixpath.join(self.dist_info, name)
         with closing(self.open(path)) as record_file:
             for row in csv.reader(record_file):
@@ -352,9 +325,7 @@ class BasePackageVerifier(object):
 
         Returns all RECORD files in the dist_info directory.
         """
-        records = [
-            name for name in self.listdir(self.dist_info) if _record_re.match(name)
-        ]
+        records = [name for name in self.listdir(self.dist_info) if _record_re.match(name)]
         records.sort(key=lambda x: int((x.split(".", 1) + [-1])[1]), reverse=True)
         if not records:
             raise ValueError("missing RECORD file(s) in .dist-info directory")
@@ -369,8 +340,7 @@ class ZipPackageVerifier(BasePackageVerifier):
         self._namelist = self._zipfile.namelist()
 
         names = [
-            name
-            for name in self._namelist
+            name for name in self._namelist
             if name.endswith(".dist-info/RECORD") and name.count("/") == 1
         ]
         if len(names) != 1:
@@ -382,11 +352,7 @@ class ZipPackageVerifier(BasePackageVerifier):
         if path[-1:] != "/":
             path += "/"
         n = len(path)
-        return [
-            name[n:].split("/", 1)[0]
-            for name in self._namelist
-            if name.startswith(path)
-        ]
+        return [name[n:].split("/", 1)[0] for name in self._namelist if name.startswith(path)]
 
     def open(self, path, mode="r"):
         return self._zipfile.open(path, "r")
@@ -412,10 +378,8 @@ class UnpackedPackage(object):
             if not name.endswith(".dist-info"):
                 continue
             return os.path.join(self.directory, name)
-        raise ValueError(
-            "directory does not contain a valid "
-            "agent package: {}".format(self.directory)
-        )
+        raise ValueError("directory does not contain a valid "
+                         "agent package: {}".format(self.directory))
 
     @property
     def metadata(self):
@@ -436,13 +400,8 @@ class UnpackedPackage(object):
             with open(os.path.join(self.distinfo, "WHEEL")) as file:
                 self._wheelmeta = {
                     key.strip().lower(): value.strip()
-                    for key, value in (
-                        parts
-                        for line in file
-                        if line
-                        for parts in [line.split(":", 1)]
-                        if len(parts) == 2
-                    )
+                    for key, value in (parts for line in file if line
+                                       for parts in [line.split(":", 1)] if len(parts) == 2)
                 }
         return self._wheelmeta
 

@@ -88,9 +88,7 @@ class WebSubSystem(SubsystemBase):
     def unregister_all_routes(self):
         self._rpc().call(PLATFORM_WEB, "unregister_all_agent_routes").get(timeout=10)
 
-    def register_endpoint(
-        self, endpoint, callback, res_type: ResourceType = ResourceType.JSONRPC
-    ):
+    def register_endpoint(self, endpoint, callback, res_type: ResourceType = ResourceType.JSONRPC):
         """
         The :meth:`register_endpoint` method registers an endpoint with the
         :param res_type:
@@ -118,9 +116,7 @@ class WebSubSystem(SubsystemBase):
         self._endpoints[endpoint] = callback
         if isinstance(res_type, ResourceType):
             res_type = res_type.value
-        self._rpc().call(PLATFORM_WEB, "register_endpoint", endpoint, res_type).get(
-            timeout=10
-        )
+        self._rpc().call(PLATFORM_WEB, "register_endpoint", endpoint, res_type).get(timeout=10)
 
     def register_path(self, prefix, static_path):
         """
@@ -137,9 +133,7 @@ class WebSubSystem(SubsystemBase):
         :type static_path: str
         """
         _log.info("Registering path prefix: {}, path: {}".format(prefix, static_path))
-        self._rpc().call(PLATFORM_WEB, "register_path_route", prefix, static_path).get(
-            timeout=10
-        )
+        self._rpc().call(PLATFORM_WEB, "register_path_route", prefix, static_path).get(timeout=10)
 
     def register_websocket(self, endpoint, opened=None, closed=None, received=None):
         """
@@ -204,9 +198,7 @@ class WebSubSystem(SubsystemBase):
         :type endpoint: str
         :type message: str
         """
-        self._rpc().call(PLATFORM_WEB, "websocket_send", endpoint, message).get(
-            timeout=5
-        )
+        self._rpc().call(PLATFORM_WEB, "websocket_send", endpoint, message).get(timeout=5)
 
     def _route_callback(self, env, data):
         fn = self._endpoints.get(env["PATH_INFO"])
@@ -217,9 +209,7 @@ class WebSubSystem(SubsystemBase):
         return None
 
     def _opened(self, fromip, endpoint):
-        _log.info(
-            "Client opened websocket ip: {} endpoint: {}".format(fromip, endpoint)
-        )
+        _log.info("Client opened websocket ip: {} endpoint: {}".format(fromip, endpoint))
         callbacks = self._ws_endpoint.get(endpoint)
         if callbacks is None:
             _log.error("Websocket endpoint {} is not available".format(endpoint))

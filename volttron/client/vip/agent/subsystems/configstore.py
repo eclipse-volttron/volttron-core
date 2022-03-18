@@ -52,7 +52,6 @@ from volttron.client.known_identities import CONFIGURATION_STORE
 
 from collections import defaultdict
 from copy import deepcopy
-
 """The configstore subsystem manages the agent side of the configuration store.
 It is responsible for processing change notifications from the platform
  and triggering the correct callbacks with the contents of a configuration.
@@ -67,12 +66,13 @@ VALID_ACTIONS = set(["NEW", "UPDATE", "DELETE"])
 
 
 class ConfigStore(SubsystemBase):
+
     def __init__(self, owner, core, rpc):
         self._core = weakref.ref(core)
         self._rpc = weakref.ref(rpc)
 
-        self._ref_map = {}  # For triggering callbacks.
-        self._reverse_ref_map = defaultdict(set)  # For triggering callbacks.
+        self._ref_map = {}    # For triggering callbacks.
+        self._reverse_ref_map = defaultdict(set)    # For triggering callbacks.
         self._store = {}
         self._default_store = {}
         self._callbacks = {}
@@ -101,9 +101,7 @@ class ConfigStore(SubsystemBase):
             try:
                 self._rpc().call(CONFIGURATION_STORE, "get_configs").get()
             except errors.Unreachable as e:
-                _log.error(
-                    "Connected platform does not support the Configuration Store feature."
-                )
+                _log.error("Connected platform does not support the Configuration Store feature.")
                 return
             except errors.VIPError as e:
                 _log.error("Error retrieving agent configurations: {}".format(e))
@@ -162,8 +160,7 @@ class ConfigStore(SubsystemBase):
                     config_name = check_for_config_link(value)
                     if config_name is not None:
                         config_contents[key] = self._gather_child_configs(
-                            config_name, already_gathered
-                        )
+                            config_name, already_gathered)
         elif isinstance(config_contents, list):
             for i, value in enumerate(config_contents):
                 if isinstance(value, (dict, list)):
@@ -172,8 +169,7 @@ class ConfigStore(SubsystemBase):
                     config_name = check_for_config_link(value)
                     if config_name is not None:
                         config_contents[i] = self._gather_child_configs(
-                            config_name, already_gathered
-                        )
+                            config_name, already_gathered)
 
     def _gather_child_configs(self, config_name, already_gathered):
         if config_name in already_gathered:
@@ -209,9 +205,7 @@ class ConfigStore(SubsystemBase):
                 seen_dict[ref] = "UPDATE"
                 self._gather_affected(ref, seen_dict)
 
-    def _update_config(
-        self, action, config_name, contents=None, trigger_callback=False
-    ):
+    def _update_config(self, action, config_name, contents=None, trigger_callback=False):
         """Called by the platform to push out configuration changes."""
         # If we haven't yet grabbed the initial callback state we just bail.
         if not self._initialized:
@@ -232,9 +226,7 @@ class ConfigStore(SubsystemBase):
                 else:
                     affected_configs[config_name_lower] = "UPDATE"
                     self._gather_affected(config_name_lower, affected_configs)
-                    self._update_refs(
-                        config_name_lower, self._default_store[config_name_lower]
-                    )
+                    self._update_refs(config_name_lower, self._default_store[config_name_lower])
 
         if action == "DELETE_ALL":
             for name in self._store:
@@ -266,16 +258,12 @@ class ConfigStore(SubsystemBase):
             self._name_map.clear()
 
     def _process_callbacks(self, affected_configs):
-        _log.debug(
-            "Processing callbacks for affected files: {}".format(affected_configs)
-        )
+        _log.debug("Processing callbacks for affected files: {}".format(affected_configs))
         all_map = self._default_name_map.copy()
         all_map.update(self._name_map)
         # Always process "config" first.
         if "config" in affected_configs:
-            self._process_callbacks_one_config(
-                "config", affected_configs["config"], all_map
-            )
+            self._process_callbacks_one_config("config", affected_configs["config"], all_map)
 
         for config_name, action in affected_configs.items():
             if config_name == "config":
@@ -314,9 +302,7 @@ class ConfigStore(SubsystemBase):
             try:
                 self._rpc().call(CONFIGURATION_STORE, "get_configs").get()
             except errors.Unreachable as e:
-                _log.error(
-                    "Connected platform does not support the Configuration Store feature."
-                )
+                _log.error("Connected platform does not support the Configuration Store feature.")
             except errors.VIPError as e:
                 _log.error("Error retrieving agent configurations: {}".format(e))
 
@@ -348,9 +334,7 @@ class ConfigStore(SubsystemBase):
             try:
                 self._rpc().call(CONFIGURATION_STORE, "get_configs").get()
             except errors.Unreachable as e:
-                _log.error(
-                    "Connected platform does not support the Configuration Store feature."
-                )
+                _log.error("Connected platform does not support the Configuration Store feature.")
             except errors.VIPError as e:
                 _log.error("Error retrieving agent configurations: {}".format(e))
 
@@ -408,14 +392,10 @@ class ConfigStore(SubsystemBase):
         :type contents: str, dict, list
         """
         if self._initialized:
-            raise RuntimeError(
-                "Cannot request changes to default configurations after onsetup."
-            )
+            raise RuntimeError("Cannot request changes to default configurations after onsetup.")
 
         if not isinstance(contents, (str, list, dict)):
-            raise ValueError(
-                "Invalid content type: {}".format(contents.__class__.__name__)
-            )
+            raise ValueError("Invalid content type: {}".format(contents.__class__.__name__))
 
         config_name_lower = config_name.lower()
         self._default_store[config_name_lower] = contents
@@ -435,9 +415,7 @@ class ConfigStore(SubsystemBase):
         :type config_name: str
         """
         if self._initialized:
-            raise RuntimeError(
-                "Cannot request changes to default configurations after onsetup."
-            )
+            raise RuntimeError("Cannot request changes to default configurations after onsetup.")
 
         config_name_lower = config_name.lower()
         del self._default_store[config_name_lower]
@@ -479,7 +457,7 @@ class ConfigStore(SubsystemBase):
         :type pattern: str
         """
         if isinstance(actions, str):
-            actions = (actions,)
+            actions = (actions, )
 
         actions = set(action.upper() for action in actions)
 

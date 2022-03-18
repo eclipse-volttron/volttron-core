@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 from string import whitespace
 
 store_ext = ".store"
@@ -110,11 +109,11 @@ def _follow_links(
             seen.add(child_config_name)
             continue
         if _follow_links(
-            seen,
-            new_config_name,
-            child_config_name,
-            child_config,
-            existing_configs,
+                seen,
+                new_config_name,
+                child_config_name,
+                child_config,
+                existing_configs,
         ):
             return True
 
