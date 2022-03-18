@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 __all__ = ["is_valid_identity", "normalize_identity"]
 
 import re

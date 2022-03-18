@@ -3,9 +3,7 @@ import argparse
 
 def main():
     global verbose, prompt_vhome
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.RawTextHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--vhome", help="Path to volttron home")
     parser.add_argument(
@@ -70,10 +68,8 @@ def main():
             parser.print_help()
             sys.exit(1)
         elif args.rabbitmq[0] not in ["single", "federation", "shovel"]:
-            print(
-                "Usage: vcf --rabbitmq single|federation|shovel "
-                "[optional path to rabbitmq config yml]"
-            )
+            print("Usage: vcf --rabbitmq single|federation|shovel "
+                  "[optional path to rabbitmq config yml]")
             parser.print_help()
             sys.exit(1)
         elif len(args.rabbitmq) == 2 and not os.path.exists(args.rabbitmq[1]):

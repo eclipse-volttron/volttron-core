@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """Advanced argument parser.
 
 Fully compatible with argparse, and can be used as a drop-in
@@ -167,9 +166,7 @@ class ConfigFileAction(_argparse.Action):
     will be processed after environment variables.
     """
 
-    def __init__(
-        self, option_strings, dest, required=False, help=None, metavar=None, **kwargs
-    ):
+    def __init__(self, option_strings, dest, required=False, help=None, metavar=None, **kwargs):
         ignore_unknown = kwargs.pop("ignore_unknown", None)
         inline = kwargs.pop("inline", False)
         sections = kwargs.pop("sections", None)
@@ -204,43 +201,33 @@ class ConfigFileAction(_argparse.Action):
                     if self.sections is not None and section not in self.sections:
                         continue
                     source = ("config", (path, lineno, key))
-                    opt = TrackingString(
-                        (key if key.startswith("--") else ("--" + key)), source=source
-                    )
+                    opt = TrackingString((key if key.startswith("--") else ("--" + key)),
+                                         source=source)
                     try:
                         action = parser._option_string_actions[opt]
                     except KeyError:
                         if self.ignore_unknown:
                             continue
-                        parser.error(
-                            "{} (line {}): unknown option: {}".format(path, lineno, key)
-                        )
+                        parser.error("{} (line {}): unknown option: {}".format(path, lineno, key))
                     if not getattr(action, "config", allow_in_config):
-                        parser.error(
-                            "{} (line {}): option not allowed: {}".format(
-                                path, lineno, key
-                            )
-                        )
+                        parser.error("{} (line {}): option not allowed: {}".format(
+                            path, lineno, key))
                     if isinstance(action, ConfigFileAction):
                         if args is None or len(args) != 1:
-                            parser.error(
-                                "{} (line {}): option expects one argument: {}".format(
-                                    path, lineno, key
-                                )
-                            )
-                        for arg_list in self(
-                            parser, namespace, args[0], opt, seen_files=seen_files
-                        ):
+                            parser.error("{} (line {}): option expects one argument: {}".format(
+                                path, lineno, key))
+                        for arg_list in self(parser,
+                                             namespace,
+                                             args[0],
+                                             opt,
+                                             seen_files=seen_files):
                             arg_strings.extend(arg_list)
                     else:
                         if action.nargs == 0 and args:
                             if len(args) > 1:
-                                parser.error(
-                                    "{} (line {}): option expects no "
-                                    "more than one argument: {}".format(
-                                        path, lineno, key
-                                    )
-                                )
+                                parser.error("{} (line {}): option expects no "
+                                             "more than one argument: {}".format(
+                                                 path, lineno, key))
                             opt = parser.get_switch(action, args[0], opt)
                             arg_strings.append(TrackingString(opt, source=source))
                         else:
@@ -281,6 +268,7 @@ class ConfigFileAction(_argparse.Action):
 
 
 def CaseInsensitiveConfigFileAction(ConfigFileAction):
+
     def itersettings(self, parser, conffile):
         itersettings = super(CaseInsensitiveConfigFileAction, self).itersettings
         for section, key, value, lineno in itersettings(parser, conffile):
@@ -299,6 +287,7 @@ def CaseInsensitiveConfigFileAction(ConfigFileAction):
 
 
 class SubParsersAction(_argparse._SubParsersAction):
+
     def __call__(self, parser, namespace, values, option_string=None):
         parser_name = values[0]
         arg_strings = values[1:]
@@ -329,6 +318,7 @@ def env_var_formatter(formatter_class=_argparse.HelpFormatter):
     """Decorator to automatically add env_var documentation to help."""
 
     class EnvHelpFormatter(formatter_class):
+
         def _get_help_string(self, action):
             # pylint: disable=super-on-old-class
             help = super(EnvHelpFormatter, self)._get_help_string(action)
@@ -382,8 +372,7 @@ class ArgumentParser(_argparse.ArgumentParser):
             subcommands = {
                 name
                 for action in self._subparsers._group_actions
-                if hasattr(action, "_name_parser_map")
-                for name in action._name_parser_map
+                if hasattr(action, "_name_parser_map") for name in action._name_parser_map
             }
         else:
             subcommands = set()
@@ -423,7 +412,7 @@ class ArgumentParser(_argparse.ArgumentParser):
                 # Consume arguments until another option is found
                 args = take(1) if action.nargs is _argparse.ONE_OR_MORE else []
                 n = 0
-                for n, arg in enumerate(arg_strings[i + 1 :]):
+                for n, arg in enumerate(arg_strings[i + 1:]):
                     if arg == "--" or arg in subcommands:
                         break
                     option_tuple = self._parse_optional(arg)
@@ -528,17 +517,15 @@ class TrackingArgumentParser(ArgumentParser):
 
     def _parse_known_args(self, arg_strings, namespace):
         self._setup_tracking()
-        return super(TrackingArgumentParser, self)._parse_known_args(
-            arg_strings, namespace
-        )
+        return super(TrackingArgumentParser, self)._parse_known_args(arg_strings, namespace)
 
     def _setup_tracking(self):
+
         def __call__(action, parser, namespace, values, option_string=None, **kwargs):
             source = getattr(option_string, "source", ("command-line", option_string))
             self.pre_action(action, parser, namespace, values, option_string, source)
-            result = super(action.__class__, action).__call__(
-                parser, namespace, values, option_string, **kwargs
-            )
+            result = super(action.__class__, action).__call__(parser, namespace, values,
+                                                              option_string, **kwargs)
             self.post_action(action, parser, namespace, values, option_string, source)
             return result
 
@@ -546,9 +533,10 @@ class TrackingArgumentParser(ArgumentParser):
             cls = action.__class__
             if getattr(cls, "_trackable", False):
                 continue
-            action.__class__ = type(
-                cls.__name__, (cls,), {"__call__": __call__, "_trackable": True}
-            )
+            action.__class__ = type(cls.__name__, (cls, ), {
+                "__call__": __call__,
+                "_trackable": True
+            })
 
     def pre_action(self, action, parser, namespace, values, option_string, source):
         pass
@@ -567,9 +555,7 @@ class DebugArgumentParser(TrackingArgumentParser):
         if action.dest is _argparse.SUPPRESS:
             return
         value = getattr(namespace, action.dest, None)
-        _sys.stderr.write(
-            "{} {} {!r} {!r}\n".format(option_string, action.dest, source, value)
-        )
+        _sys.stderr.write("{} {} {!r} {!r}\n".format(option_string, action.dest, source, value))
 
 
 def _patch_argparse():

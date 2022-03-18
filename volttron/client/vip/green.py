@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VIP - VOLTTRON™ Interconnect Protocol implementation
 
 See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
@@ -45,7 +44,6 @@ This module is for use within gevent. It provides some locking around
 send operations to protect the VIP state. It should be safe to use a
 single socket in multiple greenlets without any kind of locking.
 """
-
 
 from contextlib import contextmanager as _contextmanager
 

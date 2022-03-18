@@ -37,12 +37,8 @@
 # }}}
 
 __all__ = [
-    "execute_command",
-    "vip_main",
-    "is_volttron_running",
-    "wait_for_volttron_startup",
-    "wait_for_volttron_shutdown",
-    "start_agent_thread"
+    "execute_command", "vip_main", "is_volttron_running", "wait_for_volttron_startup",
+    "wait_for_volttron_shutdown", "start_agent_thread"
 ]
 
 import logging
@@ -54,11 +50,7 @@ import sys
 import gevent
 import psutil
 
-from ..utils import (
-    ClientContext as cc,
-    get_address,
-    is_valid_identity
-)
+from ..utils import (ClientContext as cc, get_address, is_valid_identity)
 
 _log = logging.getLogger(__name__)
 
@@ -80,17 +72,16 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
     :raises RuntimeError: if the return code is not 0 from suprocess.run
     """
 
-    results = subprocess.run(
-        cmds, env=env, cwd=cwd, stderr=subprocess.PIPE, stdout=subprocess.PIPE
-    )
+    results = subprocess.run(cmds,
+                             env=env,
+                             cwd=cwd,
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE)
     if results.returncode != 0:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
-        err_message = (
-            "\n{}: Below Command failed with non zero exit code.\n"
-            "Command:{} \nStdout:\n{}\nStderr:\n{}\n".format(
-                err_prefix, results.args, results.stdout, results.stderr
-            )
-        )
+        err_message = ("\n{}: Below Command failed with non zero exit code.\n"
+                       "Command:{} \nStdout:\n{}\nStderr:\n{}\n".format(
+                           err_prefix, results.args, results.stdout, results.stderr))
         if logger:
             logger.exception(err_message)
             raise RuntimeError()
@@ -131,7 +122,7 @@ def vip_main(agent_class, identity=None, version="0.1", **kwargs):
 
         # Quiet printing of KeyboardInterrupt by greenlets
         Hub = gevent.hub.Hub
-        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt,)
+        Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt, )
 
         config = os.environ.get("AGENT_CONFIG")
         identity = os.environ.get("AGENT_VIP_IDENTITY", identity)
@@ -161,9 +152,7 @@ def vip_main(agent_class, identity=None, version="0.1", **kwargs):
         if identity is not None:
             if not is_valid_identity(identity):
                 _log.warning("Deprecation warining")
-                _log.warning(
-                    f"All characters in {identity} are not in the valid set."
-                )
+                _log.warning(f"All characters in {identity} are not in the valid set.")
 
         address = get_address()
         agent_uuid = os.environ.get("AGENT_UUID")
@@ -173,33 +162,29 @@ def vip_main(agent_class, identity=None, version="0.1", **kwargs):
         # from volttron.client.certs import Certs
         # certs = Certs()
         if agent_class.__name__ == "Agent":
-            agent = agent_class(
-                config_path=config,
-                identity=identity,
-                address=address,
-                agent_uuid=agent_uuid,
-                volttron_home=volttron_home,
-                version=version,
-                message_bus=message_bus,
-                publickey=publickey,
-                secretkey=secretkey,
-                serverkey=serverkey,
-                **kwargs
-            )
+            agent = agent_class(config_path=config,
+                                identity=identity,
+                                address=address,
+                                agent_uuid=agent_uuid,
+                                volttron_home=volttron_home,
+                                version=version,
+                                message_bus=message_bus,
+                                publickey=publickey,
+                                secretkey=secretkey,
+                                serverkey=serverkey,
+                                **kwargs)
         else:
-            agent = agent_class(
-                config_path=config,
-                identity=identity,
-                address=address,
-                agent_uuid=agent_uuid,
-                volttron_home=volttron_home,
-                version=version,
-                message_bus=message_bus,
-                publickey=publickey,
-                secretkey=secretkey,
-                serverkey=serverkey,
-                **kwargs
-            )
+            agent = agent_class(config_path=config,
+                                identity=identity,
+                                address=address,
+                                agent_uuid=agent_uuid,
+                                volttron_home=volttron_home,
+                                version=version,
+                                message_bus=message_bus,
+                                publickey=publickey,
+                                secretkey=secretkey,
+                                serverkey=serverkey,
+                                **kwargs)
 
         try:
             run = agent.run
@@ -240,9 +225,7 @@ def wait_for_volttron_startup(vhome, timeout):
         gevent.sleep(3)
         sleep_time += 3
     if sleep_time >= timeout:
-        raise Exception(
-            "Platform startup failed. Please check volttron.log in {}".format(vhome)
-        )
+        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))
 
 
 def wait_for_volttron_shutdown(vhome, timeout):
@@ -253,7 +236,4 @@ def wait_for_volttron_shutdown(vhome, timeout):
         sleep_time += 1
     if sleep_time >= timeout:
         raise Exception(
-            "Platform shutdown failed. Please check volttron.cfg.log in {}".format(
-                vhome
-            )
-        )
+            "Platform shutdown failed. Please check volttron.cfg.log in {}".format(vhome))
