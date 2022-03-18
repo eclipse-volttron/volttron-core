@@ -35,7 +35,6 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VOLTTRON platform™ topic templates.
 
 Templates of standard topics.  Fields in the templates are replaced by
@@ -75,15 +74,12 @@ import platform
 
 from .utils import Topic as _
 
-
 __author__ = "Brandon Carpenter <brandon.carpenter@pnnl.gov>"
 __copyright__ = "Copyright (c) 2016, Battelle Memorial Institute"
 __license__ = "Apache 2.0"
 
 ALERTS_BASE = _("alerts")
-ALERTS = _(
-    "alerts/{agent_class}/{agent_identity}"
-)  # /{agent_class}/{publickey}/{alert_key}')
+ALERTS = _("alerts/{agent_class}/{agent_identity}")    # /{agent_class}/{publickey}/{alert_key}')
 
 HEARTBEAT = _("heartbeats")
 PLATFORM_BASE = _("platform")
@@ -126,26 +122,20 @@ ANALYSIS_PATH = _("{base}//{analysis_name}//{campus}//{building}//{unit}//{point
 ANALYSIS_TOPIC_BASE = "analysis"
 ANALYSIS_VALUE = _(ANALYSIS_PATH.replace("{base}", ANALYSIS_TOPIC_BASE))
 
-
 ACTUATOR_GET = _(_DEVICES_VALUE.replace("{node}", "actuators/get"))
 ACTUATOR_SET = _(_DEVICES_VALUE.replace("{node}", "actuators/set"))
 ACTUATOR_REVERT_POINT = _(_DEVICES_VALUE.replace("{node}", "actuators/revert/point"))
 ACTUATOR_REVERT_DEVICE = _(_DEVICES_VALUE.replace("{node}", "actuators/revert/device"))
 
-_ACTUATOR_SCHEDULE = _(
-    ("{base}/actuators/schedule/{op}").replace("{base}", DRIVER_TOPIC_BASE)
-)
+_ACTUATOR_SCHEDULE = _(("{base}/actuators/schedule/{op}").replace("{base}", DRIVER_TOPIC_BASE))
 ACTUATOR_SCHEDULE_REQUEST = _(_ACTUATOR_SCHEDULE.replace("{op}", "request"))
 ACTUATOR_SCHEDULE_RESULT = _(_ACTUATOR_SCHEDULE.replace("{op}", "result"))
-ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(
-    _ACTUATOR_SCHEDULE.replace("{op}", "announce/{device}")
-)
+ACTUATOR_SCHEDULE_ANNOUNCE_RAW = _(_ACTUATOR_SCHEDULE.replace("{op}", "announce/{device}"))
 
 # This is a convenience topic for agent listening for announcements
 # and want to use the {campus}//{building}//{unit} style replacement
 ACTUATOR_SCHEDULE_ANNOUNCE = _(
-    ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace("{device}", "{campus}//{building}//{unit}")
-)
+    ACTUATOR_SCHEDULE_ANNOUNCE_RAW.replace("{device}", "{campus}//{building}//{unit}"))
 
 # Added by CHA to be used as the root of all actuators for working within
 # base_historian.py.
@@ -154,17 +144,12 @@ ACTUATOR = _(_DEVICES_VALUE.replace("{node}", ACTUATOR_BASE))
 ACTUATOR_ERROR = _(_DEVICES_VALUE.replace("{node}", "actuators/error"))
 ACTUATOR_VALUE = _(_DEVICES_VALUE.replace("{node}", "actuators/value"))
 
-
 # Ragardless of the interface used (RPC vs pubsub) when an agent
 # attempts to set a point it is announced on this topic.
 # This is intended to inable a historian to capture all attempted writes.
 ACTUATOR_WRITE = _(_DEVICES_VALUE.replace("{node}", "actuators/write"))
-ACTUATOR_REVERTED_POINT = _(
-    _DEVICES_VALUE.replace("{node}", "actuators/reverted/point")
-)
-ACTUATOR_REVERTED_DEVICE = _(
-    _DEVICES_VALUE.replace("{node}", "actuators/reverted/device")
-)
+ACTUATOR_REVERTED_POINT = _(_DEVICES_VALUE.replace("{node}", "actuators/reverted/point"))
+ACTUATOR_REVERTED_DEVICE = _(_DEVICES_VALUE.replace("{node}", "actuators/reverted/device"))
 
 BASE_ARCHIVER_REQUEST = _("archiver/request")
 BASE_ARCHIVER_FULL_REQUEST = _("archiver/full/request")
@@ -175,9 +160,7 @@ _ARCHIVER_UNIT = _("{base}/{campus}//{building}//{unit}")
 ARCHIVER_REQUEST = _(_ARCHIVER.replace("{base}", BASE_ARCHIVER_REQUEST))
 ARCHIVER_RESPONSE = _(_ARCHIVER.replace("{base}", BASE_ARCHIVER_RESPONSE))
 
-ARCHIVER_FULL_UNIT_REQUEST = _(
-    _ARCHIVER_UNIT.replace("{base}", BASE_ARCHIVER_FULL_REQUEST)
-)
+ARCHIVER_FULL_UNIT_REQUEST = _(_ARCHIVER_UNIT.replace("{base}", BASE_ARCHIVER_FULL_REQUEST))
 
 OPENADR_STATUS = _("openadr/status")
 OPENADR_EVENT = _("openadr/event")

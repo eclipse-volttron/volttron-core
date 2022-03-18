@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import functools
 import logging
 import random
@@ -53,7 +52,6 @@ from .base import SubsystemBase
 
 _log = logging.getLogger(__name__)
 _log.setLevel(logging.WARN)
-
 
 __all__ = ['Channel']
 
@@ -98,6 +96,7 @@ class Channel(SubsystemBase):
                 message[0] = name
                 # _log.debug(f"Sending vip through channel {message}")
                 vip_sock.send_vip(peer, 'channel', message, copy=False)
+
         core.onstart.connect(start, self)
 
         def stop(sender, **kwargs):
@@ -150,15 +149,14 @@ class Channel(SubsystemBase):
 
         if name is None:
             while True:
-                name = ''.join(random.choice(string.printable[:-5])
-                               for i in range(30))
+                name = ''.join(random.choice(string.printable[:-5]) for i in range(30))
                 channel = (peer, name)
                 if channel not in self._channels:
                     break
         else:
             channel = (peer, name)
             if channel in self._channels:
-                raise ValueError('channel %r is unavailable' % (name,))
+                raise ValueError('channel %r is unavailable' % (name, ))
         _log.debug(f"Connecting to channel {channel}")
         sock = self.context.socket(zmq.DEALER)
         sock.hwm = 1

@@ -126,10 +126,6 @@ class ZMQConnection(BaseConnection):
     def close_connection(self, linger=5):
         """This method closes ZeroMQ socket"""
         self.socket.close(linger)
-        _log.debug(
-            "********************************************************************"
-        )
+        _log.debug("********************************************************************")
         _log.debug("Closing connection to ZMQ: {}".format(self._identity))
-        _log.debug(
-            "********************************************************************"
-        )
+        _log.debug("********************************************************************")

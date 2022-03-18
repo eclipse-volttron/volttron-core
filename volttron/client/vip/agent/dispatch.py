@@ -36,14 +36,13 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import weakref
-
 
 __all__ = ["Signal"]
 
 
 class Signal(object):
+
     def __init__(self):
         self._receivers = weakref.WeakValueDictionary()
 

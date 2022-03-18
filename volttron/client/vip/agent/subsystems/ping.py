@@ -36,7 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-
 import logging
 import weakref
 
@@ -47,11 +46,11 @@ from zmq.green import ENOTSOCK
 
 __all__ = ["Ping"]
 
-
 _log = logging.getLogger(__name__)
 
 
 class Ping(SubsystemBase):
+
     def __init__(self, core):
         self.core = weakref.ref(core)
         self._results = ResultsDictionary()

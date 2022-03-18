@@ -35,14 +35,12 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
 """VOLTTRON platform™ messaging classes."""
 
 import zmq
 from ...utils import jsonapi
 
 from .headers import Headers
-
 
 __all__ = ["Headers", "Socket"]
 
@@ -101,10 +99,8 @@ class Socket(zmq.Socket):
         """
         flags = kwargs.pop("flags", 0)
         if kwargs:
-            raise TypeError(
-                "send_message() got unexpected keyword "
-                "arugment(s): " + ", ".join(kwargs)
-            )
+            raise TypeError("send_message() got unexpected keyword "
+                            "arugment(s): " + ", ".join(kwargs))
         if not isinstance(headers, Headers):
             headers = Headers(headers) if headers else Headers()
         self.send_string(topic, flags | zmq.SNDMORE)

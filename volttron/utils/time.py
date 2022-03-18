@@ -181,11 +181,8 @@ def process_timestamp(timestamp_string, topic=""):
     try:
         timestamp = parse_timestamp_string(timestamp_string)
     except (ValueError, TypeError):
-        _log.error(
-            "message for {topic} bad timetamp string: {ts_string}".format(
-                topic=topic, ts_string=timestamp_string
-            )
-        )
+        _log.error("message for {topic} bad timetamp string: {ts_string}".format(
+            topic=topic, ts_string=timestamp_string))
         return
 
     if timestamp.tzinfo is None:
