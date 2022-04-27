@@ -36,19 +36,19 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from .channel import Channel
-from .hello import Hello
-from .peerlist import PeerList
-from .ping import Ping
-from .pubsub import PubSub
-from .rpc import RPC
-from .heartbeat import Heartbeat
-from .health import Health
-from .configstore import ConfigStore
-from .auth import Auth
+from volttron.client.vip.agent.subsystems.channel import Channel
+from volttron.client.vip.agent.subsystems.hello import Hello
+from volttron.client.vip.agent.subsystems.peerlist import PeerList
+from volttron.client.vip.agent.subsystems.ping import Ping
+from volttron.client.vip.agent.subsystems.pubsub import PubSub
+from volttron.client.vip.agent.subsystems.rpc import RPC
+from volttron.client.vip.agent.subsystems.heartbeat import Heartbeat
+from volttron.client.vip.agent.subsystems.health import Health
+from volttron.client.vip.agent.subsystems.configstore import ConfigStore
+from volttron.client.vip.agent.subsystems.auth import Auth
 # TODO Add back in with plugin architecture
 # from .rmq_pubsub import RMQPubSub
-from .web import WebSubSystem
+from volttron.client.vip.agent.subsystems.web import WebSubSystem
 
 __all__ = [
     "PeerList",
