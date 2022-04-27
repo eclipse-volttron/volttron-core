@@ -22,7 +22,7 @@ poetry shell
 ## Install
 Run the following commands to install volttron -  
 ```
-poetry update
+poetry lock
 poetry install
 ```
 
