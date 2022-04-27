@@ -36,6 +36,8 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 """ Core package."""
+from typing import List
+
 from gevent import monkey
 
 # At this point these are the only things that need to be patched
@@ -53,135 +55,16 @@ for module, fn in patches:
         fn()
 
 import logging
-from pathlib import Path
-import yaml
-import os
-import traceback
 
-import psutil
-import sys
-from configparser import ConfigParser
 from urllib.parse import urlparse
 
-#from pbr.version import VersionInfo
+from volttron.client.vip.agent import Agent
+from volttron.client.vip.agent.core import Core
+from volttron.client.vip.agent import subsystems
 
-from volttron.utils import jsonapi
-from volttron.utils.frozendict import FrozenDict
-
-#__version__ = VersionInfo("volttron.client")
+__all__: List[str] = ["Agent", "Core", "subsystems"]
 
 _log = logging.getLogger(__name__)
-
-# def get_volttron_root():
-#     """
-#     Returns the root folder where the volttron code base resideds on disk.
-
-#     :return: absolute path to root folder
-#     """
-#     return os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-# def get_volttron_data():
-#     root = get_volttron_root()
-#     return os.path.join(root, "volttron_data")
-
-# def get_services_core(agent_dir=None):
-#     root = get_volttron_root()
-#     services_core = os.path.join(root, "services/core")
-#     if not agent_dir:
-#         return services_core
-#     return os.path.join(services_core, agent_dir)
-
-# def get_ops(agent_dir=None):
-#     root = get_volttron_root()
-#     ops_dir = os.path.join(root, "services/ops")
-#     if not agent_dir:
-#         return ops_dir
-#     return os.path.join(ops_dir, agent_dir)
-
-# def get_examples(agent_dir):
-#     root = get_volttron_root()
-#     examples_dir = os.path.join(root, "examples")
-#     if not agent_dir:
-#         return examples_dir
-#     return os.path.join(examples_dir, agent_dir)
-
-# def is_instance_running(volttron_home=None):
-
-#     if volttron_home is None:
-#         volttron_home = get_home()
-
-#     instance_file = os.path.expanduser("~/.volttron_instances")
-#     if not os.path.isfile(instance_file):
-#         return False
-
-#     with open(instance_file, "r") as fp:
-#         jsonobj = jsonapi.loads(fp.read())
-
-#     if volttron_home not in jsonobj:
-#         return False
-
-#     obj = jsonobj[volttron_home]
-#     pid = obj.get("pid", None)
-
-#     if not pid:
-#         return False
-
-#     return psutil.pid_exists(pid)
-
-# def is_rabbitmq_available():
-#     rabbitmq_available = True
-#     try:
-#         import pika
-
-#         rabbitmq_available = True
-#     except ImportError:
-#         os.environ["RABBITMQ_NOT_AVAILABLE"] = "True"
-#         rabbitmq_available = False
-#     return rabbitmq_available
-
-# __config__ = None
-
-# def get_platform_config():
-#     global __config__
-#     if os.environ.get("VOLTTRON_HOME") is None:
-#         raise Exception("VOLTTRON_HOME must be specified before calling this function.")
-
-#     if __config__ is None:
-#         __config__ = FrozenDict()
-#         volttron_home = get_home()
-#         config_file = os.path.join(volttron_home, "config")
-#         if os.path.exists(config_file):
-#             parser = ConfigParser()
-#             parser.read(config_file)
-#             options = parser.options("volttron")
-#             for option in options:
-#                 __config__[option] = parser.get("volttron", option)
-#             __config__.freeze()
-#     return __config__
-
-# def update_platform_config(values: dict) -> None:
-#     global __config__
-
-#     if __config__ is None:
-#         cfg = get_platform_config()
-#     else:
-#         cfg = __config__
-#         # Make sure we can update items
-#         cfg._frozen = False
-
-#     cfg.update(values)
-
-#     config_file = get_config_path()
-#     with open(config_file, "w") as fp:
-#         p = ConfigParser()
-#         p.add_section("volttron")
-#         for k, v in cfg.items():
-#             p.set("volttron", k, v)
-
-#         cfg.freeze()
-#         p.write(fp)
-
-#     return get_platform_config()
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
