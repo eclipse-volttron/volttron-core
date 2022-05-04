@@ -58,7 +58,7 @@ import logging
 
 from urllib.parse import urlparse
 
-from volttron.client.vip.agent import Agent
+from volttron.client.vip.agent import Agent, build_agent
 from volttron.client.vip.agent.core import Core
 from volttron.client.vip.agent import subsystems
 
