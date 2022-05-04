@@ -39,9 +39,9 @@
 import os
 import zmq
 import logging
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 from zmq import EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
-from src.volttron.utils.frame_serialization import serialize_frames
+from volttron.utils.frame_serialization import serialize_frames
 
 _log = logging.getLogger(__name__)
 # Optimizing by pre-creating frames

@@ -50,7 +50,7 @@ from threading import local as _local
 
 import zmq as _zmq
 
-from src.volttron.utils.socket import _Socket
+from volttron.utils.socket import _Socket
 
 
 class Socket(_Socket, _zmq.Socket):

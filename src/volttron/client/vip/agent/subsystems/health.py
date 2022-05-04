@@ -38,9 +38,9 @@
 
 import weakref
 
-from src.volttron.client.messaging import topics
-from src.volttron.client.messaging.headers import DATE
-from src.volttron.client.messaging.health import *
+from volttron.client.messaging import topics
+from volttron.client.messaging.headers import DATE
+from volttron.client.messaging.health import *
 from .base import SubsystemBase
 """
 The health subsystem allows an agent to store it's health in a non-intrusive

@@ -36,6 +36,6 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from src.volttron.utils import get_version
+from volttron.utils import get_version
 
 __version__ = get_version()

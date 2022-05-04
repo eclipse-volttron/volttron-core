@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 import pytest
-from src.volttron.utils import load_config
+from volttron.utils import load_config
 
 
 def test_load_config_json():

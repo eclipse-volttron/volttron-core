@@ -64,11 +64,11 @@ from zmq import (
     ZMQError,
 )
 
-from src.volttron.utils.frame_serialization import (
+from volttron.utils.frame_serialization import (
     deserialize_frames,
     serialize_frames,
 )
-from src.volttron.utils.keystore import decode_key
+from volttron.utils.keystore import decode_key
 
 __all__ = ["Address", "ProtocolError", "Message", "nonblocking"]
 

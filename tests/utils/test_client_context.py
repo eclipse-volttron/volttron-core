@@ -41,7 +41,7 @@ from pathlib import Path
 import gevent
 import pytest
 
-from src.volttron.utils import ClientContext
+from volttron.utils import ClientContext
 
 
 @pytest.fixture

@@ -40,9 +40,9 @@ from collections import defaultdict
 from datetime import datetime
 import logging
 
-from src.volttron.client.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
-from src.volttron.utils import format_timestamp
-from src.volttron.client.vip.agent import Agent, Core, RPC
+from volttron.client.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
+from volttron.utils import format_timestamp
+from volttron.client.vip.agent import Agent, Core, RPC
 
 # TODO: rmq addition
 # from volttron.utils.rmq_config_params import RMQConfig

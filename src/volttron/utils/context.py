@@ -138,14 +138,14 @@ class ClientContext:
     @classmethod
     def get_server_key(cls):
         """Returns server key"""
-        from src.volttron.utils.keystore import KeyStore
+        from volttron.utils.keystore import KeyStore
         keystore_path = os.path.join(cls.get_volttron_home(), "keystore")
         keystore = KeyStore(keystore_path)
         return keystore.public
 
     @classmethod
     def get_agent_keys(cls, vip_id):
-        from src.volttron.utils.keystore import KeyStore
+        from volttron.utils.keystore import KeyStore
         keystore_path = os.path.join(cls.get_volttron_home(), "agents", vip_id, "keystore.json")
         keystore = KeyStore(keystore_path)
         return keystore.public, keystore.secret

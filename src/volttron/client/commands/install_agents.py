@@ -49,11 +49,11 @@ import tempfile
 import gevent
 import yaml
 
-from src.volttron.client.vip.agent.results import AsyncResult
+from volttron.client.vip.agent.results import AsyncResult
 
-from src.volttron.utils import (
+from volttron.utils import (
     execute_command, )
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
 # from volttron.platform import agent, config, jsonapi, get_home
 # from volttron.platform.agent.utils import execute_command

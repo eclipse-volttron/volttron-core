@@ -42,12 +42,12 @@ import os
 
 import gevent
 
-from src.volttron.utils import (ClientContext as cc, get_aware_utc_now)
+from volttron.utils import (ClientContext as cc, get_aware_utc_now)
 
 #from volttron.client import get_home
 #from volttron.client.agent.utils import get_aware_utc_now
-from src.volttron.client.vip.agent import Agent
-from src.volttron.client import build_vip_address_string
+from volttron.client.vip.agent import Agent
+from volttron.client import build_vip_address_string
 
 __version__ = "1.0.3"
 __author__ = "Craig Allwardt <craig.allwardt@pnnl.gov>"

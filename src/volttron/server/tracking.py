@@ -43,7 +43,7 @@
 
 import gevent
 
-from src.volttron.server.router import UNROUTABLE, ERROR, INCOMING
+from volttron.server.router import UNROUTABLE, ERROR, INCOMING
 
 __all__ = ["Tracker"]
 

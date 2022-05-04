@@ -46,11 +46,11 @@ import gevent
 
 from zmq import green as zmq
 from zmq import SNDMORE
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..errors import Unreachable
-from src.volttron.utils import jsonrpc
+from volttron.utils import jsonrpc
 from ..results import ResultsDictionary
 from gevent.queue import Queue
 from collections import defaultdict

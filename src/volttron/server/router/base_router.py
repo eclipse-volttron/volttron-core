@@ -43,8 +43,8 @@ from typing import Optional
 import zmq
 from zmq import NOBLOCK, ZMQError, EINVAL, EHOSTUNREACH
 
-from src.volttron.server.router.servicepeer import ServicePeerNotifier
-from src.volttron.utils.frame_serialization import serialize_frames
+from volttron.server.router.servicepeer import ServicePeerNotifier
+from volttron.utils.frame_serialization import serialize_frames
 
 __all__ = ["BaseRouter", "OUTGOING", "INCOMING", "UNROUTABLE", "ERROR"]
 

@@ -57,15 +57,15 @@ from zmq import green as zmq
 from zmq.green import ZMQError, EAGAIN, ENOTSOCK
 from zmq.utils.monitor import recv_monitor_message
 
-from src.volttron.utils import ClientContext as cc, get_address
+from volttron.utils import ClientContext as cc, get_address
 
 # from volttron.client.agent import utils
 # from volttron.client.agent.utils import load_platform_config, get_platform_instance_name
 # TODO add back rabbitmq
 # from volttron.client.keystore import KeyStore, KnownHostsStore
 # from volttron.utils.rmq_mgmt import RabbitMQMgmt
-from src.volttron import utils
-from src.volttron.utils.keystore import KeyStore, KnownHostsStore
+from volttron import utils
+from volttron.utils.keystore import KeyStore, KnownHostsStore
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from .errors import VIPError
@@ -73,9 +73,9 @@ from .errors import VIPError
 
 # TODO add back rabbitmq
 # from ..rmq_connection import RMQConnection
-from src.volttron.utils.socket import Message
+from volttron.utils.socket import Message
 from ...vip.zmq_connection import ZMQConnection
-import src.volttron.client as client
+import volttron.client as client
 
 __all__ = ["BasicCore", "Core", "ZMQCore", "killing"]
 
