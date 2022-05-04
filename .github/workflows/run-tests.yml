@@ -83,4 +83,4 @@ jobs:
       - name: Install library and run tests
         run: |
           poetry install --no-interaction
-          poetry run pytest
+          poetry run pytest tests
