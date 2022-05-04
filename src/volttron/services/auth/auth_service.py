@@ -56,24 +56,24 @@ import gevent.core
 from gevent.fileobject import FileObject
 from zmq import green as zmq
 
-from src.volttron.utils import (
+from volttron.utils import (
     ClientContext as cc,
     create_file_if_missing,
     strip_comments,
 )
-from src.volttron.utils import jsonapi
-from src.volttron.utils.filewatch import watch_file
-from src.volttron.utils.certs import Certs
-from src.volttron.utils.keystore import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
-from src.volttron.client.vip.agent import Agent, Core, RPC, VIPError
-from src.volttron.client.known_identities import (
+from volttron.utils import jsonapi
+from volttron.utils.filewatch import watch_file
+from volttron.utils.certs import Certs
+from volttron.utils.keystore import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
+from volttron.client.vip.agent import Agent, Core, RPC, VIPError
+from volttron.client.known_identities import (
     VOLTTRON_CENTRAL_PLATFORM,
     CONTROL,
     CONTROL_CONNECTION,
 )
 
 # TODO: it seems this should not be so nested of a import path.
-from src.volttron.client.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
+from volttron.client.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 
 # from volttron.platform.certs import Certs
 # from volttron.platform.vip.agent.errors import VIPError

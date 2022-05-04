@@ -49,7 +49,7 @@ import os
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-from src.volttron.utils import ClientContext as cc
+from volttron.utils import ClientContext as cc
 
 _log = logging.getLogger(__name__)
 

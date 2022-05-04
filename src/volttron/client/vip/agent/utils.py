@@ -38,9 +38,9 @@
 
 import logging
 
-from src.volttron.utils import get_address
-from src.volttron.utils.keystore import KeyStore, KnownHostsStore
-from src.volttron.client.vip.agent.connection import Connection
+from volttron.utils import get_address
+from volttron.utils.keystore import KeyStore, KnownHostsStore
+from volttron.client.vip.agent.connection import Connection
 
 _log = logging.getLogger(__name__)
 

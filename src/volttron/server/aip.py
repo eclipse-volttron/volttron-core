@@ -57,13 +57,13 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 
 # from wheel.tool import unpack
-from src.volttron.utils import (ClientContext as cc, get_utc_seconds_from_epoch, execute_command)
+from volttron.utils import (ClientContext as cc, get_utc_seconds_from_epoch, execute_command)
 from ..utils import jsonapi
-from src.volttron.utils.certs import Certs
-from src.volttron.utils.identities import is_valid_identity
-from src.volttron.utils.keystore import KeyStore
-from src.volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from src.volttron.client.vip.agent import Agent
+from volttron.utils.certs import Certs
+from volttron.utils.identities import is_valid_identity
+from volttron.utils.keystore import KeyStore
+from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.client.vip.agent import Agent
 
 # from volttron.platform.agent.utils import load_platform_config, \
 #     get_utc_seconds_from_epoch

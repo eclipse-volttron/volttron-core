@@ -9,7 +9,7 @@ from threading import Thread
 from queue import Queue
 from copy import deepcopy
 
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
 _log = logging.getLogger(__name__)
 

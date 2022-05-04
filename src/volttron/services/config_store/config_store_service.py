@@ -48,18 +48,18 @@ import gevent
 
 from gevent.lock import Semaphore
 
-from src.volttron.utils import (
+from volttron.utils import (
     parse_json_config,
     get_aware_utc_now,
     format_timestamp,
 )
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
-from src.volttron.utils.persistance import PersistentDict
+from volttron.utils.persistance import PersistentDict
 
-from src.volttron.utils.jsonrpc import RemoteError, MethodNotFound
-from src.volttron.utils.storeutils import check_for_recursion, strip_config_name, store_ext
-from src.volttron.client.vip.agent import Agent, Core, RPC, Unreachable, VIPError
+from volttron.utils.jsonrpc import RemoteError, MethodNotFound
+from volttron.utils.storeutils import check_for_recursion, strip_config_name, store_ext
+from volttron.client.vip.agent import Agent, Core, RPC, Unreachable, VIPError
 
 _log = logging.getLogger(__name__)
 

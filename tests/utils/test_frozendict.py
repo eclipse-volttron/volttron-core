@@ -37,7 +37,7 @@
 # }}}
 import pytest
 
-from src.volttron.utils.frozendict import FrozenDict
+from volttron.utils.frozendict import FrozenDict
 
 
 def test_frozen_dict():

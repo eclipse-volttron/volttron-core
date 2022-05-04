@@ -79,27 +79,27 @@ import gevent.event
 # from volttron.utils.rmq_mgmt import RabbitMQMgmt
 # from volttron.utils.rmq_setup import check_rabbit_status
 # from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
-from src.volttron.client.commands.install_agents import add_install_agent_parser
+from volttron.client.commands.install_agents import add_install_agent_parser
 
-from src.volttron.utils import ClientContext as cc, get_address
-from src.volttron.utils import jsonapi
-from src.volttron.utils import argparser as config
-from src.volttron.utils.commands import (
+from volttron.utils import ClientContext as cc, get_address
+from volttron.utils import jsonapi
+from volttron.utils import argparser as config
+from volttron.utils.commands import (
     is_volttron_running,
     wait_for_volttron_shutdown,
 )
-from src.volttron.utils.jsonrpc import MethodNotFound, RemoteError
-from src.volttron.utils.keystore import KeyStore, KnownHostsStore
-from src.volttron.utils import log_to_file
+from volttron.utils.jsonrpc import MethodNotFound, RemoteError
+from volttron.utils.keystore import KeyStore, KnownHostsStore
+from volttron.utils import log_to_file
 
-from src.volttron.client.known_identities import (
+from volttron.client.known_identities import (
     CONFIGURATION_STORE,
     PLATFORM_HEALTH,
     AUTH,
 )
 
-from src.volttron.client.vip.agent.subsystems.query import Query
-from src.volttron.client.vip.agent.errors import Unreachable, VIPError
+from volttron.client.vip.agent.subsystems.query import Query
+from volttron.client.vip.agent.errors import Unreachable, VIPError
 
 from .connection import ControlConnection
 
