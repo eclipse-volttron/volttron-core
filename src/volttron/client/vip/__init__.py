@@ -14,7 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+# green
 # This material was prepared as an account of work sponsored by an agency of
 # the United States Government. Neither the United States Government nor the
 # United States Department of Energy, nor Battelle, nor any of their
@@ -35,43 +35,36 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from zmq.sugar.frame import Frame
-from src.volttron.utils.frame_serialization import (
-    deserialize_frames,
-    serialize_frames,
-)
+"""VIP - VOLTTRON™ Interconnect Protocol implementation
+
+See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
+for protocol specification.
+
+This module is useful for using VIP outside of gevent. Please understand
+that ZeroMQ sockets are not thread-safe and care must be used when using
+across threads (or avoided all together). There is no locking around the
+state as there is with the gevent version in the green sub-module.
+"""
+
+from threading import local as _local
+
+import zmq as _zmq
+
+from src.volttron.utils.socket import _Socket
 
 
-def test_can_deserialize_homogeneous_string():
-    abc = ["alpha", "beta", "gamma"]
-    frames = [Frame(x.encode("utf-8")) for x in abc]
-
-    deserialized = deserialize_frames(frames)
-
-    for r in range(len(abc)):
-        assert abc[r] == deserialized[r], f"Element {r} is not the same."
+class Socket(_Socket, _zmq.Socket):
+    _context_class = _zmq.Context
+    _local_class = _local
 
 
-def test_can_serialize_homogeneous_strings():
-    original = ["alpha", "beta", "gamma"]
-    frames = serialize_frames(original)
+class BaseConnection(object):
+    """
+    Base connection class for message bus connection.
+    """
 
-    for r in range(len(original)):
-        assert original[r] == frames[r].bytes.decode("utf-8"), f"Element {r} is not the same."
-
-
-def test_mixed_array():
-    original = [
-        "alpha",
-        dict(alpha=5, gamma="5.0", theta=5.0),
-        "gamma",
-        ["from", "to", "VIP1", ["third", "level", "here", 50]],
-    ]
-    frames = serialize_frames(original)
-    for x in frames:
-        assert isinstance(x, Frame)
-
-    after_deserialize = deserialize_frames(frames)
-
-    for r in range(len(original)):
-        assert original[r] == after_deserialize[r], f"Element {r} is not the same."
+    def __init__(self, url, identity, instance_name):
+        self._url = url
+        self._identity = identity
+        self._instance_name = instance_name
+        self._vip_handler = None

@@ -35,43 +35,50 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from zmq.sugar.frame import Frame
-from src.volttron.utils.frame_serialization import (
-    deserialize_frames,
-    serialize_frames,
-)
+
+import logging
+
+from src.volttron.utils import get_address
+from src.volttron.utils.keystore import KeyStore, KnownHostsStore
+from src.volttron.client.vip.agent.connection import Connection
+
+_log = logging.getLogger(__name__)
+
+host_store = KnownHostsStore()
 
 
-def test_can_deserialize_homogeneous_string():
-    abc = ["alpha", "beta", "gamma"]
-    frames = [Frame(x.encode("utf-8")) for x in abc]
-
-    deserialized = deserialize_frames(frames)
-
-    for r in range(len(abc)):
-        assert abc[r] == deserialized[r], f"Element {r} is not the same."
+def get_known_host_serverkey(vip_address):
+    return host_store.serverkey(vip_address)
 
 
-def test_can_serialize_homogeneous_strings():
-    original = ["alpha", "beta", "gamma"]
-    frames = serialize_frames(original)
+def get_server_keys():
+    try:
+        # attempt to read server's keys. Should be used only by multiplatform connection and tests
+        # If agents such as forwarder attempt this in secure mode this will throw access violation exception
+        ks = KeyStore()
+    except IOError as e:
+        raise RuntimeError(
+            "Exception accessing server keystore. Agents must use agent's public and private key"
+            "to build dynamic agents when running in secure mode. Exception:{}".format(e))
 
-    for r in range(len(original)):
-        assert original[r] == frames[r].bytes.decode("utf-8"), f"Element {r} is not the same."
+    return ks.public, ks.secret
 
 
-def test_mixed_array():
-    original = [
-        "alpha",
-        dict(alpha=5, gamma="5.0", theta=5.0),
-        "gamma",
-        ["from", "to", "VIP1", ["third", "level", "here", 50]],
-    ]
-    frames = serialize_frames(original)
-    for x in frames:
-        assert isinstance(x, Frame)
-
-    after_deserialize = deserialize_frames(frames)
-
-    for r in range(len(original)):
-        assert original[r] == after_deserialize[r], f"Element {r} is not the same."
+def build_connection(identity,
+                     peer="",
+                     address=None,
+                     publickey=None,
+                     secretkey=None,
+                     message_bus=None,
+                     **kwargs):
+    address = address if address is not None else get_address()
+    if publickey is None or secretkey is None:
+        publickey, secretkey = get_server_keys(publickey, secretkey)
+    cn = Connection(address=address,
+                    identity=identity,
+                    peer=peer,
+                    publickey=publickey,
+                    secretkey=secretkey,
+                    message_bus=message_bus,
+                    **kwargs)
+    return cn

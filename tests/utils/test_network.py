@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from volttron.utils import is_ip_private
+from src.volttron.utils import is_ip_private
 
 
 def test_is_private_vip_address():
