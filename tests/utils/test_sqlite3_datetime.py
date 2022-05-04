@@ -37,7 +37,7 @@
 # }}}
 
 from dateutil.parser import parse
-from volttron.utils import fix_sqlite3_datetime
+from src.volttron.utils import fix_sqlite3_datetime
 import sqlite3 as sql
 
 

@@ -35,10 +35,9 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from _pytest._code.code import ExceptionInfo
 import pytest
 
-from volttron.utils.frozendict import FrozenDict
+from src.volttron.utils.frozendict import FrozenDict
 
 
 def test_frozen_dict():

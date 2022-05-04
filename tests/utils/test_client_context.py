@@ -39,10 +39,9 @@ import os
 from pathlib import Path
 
 import gevent
-from unittest import mock
 import pytest
 
-from volttron.utils import ClientContext
+from src.volttron.utils import ClientContext
 
 
 @pytest.fixture
