@@ -39,7 +39,8 @@ import os
 
 import pytest
 
-from volttron.utils import keystore, jsonapi
+from src.volttron.utils import keystore
+from src.volttron.utils import jsonapi
 
 host_pair1 = {"addr": "tcp://127.0.0.1:1234", "key": "ABCDEFG"}
 host_pair2 = {"addr": "tcp://192.168.0.2:1234", "key": "123456789"}

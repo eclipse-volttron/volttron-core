@@ -35,43 +35,51 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-from zmq.sugar.frame import Frame
-from src.volttron.utils.frame_serialization import (
-    deserialize_frames,
-    serialize_frames,
-)
+"""VIP - VOLTTRON™ Interconnect Protocol implementation
+
+See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
+for protocol specification.
+
+This module is for use within gevent. It provides some locking around
+send operations to protect the VIP state. It should be safe to use a
+single socket in multiple greenlets without any kind of locking.
+"""
+
+from contextlib import contextmanager as _contextmanager
+
+from gevent import sleep as _sleep
+from gevent.local import local as _local
+from gevent.lock import RLock as _RLock
+
+from zmq.green import NOBLOCK, POLLOUT
+from zmq import green as _green
+
+from src.volttron.utils.socket import _Socket
+# from volttron.client.vip.router import BaseRouter as _BaseRouter
 
 
-def test_can_deserialize_homogeneous_string():
-    abc = ["alpha", "beta", "gamma"]
-    frames = [Frame(x.encode("utf-8")) for x in abc]
+class Socket(_Socket, _green.Socket):
+    _context_class = _green.Context
+    _local_class = _local
 
-    deserialized = deserialize_frames(frames)
+    def __init__(self, *args, **kwargs):
+        super(Socket, self).__init__(*args, **kwargs)
+        object.__setattr__(self, "_Socket__send_lock", _RLock())
 
-    for r in range(len(abc)):
-        assert abc[r] == deserialized[r], f"Element {r} is not the same."
+    @_contextmanager
+    def _sending(self, flags):
+        flags |= getattr(self._Socket__local, "flags", 0)
+        lock = self._Socket__send_lock
+        while not lock.acquire(not flags & NOBLOCK):
+            if not self.poll(0, POLLOUT):
+                raise _green.Again()
+            _sleep(0)
+        try:
+            yield flags
+        finally:
+            lock.release()
 
 
-def test_can_serialize_homogeneous_strings():
-    original = ["alpha", "beta", "gamma"]
-    frames = serialize_frames(original)
-
-    for r in range(len(original)):
-        assert original[r] == frames[r].bytes.decode("utf-8"), f"Element {r} is not the same."
-
-
-def test_mixed_array():
-    original = [
-        "alpha",
-        dict(alpha=5, gamma="5.0", theta=5.0),
-        "gamma",
-        ["from", "to", "VIP1", ["third", "level", "here", 50]],
-    ]
-    frames = serialize_frames(original)
-    for x in frames:
-        assert isinstance(x, Frame)
-
-    after_deserialize = deserialize_frames(frames)
-
-    for r in range(len(original)):
-        assert original[r] == after_deserialize[r], f"Element {r} is not the same."
+# class BaseRouter(_BaseRouter):
+#     _context_class = _green.Context
+#     _socket_class = _green.Socket
