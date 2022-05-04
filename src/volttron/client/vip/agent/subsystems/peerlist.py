@@ -42,7 +42,7 @@ import weakref
 from .base import SubsystemBase
 from ..dispatch import Signal
 from ..results import ResultsDictionary
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
 

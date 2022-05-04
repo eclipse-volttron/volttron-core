@@ -1,5 +1,5 @@
 from ..agent import *
-from src.volttron.utils.scheduling import periodic
+from volttron.utils.scheduling import periodic
 
 
 def meh():

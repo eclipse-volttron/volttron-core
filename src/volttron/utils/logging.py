@@ -6,7 +6,7 @@ import syslog
 import traceback
 import warnings
 
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
 try:
     HAS_SYSLOG = True

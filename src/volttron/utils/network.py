@@ -42,7 +42,7 @@ import sys
 import re
 import traceback
 
-from src.volttron.utils import ClientContext as cc
+from volttron.utils import ClientContext as cc
 
 _log = logging.getLogger(__name__)
 

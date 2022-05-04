@@ -46,12 +46,12 @@ import re
 
 import gevent.local
 from gevent.event import AsyncResult
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
 from .base import SubsystemBase
 from ..results import counter, ResultsDictionary
 from ..decorators import annotate, annotations, dualmethod, spawn
-from src.volttron.utils import jsonrpc
+from volttron.utils import jsonrpc
 
 from zmq import ZMQError
 from zmq.green import ENOTSOCK

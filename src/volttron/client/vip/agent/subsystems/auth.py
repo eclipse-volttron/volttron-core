@@ -45,11 +45,11 @@ import weakref
 
 from .base import SubsystemBase
 
-from src.volttron.client.known_identities import AUTH
-from src.volttron.utils import ClientContext as cc
-from src.volttron.utils import jsonapi
-from src.volttron.utils.jsonrpc import RemoteError
-from src.volttron.utils.keystore import KeyStore
+from volttron.client.known_identities import AUTH
+from volttron.utils import ClientContext as cc
+from volttron.utils import jsonapi
+from volttron.utils.jsonrpc import RemoteError
+from volttron.utils.keystore import KeyStore
 """
 The auth subsystem allows an agent to quickly query authorization state
 (e.g., which capabilities each user has been granted).
@@ -103,8 +103,8 @@ class Auth(SubsystemBase):
         function.
 
         """
-        from src.volttron.client.vip.agent.utils import build_agent
-        from src.volttron.client.vip.agent import Agent
+        from volttron.client.vip.agent.utils import build_agent
+        from volttron.client.vip.agent import Agent
 
         if agent_class is None:
             agent_class = Agent
@@ -140,8 +140,8 @@ class Auth(SubsystemBase):
                 address=address,
             )
         elif parsed_address.scheme in ("https", "http"):
-            from src.volttron.client import DiscoveryInfo
-            from src.volttron.client import DiscoveryError
+            from volttron.client import DiscoveryInfo
+            from volttron.client import DiscoveryError
 
             try:
                 # TODO: Use known host instead of looking up for discovery info if possible.

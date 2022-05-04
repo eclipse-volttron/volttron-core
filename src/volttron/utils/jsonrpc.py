@@ -43,7 +43,7 @@ See http://www.jsonrpc.org/specification for the complete specification.
 import sys
 from contextlib import contextmanager
 
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
 __all__ = [
     "Error",

@@ -60,8 +60,8 @@ import gevent
 # import gevent.monkey
 # import gevent.threading as threading
 #
-from src.volttron.utils import ClientContext as cc
-from src.volttron.utils.keystore import get_random_key
+from volttron.utils import ClientContext as cc
+from volttron.utils.keystore import get_random_key
 
 # gevent.monkey.patch_socket()
 # gevent.monkey.patch_ssl()
@@ -70,16 +70,16 @@ from zmq import green
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from src.volttron.server import __version__
+from volttron.server import __version__
 
 # Link to the volttron-client library
-from src.volttron.utils.keystore import decode_key, encode_key
+from volttron.utils.keystore import decode_key, encode_key
 
 # from .vip.router import *
 # from .vip.socket import decode_key, encode_key, Address
 # from .vip.tracking import Tracker
 
-from src.volttron.client.known_identities import (
+from volttron.client.known_identities import (
     PLATFORM_WEB,
     CONFIGURATION_STORE,
     AUTH,
@@ -88,9 +88,9 @@ from src.volttron.client.known_identities import (
     PLATFORM_HEALTH,
     PROXY_ROUTER,
 )
-from src.volttron.utils import store_message_bus_config
-from src.volttron.utils.keystore import KeyStore, KnownHostsStore
-from src.volttron.utils.persistance import load_create_store
+from volttron.utils import store_message_bus_config
+from volttron.utils.keystore import KeyStore, KnownHostsStore
+from volttron.utils.persistance import load_create_store
 
 from .tracking import Tracker
 
@@ -100,7 +100,7 @@ from .tracking import Tracker
 # from volttron.utils.rmq_setup import start_rabbit
 # from volttron.utils.rmq_config_params import RMQConfig
 
-from src.volttron.server.router import Router, GreenRouter
+from volttron.server.router import Router, GreenRouter
 from ..services.health import HealthService
 from ..services.peer import ServicePeerNotifier
 from ..services.auth import AuthService, AuthFile, AuthEntry
@@ -645,7 +645,7 @@ def start_volttron_process(opts):
                     # to rmq server.  The master.web-server certificate will be used for the platform web
                     # services.
                     base_webserver_name = PLATFORM_WEB + "-server"
-                    from src.volttron.utils.certs import Certs
+                    from volttron.utils.certs import Certs
 
                     certs = Certs()
                     certs.create_signed_cert_files(base_webserver_name, cert_type="server")

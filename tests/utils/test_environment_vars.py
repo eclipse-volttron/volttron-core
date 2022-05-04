@@ -40,7 +40,7 @@ import os
 import mock
 import pytest
 
-from src.volttron.utils import vip_main
+from volttron.utils import vip_main
 
 
 class AgentMockery:

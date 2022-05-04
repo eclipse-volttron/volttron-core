@@ -42,11 +42,11 @@ import fnmatch
 import inspect
 
 from .base import SubsystemBase
-from src.volttron.utils.storeutils import list_unique_links, check_for_config_link
+from volttron.utils.storeutils import list_unique_links, check_for_config_link
 
 # from volttron.client.storeutils import list_unique_links, check_for_config_link
-from src.volttron.client.vip.agent import errors
-from src.volttron.client.known_identities import CONFIGURATION_STORE
+from volttron.client.vip.agent import errors
+from volttron.client.known_identities import CONFIGURATION_STORE
 
 from collections import defaultdict
 from copy import deepcopy

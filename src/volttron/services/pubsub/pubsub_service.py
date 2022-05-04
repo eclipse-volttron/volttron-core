@@ -47,13 +47,13 @@ from zmq import green
 from collections import defaultdict
 
 # Create a context common to the green and non-green zmq modules.
-from src.volttron.utils import ClientContext as cc
-from src.volttron.utils import jsonapi
-from src.volttron.utils.jsonrpc import INVALID_REQUEST, UNAUTHORIZED
-from src.volttron.utils.frame_serialization import serialize_frames
+from volttron.utils import ClientContext as cc
+from volttron.utils import jsonapi
+from volttron.utils.jsonrpc import INVALID_REQUEST, UNAUTHORIZED
+from volttron.utils.frame_serialization import serialize_frames
 
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from src.volttron.client.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
+from volttron.client.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
 
 # Optimizing by pre-creating frames
 _ROUTE_ERRORS = {

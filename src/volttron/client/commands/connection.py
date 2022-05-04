@@ -1,8 +1,8 @@
 import gevent
 
-from src.volttron.utils import ClientContext as cc
-from src.volttron.client.known_identities import CONTROL_CONNECTION
-from src.volttron.client.vip.agent import Agent as BaseAgent
+from volttron.utils import ClientContext as cc
+from volttron.client.known_identities import CONTROL_CONNECTION
+from volttron.client.vip.agent import Agent as BaseAgent
 
 
 class ControlConnection(object):

@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 from zmq.sugar.frame import Frame
-from src.volttron.utils.frame_serialization import (
+from volttron.utils.frame_serialization import (
     deserialize_frames,
     serialize_frames,
 )

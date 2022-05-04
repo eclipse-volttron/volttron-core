@@ -41,10 +41,10 @@ import zmq
 import logging
 from zmq import EHOSTUNREACH, ZMQError, EAGAIN, NOBLOCK
 
-from src.volttron.utils.frame_serialization import serialize_frames
-from src.volttron.utils.keystore import KeyStore
+from volttron.utils.frame_serialization import serialize_frames
+from volttron.utils.keystore import KeyStore
 from zmq.utils import jsonapi
-from src.volttron.utils.socket import Address
+from volttron.utils.socket import Address
 from zmq.utils.monitor import recv_monitor_message
 import random
 from zmq.green import ENOTSOCK

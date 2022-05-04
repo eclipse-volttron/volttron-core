@@ -40,8 +40,8 @@ import weakref
 
 from .base import SubsystemBase
 from ....messaging.headers import TIMESTAMP
-from src.volttron.utils import get_aware_utc_now, format_timestamp
-from src.volttron.utils.scheduling import periodic
+from volttron.utils import get_aware_utc_now, format_timestamp
+from volttron.utils.scheduling import periodic
 from ..errors import Unreachable
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.

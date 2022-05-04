@@ -46,7 +46,7 @@ import gevent
 from zmq import green as zmq
 from zmq import ZMQError
 
-from src.volttron.utils.frame_serialization import serialize_frames
+from volttron.utils.frame_serialization import serialize_frames
 from .base import SubsystemBase
 
 _log = logging.getLogger(__name__)

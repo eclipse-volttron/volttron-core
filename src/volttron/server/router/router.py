@@ -8,19 +8,19 @@ import uuid
 import zmq
 from zmq import ZMQError, NOBLOCK
 
-from src.volttron.utils import serialize_frames, deserialize_frames
+from volttron.utils import serialize_frames, deserialize_frames
 from ...utils import jsonapi
-from src.volttron.utils.logging import FramesFormatter
-from src.volttron.utils.socket import Address
-from src.volttron.utils.keystore import KeyStore
+from volttron.utils.logging import FramesFormatter
+from volttron.utils.socket import Address
+from volttron.utils.keystore import KeyStore
 
 from .base_router import BaseRouter, UNROUTABLE, ERROR, INCOMING
 
-from src.volttron.services.external import ExternalRPCService
-from src.volttron.services.peer import ServicePeerNotifier
-from src.volttron.services.routing import RoutingService
-from src.volttron.services.pubsub import PubSubService
-from src.volttron.server.monitor import Monitor
+from volttron.services.external import ExternalRPCService
+from volttron.services.peer import ServicePeerNotifier
+from volttron.services.routing import RoutingService
+from volttron.services.pubsub import PubSubService
+from volttron.server.monitor import Monitor
 
 # from ..server import __version__
 

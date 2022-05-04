@@ -42,7 +42,7 @@ from typing import List, Any
 from zmq.sugar.frame import Frame
 import struct
 
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
 _log = logging.getLogger(__name__)
 

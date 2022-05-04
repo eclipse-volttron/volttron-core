@@ -43,11 +43,11 @@ import logging
 from zmq import green as zmq
 from zmq.green import ZMQError, ENOTSOCK
 
-from src.volttron.utils import ClientContext as cc
-from src.volttron.utils import jsonapi
-from src.volttron.utils.frame_serialization import deserialize_frames, serialize_frames
+from volttron.utils import ClientContext as cc
+from volttron.utils import jsonapi
+from volttron.utils.frame_serialization import deserialize_frames, serialize_frames
 
-from src.volttron.client.vip.agent import Agent, Core
+from volttron.client.vip.agent import Agent, Core
 
 _log = logging.getLogger(__name__)
 

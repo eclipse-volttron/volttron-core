@@ -45,8 +45,8 @@ from .errors import *
 from .decorators import *
 from .subsystems import *
 
-from src.volttron.utils import is_valid_identity, get_address, ClientContext as cc
-from src.volttron.utils.keystore import get_server_keys
+from volttron.utils import is_valid_identity, get_address, ClientContext as cc
+from volttron.utils.keystore import get_server_keys
 
 
 class Agent(object):

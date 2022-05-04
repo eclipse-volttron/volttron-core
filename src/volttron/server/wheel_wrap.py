@@ -49,7 +49,7 @@ import sys
 import tempfile
 import zipfile
 
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
 # from wheel.install import WheelFile
 # from wheel.util import native, open_for_csv

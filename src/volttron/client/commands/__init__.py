@@ -42,7 +42,7 @@ monkey.patch_all()
 
 import logging
 
-from src.volttron.utils import get_version
+from volttron.utils import get_version
 
 _log = logging.getLogger(__name__)
 

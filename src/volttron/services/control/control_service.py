@@ -62,28 +62,28 @@ import gevent.event
 # import requests
 # from requests.exceptions import ConnectionError
 
-from src.volttron.server import server_argparser as config, aip as aipmod
-from src.volttron.utils import (
+from volttron.server import server_argparser as config, aip as aipmod
+from volttron.utils import (
     ClientContext as cc,
     get_address,
     get_aware_utc_now,
     wait_for_volttron_shutdown,
 )
-from src.volttron.utils import jsonapi
+from volttron.utils import jsonapi
 
-from src.volttron.client.known_identities import (
+from volttron.client.known_identities import (
     CONFIGURATION_STORE,
     PLATFORM_HEALTH,
     AUTH,
 )
-from src.volttron.utils.jsonrpc import MethodNotFound, RemoteError
-from src.volttron.utils.keystore import KeyStore, KnownHostsStore
+from volttron.utils.jsonrpc import MethodNotFound, RemoteError
+from volttron.utils.keystore import KeyStore, KnownHostsStore
 
-from src.volttron.services.auth import AuthEntry, AuthFile, AuthException
-from src.volttron.utils.certs import Certs
-from src.volttron.utils.scheduling import periodic
+from volttron.services.auth import AuthEntry, AuthFile, AuthException
+from volttron.utils.certs import Certs
+from volttron.utils.scheduling import periodic
 
-from src.volttron.client.vip.agent import (
+from volttron.client.vip.agent import (
     Agent as BaseAgent,
     Core,
     RPC,
@@ -91,8 +91,8 @@ from src.volttron.client.vip.agent import (
     Unreachable,
 )
 
-from src.volttron.client.messaging.health import Status, STATUS_BAD
-from src.volttron.client.vip.agent.subsystems.query import Query
+from volttron.client.messaging.health import Status, STATUS_BAD
+from volttron.client.vip.agent.subsystems.query import Query
 
 # from volttron.platform import config
 # from volttron.platform.auth import AuthEntry, AuthFile, AuthException

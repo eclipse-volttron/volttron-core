@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from src.volttron.client import Agent
+from volttron.client import Agent
 
 
 def test_subsystems_available():
