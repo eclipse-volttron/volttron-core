@@ -36,39 +36,49 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from volttron.client import Agent
+import logging
+
+from volttron.utils import get_address
+from volttron.utils.keystore import KeyStore, KnownHostsStore
+from volttron.client.vip.agent.connection import Connection
+
+_log = logging.getLogger(__name__)
+
+host_store = KnownHostsStore()
 
 
-def test_subsystems_available():
-    agent = Agent(enable_channel=True)
-    assert agent.vip.auth
-    assert agent.vip.channel
-    assert agent.vip.config
-    assert agent.vip.health
-    assert agent.vip.heartbeat
-    assert agent.vip.hello
-    assert agent.vip.peerlist
-    assert agent.vip.ping
-    assert agent.vip.pubsub
-    assert agent.vip.rpc
+def get_known_host_serverkey(vip_address):
+    return host_store.serverkey(vip_address)
 
-    # TODO: Add tests for enable/disable options.
 
-    # agent = Agent(enable_store=False)
+def get_server_keys():
+    try:
+        # attempt to read server's keys. Should be used only by multiplatform connection and tests
+        # If agents such as forwarder attempt this in secure mode this will throw access violation exception
+        ks = KeyStore()
+    except IOError as e:
+        raise RuntimeError(
+            "Exception accessing server keystore. Agents must use agent's public and private key"
+            "to build dynamic agents when running in secure mode. Exception:{}".format(e))
 
-    # with pytest.raises(AttributeError):
-    #     agent.vip.channel
-    # with pytest.raises(NameError):
-    #     getattr(agent.vip, "web")
+    return ks.public, ks.secret
 
-    # with pytest.raises(AttributeError):
-    #     assert not agent.vip.config
 
-    # assert agent.vip.auth
-    # assert agent.vip.health
-    # assert agent.vip.heartbeat
-    # assert agent.vip.hello
-    # assert agent.vip.peerlist
-    # assert agent.vip.ping
-    # assert agent.vip.pubsub
-    # assert agent.vip.rpc
+def build_connection(identity,
+                     peer="",
+                     address=None,
+                     publickey=None,
+                     secretkey=None,
+                     message_bus=None,
+                     **kwargs):
+    address = address if address is not None else get_address()
+    if publickey is None or secretkey is None:
+        publickey, secretkey = get_server_keys(publickey, secretkey)
+    cn = Connection(address=address,
+                    identity=identity,
+                    peer=peer,
+                    publickey=publickey,
+                    secretkey=secretkey,
+                    message_bus=message_bus,
+                    **kwargs)
+    return cn
