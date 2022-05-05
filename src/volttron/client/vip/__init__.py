@@ -14,7 +14,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+# green
 # This material was prepared as an account of work sponsored by an agency of
 # the United States Government. Neither the United States Government nor the
 # United States Department of Energy, nor Battelle, nor any of their
@@ -35,40 +35,36 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+"""VIP - VOLTTRON™ Interconnect Protocol implementation
 
-from volttron.client import Agent
+See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
+for protocol specification.
+
+This module is useful for using VIP outside of gevent. Please understand
+that ZeroMQ sockets are not thread-safe and care must be used when using
+across threads (or avoided all together). There is no locking around the
+state as there is with the gevent version in the green sub-module.
+"""
+
+from threading import local as _local
+
+import zmq as _zmq
+
+from volttron.utils.socket import _Socket
 
 
-def test_subsystems_available():
-    agent = Agent(enable_channel=True)
-    assert agent.vip.auth
-    assert agent.vip.channel
-    assert agent.vip.config
-    assert agent.vip.health
-    assert agent.vip.heartbeat
-    assert agent.vip.hello
-    assert agent.vip.peerlist
-    assert agent.vip.ping
-    assert agent.vip.pubsub
-    assert agent.vip.rpc
+class Socket(_Socket, _zmq.Socket):
+    _context_class = _zmq.Context
+    _local_class = _local
 
-    # TODO: Add tests for enable/disable options.
 
-    # agent = Agent(enable_store=False)
+class BaseConnection(object):
+    """
+    Base connection class for message bus connection.
+    """
 
-    # with pytest.raises(AttributeError):
-    #     agent.vip.channel
-    # with pytest.raises(NameError):
-    #     getattr(agent.vip, "web")
-
-    # with pytest.raises(AttributeError):
-    #     assert not agent.vip.config
-
-    # assert agent.vip.auth
-    # assert agent.vip.health
-    # assert agent.vip.heartbeat
-    # assert agent.vip.hello
-    # assert agent.vip.peerlist
-    # assert agent.vip.ping
-    # assert agent.vip.pubsub
-    # assert agent.vip.rpc
+    def __init__(self, url, identity, instance_name):
+        self._url = url
+        self._identity = identity
+        self._instance_name = instance_name
+        self._vip_handler = None
