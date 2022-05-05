@@ -69,7 +69,7 @@ jobs:
       # install your root project, if required
       #----------------------------------------------
       - name: Install library
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --no-dev
 
       #----------------------------------------------------------------
       #       get project version from pyproject.toml; store in env var

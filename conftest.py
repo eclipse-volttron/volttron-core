@@ -6,10 +6,9 @@ import tempfile
 import pytest
 
 # add
-from volttron.utils import ClientContext
 
 if "volttron" not in sys.path:
-    sys.path.insert(0, "volttron")
+    sys.path.insert(0, "src/volttron")
 
 
 def create_volttron_home(monkeypatch) -> str:

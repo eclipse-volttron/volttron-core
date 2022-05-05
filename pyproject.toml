@@ -6,7 +6,7 @@ authors = ["volttron <volttron@pnnl.gov>"]
 license = "Apache 2"
 
 packages = [
-    { include = "volttron"}
+    { include = "volttron", from = "src" }
 ]
 
 [tool.poetry.dependencies]
