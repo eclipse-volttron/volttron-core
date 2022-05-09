@@ -44,6 +44,8 @@ This module should NEVER import numpy as that would defeat the
 purpose.
 """
 
+from math import sqrt
+
 
 def mean(data):
     """Return the sample arithmetic mean of data."""
@@ -67,7 +69,7 @@ def pstdev(data):
         raise ValueError('variance requires at least two data points')
     ss = _ss(data)
     pvar = ss / n    # the population variance
-    return pvar**0.5
+    return sqrt(pvar)
 
 
 def stdev(data):
@@ -77,4 +79,4 @@ def stdev(data):
         raise ValueError('variance requires at least two data points')
     ss = _ss(data)
     pvar = ss / (n - 1)    # sample variance
-    return pvar**0.5
+    return sqrt(pvar)
