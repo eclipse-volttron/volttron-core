@@ -35,8 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-"""
-Dumping ground for VOLTTRON platform™ agent math helper functions.
+"""Dumping ground for VOLTTRON platform™ agent math helper functions.
 
 Not meant to replace numpy in all cases. A basic set common math
 routines to remove the need for numpy in simple cases.
