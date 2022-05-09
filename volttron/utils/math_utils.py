@@ -35,13 +35,15 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-'''Dumping ground for VOLTTRON platform™ agent math helper functions.
+"""
+Dumping ground for VOLTTRON platform™ agent math helper functions.
 
 Not meant to replace numpy in all cases. A basic set common math
 routines to remove the need for numpy in simple cases.
 
 This module should NEVER import numpy as that would defeat the
-purpose.'''
+purpose.
+"""
 
 
 def mean(data):
@@ -60,7 +62,7 @@ def _ss(data):
 
 
 def pstdev(data):
-    """Calculates the population standard deviation."""
+    """Calculate the population standard deviation."""
     n = len(data)
     if n < 2:
         raise ValueError('variance requires at least two data points')
@@ -70,7 +72,7 @@ def pstdev(data):
 
 
 def stdev(data):
-    """Calculates the sample standard deviation."""
+    """Calculate the sample standard deviation."""
     n = len(data)
     if n < 2:
         raise ValueError('variance requires at least two data points')

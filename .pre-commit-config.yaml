@@ -13,6 +13,7 @@ repos:
   - id: no-commit-to-branch  # blocks main commits.  To bypass do git commit --allow-empty
   - id: pretty-format-json
 
+
 #- repo: https://github.com/pre-commit/mirrors-autopep8
 #  rev: v1.6.0
 #  hooks:
@@ -27,3 +28,13 @@ repos:
     entry: yapf
     language: python
     types: [ python ]
+
+- repo: https://github.com/PyCQA/pydocstyle
+  rev: 6.1.1
+  hooks:
+  - id: pydocstyle
+    name: pydocstyle
+    description: pydocstyle is a static analysis tool for checking compliance with Python docstring conventions.
+    entry: pydocstyle
+    language: python
+    types: [python]
