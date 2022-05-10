@@ -35,6 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+"""Some important modules are imported here to allow for implicit imports of such modules."""
 
 #from pbr.version import VersionInfo
 import yaml
@@ -49,6 +50,7 @@ from .commands import *
 from .jsonapi import strip_comments, parse_json_config
 from .messagebus import store_message_bus_config
 from .logging import *
+from volttron.utils import math_utils as math
 
 from .version import get_version
 
@@ -58,7 +60,6 @@ _log = logging.getLogger(__name__)
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-
     if not config_path or not os.path.exists(config_path):
         raise ValueError("Invalid config_path sent to function.")
 
