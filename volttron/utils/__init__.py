@@ -35,7 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-"""Some important modules are imported here to allow for implicit imports of such modules."""
+"""The volttron.utils package contains generic utilities for handling json, storing configurations math libraries...and more."""
 
 #from pbr.version import VersionInfo
 import yaml
