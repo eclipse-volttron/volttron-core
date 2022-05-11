@@ -35,43 +35,48 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-"""The volttron.utils package contains generic utilities for handling json, storing configurations math libraries...and more."""
+"""Dumping ground for VOLTTRON platform™ agent math helper functions.
 
-#from pbr.version import VersionInfo
-import yaml
+Not meant to replace numpy in all cases. A basic set common math
+routines to remove the need for numpy in simple cases.
 
-from .context import *
-from .identities import *
-from .time import *
-from .file_access import *
-from .frame_serialization import *
-from .network import *
-from .commands import *
-from .jsonapi import strip_comments, parse_json_config
-from .messagebus import store_message_bus_config
-from .logging import *
-from volttron.utils import math_utils as math
+This module should NEVER import numpy as that would defeat the
+purpose.
+"""
 
-from .version import get_version
-
-_log = logging.getLogger(__name__)
-#__version__ = VersionInfo("volttron.utils")
+from math import sqrt
 
 
-def load_config(config_path):
-    """Load a JSON-encoded configuration file."""
-    if not config_path or not os.path.exists(config_path):
-        raise ValueError("Invalid config_path sent to function.")
+def mean(data):
+    """Return the sample arithmetic mean of data."""
+    n = len(data)
+    if n < 1:
+        raise ValueError('mean requires at least one data point')
+    return sum(data) / n    # in Python 2 use sum(data)/float(n)
 
-    # First attempt parsing the file with a yaml parser (allows comments natively)
-    # Then if that fails we fallback to our modified json parser.
-    try:
-        with open(config_path) as f:
-            return yaml.safe_load(f.read())
-    except yaml.scanner.ScannerError as e:
-        try:
-            with open(config_path) as f:
-                return parse_json_config(f.read())
-        except Exception as e:
-            _log.error("Problem parsing agent configuration")
-            raise
+
+def _ss(data):
+    """Return sum of square deviations of sequence data."""
+    c = mean(data)
+    ss = sum((x - c)**2 for x in data)
+    return ss
+
+
+def pstdev(data):
+    """Calculate the population standard deviation."""
+    n = len(data)
+    if n < 2:
+        raise ValueError('variance requires at least two data points')
+    ss = _ss(data)
+    pvar = ss / n    # the population variance
+    return sqrt(pvar)
+
+
+def stdev(data):
+    """Calculate the sample standard deviation."""
+    n = len(data)
+    if n < 2:
+        raise ValueError('variance requires at least two data points')
+    ss = _ss(data)
+    pvar = ss / (n - 1)    # sample variance
+    return sqrt(pvar)
