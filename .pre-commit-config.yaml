@@ -28,13 +28,3 @@ repos:
     entry: yapf
     language: python
     types: [ python ]
-
-- repo: https://github.com/PyCQA/pydocstyle
-  rev: 6.1.1
-  hooks:
-  - id: pydocstyle
-    name: pydocstyle
-    description: pydocstyle is a static analysis tool for checking compliance with Python docstring conventions.
-    entry: pydocstyle
-    language: python
-    types: [python]
