@@ -35,43 +35,53 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-"""The volttron.utils package contains generic utilities for handling json, storing configurations math libraries...and more."""
 
-#from pbr.version import VersionInfo
-import yaml
+import pytest
 
-from .context import *
-from .identities import *
-from .time import *
-from .file_access import *
-from .frame_serialization import *
-from .network import *
-from .commands import *
-from .jsonapi import strip_comments, parse_json_config
-from .messagebus import store_message_bus_config
-from .logging import *
-from volttron.utils import math_utils as math
-
-from .version import get_version
-
-_log = logging.getLogger(__name__)
-#__version__ = VersionInfo("volttron.utils")
+from src.volttron.utils.math_utils import (mean, pstdev, stdev)
 
 
-def load_config(config_path):
-    """Load a JSON-encoded configuration file."""
-    if not config_path or not os.path.exists(config_path):
-        raise ValueError("Invalid config_path sent to function.")
+@pytest.mark.parametrize("data, expected", [([1, 7, 10], 6.0), ([1, 2, 3, 4], 2.5), ([42], 42.0)])
+def test_mean_should_succeed(data, expected):
+    assert mean(data) == expected
 
-    # First attempt parsing the file with a yaml parser (allows comments natively)
-    # Then if that fails we fallback to our modified json parser.
-    try:
-        with open(config_path) as f:
-            return yaml.safe_load(f.read())
-    except yaml.scanner.ScannerError as e:
-        try:
-            with open(config_path) as f:
-                return parse_json_config(f.read())
-        except Exception as e:
-            _log.error("Problem parsing agent configuration")
-            raise
+
+def test_mean_should_raise_value_error():
+    with pytest.raises(ValueError) as excinfo:
+        mean([])
+
+    assert str(excinfo.value) == 'mean requires at least one data point'
+
+
+@pytest.mark.parametrize("data, expected", [
+    ([2, 4], 1.0),
+    ([1, 2, 3, 4, 5], 1.4142135623731),
+    ([0, 0], 0.0),
+])
+def test_pstdev_should_succeed(data, expected):
+    assert pstdev(data) == pytest.approx(expected, rel=1e-3)
+
+
+@pytest.mark.parametrize("invalid_data", [([]), ([42])])
+def test_pstdev_should_raise_value_error(invalid_data):
+    with pytest.raises(ValueError) as excinfo:
+        pstdev(invalid_data)
+
+    assert str(excinfo.value) == 'variance requires at least two data points'
+
+
+@pytest.mark.parametrize("data, expected", [
+    ([2, 4], 1.414),
+    ([1, 2, 3, 4, 5], 1.5811388300842),
+    ([0, 0], 0.0),
+])
+def test_stdev_should_succeed(data, expected):
+    assert stdev(data) == pytest.approx(expected, rel=1e-3)
+
+
+@pytest.mark.parametrize("invalid_data", [([]), ([42])])
+def test_stdev_should_raise_value_error(invalid_data):
+    with pytest.raises(ValueError) as excinfo:
+        stdev(invalid_data)
+
+    assert str(excinfo.value) == 'variance requires at least two data points'

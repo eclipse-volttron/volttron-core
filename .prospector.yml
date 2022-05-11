@@ -1,0 +1,15 @@
+# prospector configuration file
+
+---
+
+pep257:
+    # see http://pep257.readthedocs.io/en/latest/error_codes.html
+    disable: [
+        D212,  # Multi-line docstring summary should start at the first line
+        D213,  # Multi-line docstring summary should start at the second line
+    ]
+
+pyflakes:
+    disable: [
+        F401, # Unused imports
+    ]
