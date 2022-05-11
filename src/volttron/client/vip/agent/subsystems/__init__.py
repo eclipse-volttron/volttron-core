@@ -36,39 +36,31 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from volttron.client import Agent
+from volttron.client.vip.agent.subsystems.channel import Channel
+from volttron.client.vip.agent.subsystems.hello import Hello
+from volttron.client.vip.agent.subsystems.peerlist import PeerList
+from volttron.client.vip.agent.subsystems.ping import Ping
+from volttron.client.vip.agent.subsystems.pubsub import PubSub
+from volttron.client.vip.agent.subsystems.rpc import RPC
+from volttron.client.vip.agent.subsystems.heartbeat import Heartbeat
+from volttron.client.vip.agent.subsystems.health import Health
+from volttron.client.vip.agent.subsystems.configstore import ConfigStore
+from volttron.client.vip.agent.subsystems.auth import Auth
+# TODO Add back in with plugin architecture
+# from .rmq_pubsub import RMQPubSub
+from volttron.client.vip.agent.subsystems.web import WebSubSystem
 
-
-def test_subsystems_available():
-    agent = Agent(enable_channel=True)
-    assert agent.vip.auth
-    assert agent.vip.channel
-    assert agent.vip.config
-    assert agent.vip.health
-    assert agent.vip.heartbeat
-    assert agent.vip.hello
-    assert agent.vip.peerlist
-    assert agent.vip.ping
-    assert agent.vip.pubsub
-    assert agent.vip.rpc
-
-    # TODO: Add tests for enable/disable options.
-
-    # agent = Agent(enable_store=False)
-
-    # with pytest.raises(AttributeError):
-    #     agent.vip.channel
-    # with pytest.raises(NameError):
-    #     getattr(agent.vip, "web")
-
-    # with pytest.raises(AttributeError):
-    #     assert not agent.vip.config
-
-    # assert agent.vip.auth
-    # assert agent.vip.health
-    # assert agent.vip.heartbeat
-    # assert agent.vip.hello
-    # assert agent.vip.peerlist
-    # assert agent.vip.ping
-    # assert agent.vip.pubsub
-    # assert agent.vip.rpc
+__all__ = [
+    "PeerList",
+    "Ping",
+    "RPC",
+    "Hello",
+    "PubSub",
+    #"RMQPubSub",
+    "Channel",
+    "Heartbeat",
+    "Health",
+    "ConfigStore",
+    "Auth",
+    "WebSubSystem"
+]
