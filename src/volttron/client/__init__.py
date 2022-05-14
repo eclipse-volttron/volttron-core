@@ -60,11 +60,23 @@ from urllib.parse import urlparse
 
 from volttron.client.vip.agent import Agent, build_agent
 from volttron.client.vip.agent.core import Core
-from volttron.client.vip.agent import subsystems
+from volttron.client.vip.agent.subsystems.rpc import RPC
+from volttron.client.vip.agent.subsystems.channel import Channel
+from volttron.client.vip.agent.subsystems.hello import Hello
+from volttron.client.vip.agent.subsystems.peerlist import PeerList
+from volttron.client.vip.agent.subsystems.ping import Ping
+from volttron.client.vip.agent.subsystems.pubsub import PubSub
+from volttron.client.vip.agent.subsystems.rpc import RPC
+from volttron.client.vip.agent.subsystems.heartbeat import Heartbeat
+from volttron.client.vip.agent.subsystems.health import Health
+from volttron.client.vip.agent.subsystems.configstore import ConfigStore
+from volttron.client.vip.agent.subsystems.auth import Auth
 
-__all__: List[str] = ["Agent", "Core", "subsystems"]
+__all__: List[str] = ["Agent", "Core", "RPC", "Channel", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health",
+                      "ConfigStore", "Auth"]
 
 _log = logging.getLogger(__name__)
+
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):
