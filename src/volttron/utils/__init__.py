@@ -35,6 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+"""The volttron.utils package contains generic utilities for handling json, storing configurations math libraries...and more."""
 
 #from pbr.version import VersionInfo
 import yaml
@@ -49,7 +50,6 @@ from volttron.utils.commands import *
 from volttron.utils.jsonapi import strip_comments, parse_json_config
 from volttron.utils.messagebus import store_message_bus_config
 from volttron.utils.logging import *
-
 from volttron.utils.version import get_version
 
 _log = logging.getLogger(__name__)
@@ -58,7 +58,6 @@ _log = logging.getLogger(__name__)
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-
     if not config_path or not os.path.exists(config_path):
         raise ValueError("Invalid config_path sent to function.")
 
