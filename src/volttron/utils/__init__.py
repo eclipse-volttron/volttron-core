@@ -53,7 +53,6 @@ from volttron.utils.logging import *
 from volttron.utils.version import get_version
 
 _log = logging.getLogger(__name__)
-#__version__ = VersionInfo("volttron.utils")
 
 
 def load_config(config_path):
@@ -66,7 +65,7 @@ def load_config(config_path):
     try:
         with open(config_path) as f:
             return yaml.safe_load(f.read())
-    except yaml.scanner.ScannerError as e:
+    except yaml.YAMLError as e:
         try:
             with open(config_path) as f:
                 return parse_json_config(f.read())
