@@ -40,22 +40,19 @@
 #from pbr.version import VersionInfo
 import yaml
 
-from .context import *
-from .identities import *
-from .time import *
-from .file_access import *
-from .frame_serialization import *
-from .network import *
-from .commands import *
-from .jsonapi import strip_comments, parse_json_config
-from .messagebus import store_message_bus_config
-from .logging import *
-from volttron.utils import math_utils as math
-
-from .version import get_version
+from volttron.utils.context import *
+from volttron.utils.identities import *
+from volttron.utils.time import *
+from volttron.utils.file_access import *
+from volttron.utils.frame_serialization import *
+from volttron.utils.network import *
+from volttron.utils.commands import *
+from volttron.utils.jsonapi import strip_comments, parse_json_config
+from volttron.utils.messagebus import store_message_bus_config
+from volttron.utils.logging import *
+from volttron.utils.version import get_version
 
 _log = logging.getLogger(__name__)
-#__version__ = VersionInfo("volttron.utils")
 
 
 def load_config(config_path):
@@ -68,10 +65,21 @@ def load_config(config_path):
     try:
         with open(config_path) as f:
             return yaml.safe_load(f.read())
-    except yaml.scanner.ScannerError as e:
+    except yaml.YAMLError as e:
         try:
             with open(config_path) as f:
                 return parse_json_config(f.read())
         except Exception as e:
             _log.error("Problem parsing agent configuration")
             raise
+
+
+def update_kwargs_with_config(kwargs, config):
+    """
+    Loads the user defined configurations into kwargs and converts any dash/hyphen in config variables into underscores
+    :param kwargs: kwargs to be updated
+    :param config: dictionary of user/agent configuration
+    """
+
+    for k, v in config.items():
+        kwargs[k.replace("-", "_")] = v
