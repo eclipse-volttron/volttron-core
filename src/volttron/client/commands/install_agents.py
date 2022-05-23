@@ -96,7 +96,7 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
             cmd = ["pipenv", "run", "python3", "setup.py", "bdist_wheel"]
         else:
             cmd = ["python3", "setup.py", "bdist_wheel"]
-    elif os.path.isfile(os.path.join(opts.install_path, "poetry.lock")):
+    elif os.path.isfile(os.path.join(opts.install_path, "pyproject.toml")):
         cmd = ["poetry", "build"]
     else:
         raise InstallRuntimeError(
