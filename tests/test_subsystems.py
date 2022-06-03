@@ -35,9 +35,8 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-import pytest
 
-from volttron.client.vip.agent import Agent
+from volttron.client import Agent
 
 
 def test_subsystems_available():
