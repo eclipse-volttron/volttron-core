@@ -1,8 +1,14 @@
 name: Update Project Dependencies
 
+# Schedules will only run on the default branch.  So in order for this
+# to work properly we have to specify the branch that we should be checking
+# out in order for this to work properly.
 on:
   schedule:
     - cron: "*/5 * * * *"
+
+env:
+  CHECKOUT_BRANCH: develop
 
 jobs:
 
@@ -13,7 +19,10 @@ jobs:
         python-version: [3.8, 3.9, 3.10]
 
     steps:
+      # Only update on develop branch
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ env.CHECKOUT_BRANCH }}
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
@@ -21,8 +30,17 @@ jobs:
         uses: abatilo/actions-poetry@v2.0.0
         with:
           poetry-version: 1.2.0b2
-      - name: View poetry --help
-        run: poetry --help
+      - name: upgrade dependencies
+        run: poetry update
+      - name: Commit back to branch
+        uses: EndBug/add-and-commit@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          add: pyproject.toml
+          author_email: 3979063+craig8@users.noreply.github.com
+          author_name: update dependency action
+          commit: --signoff
+
 
 
   # jobs:
