@@ -21,8 +21,8 @@ jobs:
     steps:
       # Only update on develop branch
       - uses: actions/checkout@v2
-        with:
-          ref: ${{ env.CHECKOUT_BRANCH }}
+#        with:
+#          ref: ${{ env.CHECKOUT_BRANCH }}
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
