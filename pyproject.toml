@@ -1,0 +1,54 @@
+[tool.poetry]
+name = "volttron"
+version = "0.1.0"
+description = ""
+authors = ["volttron <volttron@pnnl.gov>"]
+license = "Apache 2"
+
+packages = [
+    { include = "volttron", from = "src" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyzmq = "^22.3.0"
+gevent = "^21.12.0"
+PyYAML = "^6.0"
+toml = "^0.10.2"
+dateutils = "^0.6.12"
+tzlocal = "^4.1"
+psutil = "^5.9.0"
+cryptography = "^36.0.1"
+watchdog-gevent = "^0.1.1"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+mock = "^4.0.3"
+pre-commit = "^2.17.0"
+yapf = "^0.32.0"
+toml = "^0.10.2"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+volttron = 'volttron.server.__main__:main'
+vcfg = 'volttron.client.commands.config:main'
+volttron-cfg = 'volttron.client.commands.config:main'
+vctl = 'volttron.client.commands.control:main'
+volttron-ctl = 'volttron.client.commands.control:main'
+
+[tool.yapfignore]
+ignore_patterns = [
+    ".venv/**",
+    ".pytest_cache/**",
+    "dist/**",
+    "docs/**"
+]
+
+[tool.yapf]
+based_on_style = "pep8"
+spaces_before_comment = 4
+column_limit = 99
+split_before_logical_operator = true
