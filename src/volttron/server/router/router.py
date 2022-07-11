@@ -8,9 +8,8 @@ import uuid
 import zmq
 from zmq import ZMQError, NOBLOCK
 
-from volttron.utils import serialize_frames, deserialize_frames
-from ...utils import jsonapi
-from volttron.utils.logging import FramesFormatter
+from volttron.utils import serialize_frames, deserialize_frames, jsonapi
+from volttron.utils.logs import FramesFormatter
 from volttron.utils.socket import Address
 from volttron.utils.keystore import KeyStore
 
