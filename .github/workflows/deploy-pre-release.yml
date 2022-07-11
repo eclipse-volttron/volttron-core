@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - develop
-      - tag-version-fixes
 
 defaults:
   run:
