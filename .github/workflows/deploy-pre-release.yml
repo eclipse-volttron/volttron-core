@@ -119,8 +119,8 @@ jobs:
           tag: ${{ env.NEW_TAG }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Poetry to use Pypi Repository
-        # if: ${{ false }}
+      - name: Publish pre-release to pypi
+        if: github.repository == 'VOLTTRON/volttron-core'
         run: |
           # poetry config repositories.test-pypi https://test.pypi.org/legacy/
           # poetry config pypi-token.test-pypi ${{ secrets.TEST_PYPI_TOKEN }}
