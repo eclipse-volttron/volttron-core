@@ -156,8 +156,16 @@ def get_utc_seconds_from_epoch(timestamp=None):
 
     if timestamp.tzinfo is None:
         local_tz = get_localzone()
-        # Do not use datetime.replace(tzinfo=local_tz) instead use localize()
-        timestamp = local_tz.localize(timestamp)
+
+        # Note:
+        # We replace the time zone here which allows us to get the timezone and set it to the
+        # current local timezone.  This may have an issue when we are in the daylight savings time
+        # era.  See using fold on the timestamp for fixing this.
+        #
+        # https://pytz-deprecation-shim.readthedocs.io/en/latest/migration.html#acquiring-a-tzinfo-object
+        #
+        # TODO: Handle timestamp without using localize for migration.
+        timestamp = timestamp.replace(tzinfo=local_tz)
 
     # utctimetuple can be called on aware timestamps and it will
     # convert to UTC first.
