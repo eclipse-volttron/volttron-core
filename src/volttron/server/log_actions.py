@@ -1,7 +1,7 @@
 import argparse
 import logging
 
-from volttron.utils.logging import AgentFormatter
+from volttron.utils.logs import AgentFormatter
 
 
 def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandler):

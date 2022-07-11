@@ -38,7 +38,7 @@
 
 import logging
 
-from volttron.utils import get_aware_utc_now, format_timestamp
+from volttron.utils.time import get_aware_utc_now, format_timestamp
 from volttron.utils import jsonapi
 
 CURRENT_STATUS = "current_status"
