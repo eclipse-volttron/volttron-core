@@ -38,7 +38,7 @@
 
 __all__ = [
     "execute_command", "vip_main", "is_volttron_running", "wait_for_volttron_startup",
-    "wait_for_volttron_shutdown", "start_agent_thread"
+    "wait_for_volttron_shutdown", "start_agent_thread", "isapipe"
 ]
 
 import logging
