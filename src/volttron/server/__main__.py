@@ -68,12 +68,12 @@ from volttron.utils.keystore import get_random_key
 import zmq
 from zmq import green
 
+# Link to the volttron-client library
+from volttron.utils import decode_key, encode_key
+
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from volttron.server import __version__
-
-# Link to the volttron-client library
-from volttron.utils.keystore import decode_key, encode_key
+from volttron.utils import get_version
 
 # from .vip.router import *
 # from .vip.socket import decode_key, encode_key, Address
@@ -257,7 +257,7 @@ def start_volttron_process(opts):
 
     # Log configuration options
     if getattr(opts, "show_config", False):
-        _log.info("volttron version: {}".format(__version__))
+        _log.info("volttron version: {}".format(get_version()))
         for name, value in sorted(vars(opts).items()):
             _log.info("%s: %s" % (name, str(repr(value))))
 
@@ -571,7 +571,7 @@ def start_volttron_process(opts):
             instances = load_create_store(instance_file)
         this_instance = instances.get(opts.volttron_home, {})
         this_instance["pid"] = os.getpid()
-        this_instance["version"] = __version__
+        this_instance["version"] = get_version()
         # note vip_address is a list
         this_instance["vip-address"] = opts.vip_address
         this_instance["volttron-home"] = opts.volttron_home
@@ -832,7 +832,7 @@ def main(argv=sys.argv):
     #    help='VOLTTRON configuration directory')
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
     parser.add_help_argument()
-    parser.add_version_argument(version="%(prog)s " + str(__version__))
+    parser.add_version_argument(version="%(prog)s " + str(get_version()))
 
     agents = parser.add_argument_group("agent options")
     agents.add_argument(

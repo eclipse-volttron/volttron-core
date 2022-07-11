@@ -55,8 +55,7 @@ from cryptography.x509.general_name import DNSName
 from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
 
-from ..utils import jsonapi, ClientContext as cc, get_hostname
-from ..utils.commands import execute_command
+from volttron.utils import jsonapi, ClientContext as cc, get_hostname, execute_command
 
 # from volttron.platform.agent.utils import (get_platform_instance_name,
 #                                           get_fq_identity,
