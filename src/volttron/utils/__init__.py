@@ -69,7 +69,7 @@ _log = logging.getLogger(__name__)
 
 def load_config(config_path):
     """Load a JSON-encoded configuration file."""
-    if not config_path or not os.path.exists(config_path):
+    if not config_path or not Path(config_path).exists():
         raise ValueError("Invalid config_path sent to function.")
 
     # First attempt parsing the file with a yaml parser (allows comments natively)
