@@ -39,6 +39,7 @@ Commit messages
 - [Use the imperative mood][imperative-mood] as in "Fix bug" or "Add feature" rather than "Fixed bug" or "Added feature"
 - [Mention the GitHub issue][github-issue] when relevant
 - It's a good idea to follow the [advice in Pro Git](https://git-scm.com/book/ch5-2.html)
+- [Good commit messages[good-commit] are critical for maintainability of the project. 
 
 Pull requests
 -------------
@@ -65,3 +66,4 @@ That's it! Thanks for contributing to VOLTTRON!
 [github]:          https://github.com/volttron-core/volttron/actions/actions
 [imperative-mood]: https://github.com/git/git/blob/master/Documentation/SubmittingPatches
 [github-issue]:    https://help.github.com/articles/closing-issues-via-commit-messages/
+[good-commit]:     https://cbea.ms/git-commit/
