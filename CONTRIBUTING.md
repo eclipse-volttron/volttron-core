@@ -18,14 +18,12 @@ Making changes
 
 Fork the repository in GitHub and make changes in your fork.
 
-Please add a description of your changes to the [draft release notes](RELEASE_NOTE_DRAFT.md).
-
-Finally, submit a pull request.
+Submit a pull request.
 
 Contact us
 ----------
 
-[Join the mailing list][mailing-list] and email the community at volttron@pnnl.gov to discuss your ideas and get help.
+[Join the mailing list][mailing-list] or email volttron@pnnl.gov to discuss your ideas and get help.
 
 Semantic Versioning
 -------------------
@@ -47,7 +45,7 @@ Pull requests
 
 Excessive branching and merging can make git history confusing. With that in mind
 
-- Squash your commits down to a few commits, or one commit, before submitting a pull request
+- [Squash your commits down to a few commits][squash], or one commit, before submitting a pull request
 - [Rebase your pull request changes on top of the current main][rebase]. Pull requests shouldn't include merge commits.
 
 Submit your pull request when ready. Three checks will be kicked off automatically.
@@ -62,6 +60,7 @@ That's it! Thanks for contributing to VOLTTRON!
 
 [ECA]:             https://www.eclipse.org/legal/ECA.php
 [semver]:          http://semver.org/
+[squash]:          https://medium.com/@slamflipstrom/a-beginners-guide-to-squashing-commits-with-git-rebase-8185cf6e62ec
 [rebase]:          https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request
 [github]:          https://github.com/volttron-core/volttron/actions/actions
 [imperative-mood]: https://github.com/git/git/blob/master/Documentation/SubmittingPatches
