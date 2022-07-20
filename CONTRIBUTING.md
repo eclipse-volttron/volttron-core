@@ -46,7 +46,7 @@ Commit messages
 - [Use the imperative mood][imperative-mood] as in "Fix bug" or "Add feature" rather than "Fixed bug" or "Added feature"
 - [Mention the GitHub issue][github-issue] when relevant
 - It's a good idea to follow the [advice in Pro Git](https://git-scm.com/book/ch5-2.html)
-- [Good commit messages[good-commit] are critical for maintainability of the project. 
+- [Good commit messages][good-commit] are critical for maintainability of the project. 
 
 Pull requests
 -------------
