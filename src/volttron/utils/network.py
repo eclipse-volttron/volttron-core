@@ -42,8 +42,6 @@ import sys
 import re
 import traceback
 
-from volttron.utils import ClientContext as cc
-
 _log = logging.getLogger(__name__)
 
 
@@ -79,6 +77,8 @@ def get_address(verify_listening=False):
     """Return the VIP address of the platform
     If the VOLTTRON_VIP_ADDR environment variable is set, it is used to connect to.
     Otherwise, it is derived from get_home()."""
+    from volttron.utils import ClientContext as cc
+
     address = os.environ.get("VOLTTRON_VIP_ADDR")
     if not address:
         # Connect via virtual unix socket if linux platform (mac doesn't have @ in it)

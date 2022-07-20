@@ -38,7 +38,7 @@
 
 __all__ = [
     "execute_command", "vip_main", "is_volttron_running", "wait_for_volttron_startup",
-    "wait_for_volttron_shutdown", "start_agent_thread"
+    "wait_for_volttron_shutdown", "start_agent_thread", "isapipe"
 ]
 
 import logging
@@ -49,8 +49,6 @@ import sys
 
 import gevent
 import psutil
-
-from ..utils import (ClientContext as cc, get_address, is_valid_identity)
 
 _log = logging.getLogger(__name__)
 
@@ -112,6 +110,7 @@ def isapipe(fd):
 
 def vip_main(agent_class, identity=None, version="0.1", **kwargs):
     """Default main entry point implementation for VIP agents."""
+    from volttron.utils import (ClientContext as cc, is_valid_identity, get_address)
     try:
         # If stdout is a pipe, re-open it line buffered
         if isapipe(sys.stdout):

@@ -47,6 +47,7 @@ jobs:
       - name: Install Poetry
         uses: snok/install-poetry@v1
         with:
+          version: 1.2.0b2
           virtualenvs-create: true
           virtualenvs-in-project: true
           installer-parallel: true
@@ -83,7 +84,8 @@ jobs:
           # current_tag is the last tagged relese in the repository.   From there
           # we need to remove the v from the begining of the tag.
           if ! $(git tag -l "v*" = ''); then
-            current_tag=$(git tag -l "v*" | sort --reverse |sed -n 1p)
+            # uses -V which is version sort to keep it monotonically increasing.
+            current_tag=$(git tag -l "v*" | sort --reverse -V |sed -n 1p)
           else
             current_tag=v10.0.0
           fi
@@ -118,9 +120,10 @@ jobs:
           tag: ${{ env.NEW_TAG }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure Poetry to use Pypi Repository
-        if: ${{ false }}
+      - name: Publish pre-release to pypi
+        if: github.repository == 'VOLTTRON/volttron-core'
         run: |
-          poetry config repositories.test-pypi https://test.pypi.org/legacy/
-          poetry config pypi-token.test-pypi ${{ secrets.TEST_PYPI_TOKEN }}
-          poetry publish -r test-pypi
+          # poetry config repositories.test-pypi https://test.pypi.org/legacy/
+          # poetry config pypi-token.test-pypi ${{ secrets.TEST_PYPI_TOKEN }}
+          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+          poetry publish # -r test-pypi

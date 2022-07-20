@@ -39,15 +39,8 @@
 from json import dump, dumps, load, loads
 import re
 
-__all__ = (
-    "dump",
-    "dumpb",
-    "dumps",
-    "load",
-    "loadb",
-    "loads",
-    "strip_comments",
-)
+__all__ = ("dump", "dumpb", "dumps", "load", "loadb", "loads", "strip_comments",
+           "parse_json_config")
 
 
 def dumpb(data, **kwargs):
