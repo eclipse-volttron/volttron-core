@@ -28,10 +28,10 @@ Contact us
 Semantic Versioning
 -------------------
 
-VOLTTRON version numbers follow [Semantic Versioning][semver]. This means we increment the major version when we make incompatible API changes. This includes any changes which
+VOLTTRON version numbers follow [Semantic Versioning][semver]. This means we increment the major version when we make incompatible API changes. This includes any changes which:
 
-- break source compatibility
-- break serialization compatibility
+- break source compatibility (i.e. changing a function such that current code breaks)
+- break serialization compatibility (i.e. changing the VIP protocol over the message bus.)
 
 Commit messages
 ---------------
