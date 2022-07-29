@@ -51,6 +51,7 @@ from volttron.utils.commands import (is_volttron_running, execute_command, isapi
                                      vip_main)
 from volttron.utils.context import ClientContext
 from volttron.utils.commands import wait_for_volttron_startup, wait_for_volttron_shutdown
+from volttron.utils.dynamic_helper import get_module, get_class, get_subclasses
 from volttron.utils.file_access import create_file_if_missing
 from volttron.utils.frame_serialization import serialize_frames, deserialize_frames
 from volttron.utils.keystore import encode_key, decode_key
@@ -104,5 +105,6 @@ __all__: List[str] = [
     "process_timestamp", "parse_timestamp_string", "execute_command", "get_version",
     "get_aware_utc_now", "get_utc_seconds_from_epoch", "get_address", "deserialize_frames",
     "wait_for_volttron_startup", "normalize_identity", "ClientContext", "format_timestamp",
-    "store_message_bus_config", "is_ip_private", "fix_sqlite3_datetime", "vip_main"
+    "store_message_bus_config", "is_ip_private", "fix_sqlite3_datetime", "vip_main", "get_module",
+    "get_class", "get_subclasses"
 ]
