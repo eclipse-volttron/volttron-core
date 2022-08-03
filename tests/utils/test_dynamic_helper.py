@@ -16,10 +16,6 @@ from volttron.utils import get_class, get_module, get_subclasses
 sys_path_with = copy(sys.path)
 sys_path_with.insert(0, str(Path(__file__).parent.parent))
 
-# Make sure these tests are first in file as after the path is specified and loaded
-# during the patch, the module under test will still be loaded.  I wasn't
-# able to figure out a clean way to unload modules.
-
 
 def test_get_module_import_error_raised():
     with pytest.raises(ModuleNotFoundError):
@@ -42,7 +38,6 @@ def test_get_module():
 def test_get_klass_str():
     with mock.patch('sys.path', sys_path_with):
         klass = get_class("module_for_testing.module_data", 'SecondaryClass')
-
         assert klass.__name__ == 'SecondaryClass'
 
 
@@ -50,7 +45,6 @@ def test_get_klass_mod():
     with mock.patch('sys.path', sys_path_with):
         module = importlib.import_module("module_for_testing.module_data")
         klass = get_class(module, "MyHelperClass")
-
         assert klass.__name__ == 'MyHelperClass'
 
 
