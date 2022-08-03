@@ -40,8 +40,6 @@
 import importlib.metadata as importlib_metadata
 import logging
 from pathlib import Path
-
-# from pbr.version import VersionInfo
 from typing import List
 
 import yaml
@@ -64,6 +62,7 @@ from volttron.utils.time import (format_timestamp, process_timestamp, parse_time
                                  get_utc_seconds_from_epoch, get_aware_utc_now,
                                  fix_sqlite3_datetime)
 from volttron.utils.version import get_version
+from volttron.utils.dynamic_helper import get_klass, get_subclasses, get_module
 
 _log = logging.getLogger(__name__)
 
