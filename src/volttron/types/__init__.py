@@ -1,0 +1,2 @@
+class ServiceInterface(type):
+    pass
