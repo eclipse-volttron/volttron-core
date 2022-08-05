@@ -35,9 +35,9 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-"""The volttron.utils package contains generic utilities for handling json, storing configurations math libraries...and more."""
+"""The volttron.utils package contains generic utilities for handling json, storing configurations math
+libraries...and more. """
 
-import importlib.metadata as importlib_metadata
 import logging
 from pathlib import Path
 from typing import List
@@ -62,7 +62,6 @@ from volttron.utils.time import (format_timestamp, process_timestamp, parse_time
                                  get_utc_seconds_from_epoch, get_aware_utc_now,
                                  fix_sqlite3_datetime)
 from volttron.utils.version import get_version
-from volttron.utils.dynamic_helper import get_klass, get_subclasses, get_module
 
 _log = logging.getLogger(__name__)
 
