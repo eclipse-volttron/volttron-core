@@ -1,14 +1,19 @@
 import os
+from pathlib import Path
 import shutil
 import sys
 import tempfile
 
 import pytest
 
-# add
+volttron_src_path = Path(__file__).resolve().parent.joinpath("src")
 
-if "volttron" not in sys.path:
-    sys.path.insert(0, "src/volttron")
+assert volttron_src_path.exists()
+
+print(sys.path)
+if str(volttron_src_path) not in sys.path:
+    print(f"Adding source path {volttron_src_path}")
+    sys.path.insert(0, str(volttron_src_path))
 
 
 def create_volttron_home(monkeypatch) -> str:
