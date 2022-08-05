@@ -56,7 +56,7 @@ def get_subclasses(module: ModuleType | str,
                    parent_class: Type | str,
                    return_all=False) -> List[Type]:
     """Returns a list of subclasses of a specific type. If return_all is set to True,
-    returns a list of subclasses. Otherwise, returns a single list item.
+    returns all subclasses, otherwise return a list with only the first subclass found.
 
     :param module: A module containing classes
     :type module: ModuleType | str
