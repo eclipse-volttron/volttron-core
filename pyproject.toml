@@ -3,7 +3,21 @@ name = "volttron"
 version = "0.4.1a1"
 description = ""
 authors = ["volttron <volttron@pnnl.gov>"]
-license = "Apache 2"
+license = "Apache-2.0"
+readme = "README.md"
+homepage = "https://volttron.org"
+repository = "https://github.com/eclipse-volttron/volttron-core"
+documentation = "https://volttron.readthedocs.org"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Developer",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
 
 packages = [
     { include = "volttron", from = "src" }
