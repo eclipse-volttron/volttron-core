@@ -69,11 +69,10 @@ import zmq
 from zmq import green
 
 # Link to the volttron-client library
-from volttron.utils import decode_key, encode_key
+from volttron.utils import decode_key, encode_key, get_version
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-from volttron.utils import get_version
 
 # from .vip.router import *
 # from .vip.socket import decode_key, encode_key, Address
