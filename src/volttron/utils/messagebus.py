@@ -2,7 +2,7 @@ from configparser import ConfigParser
 import logging
 import os
 
-from ..utils import ClientContext as cc
+from volttron.utils import ClientContext as cc
 
 _log = logging.getLogger(__name__)
 
@@ -40,6 +40,3 @@ def store_message_bus_config(message_bus, instance_name):
             config.write(configfile)
         # all agents need read access to config file
         os.chmod(config_path, 0o744)
-
-
-

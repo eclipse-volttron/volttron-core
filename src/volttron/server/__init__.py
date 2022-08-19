@@ -35,7 +35,3 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
-from volttron.utils import get_version
-
-__version__ = get_version()
