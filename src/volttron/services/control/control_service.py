@@ -63,6 +63,8 @@ import gevent.event
 # from requests.exceptions import ConnectionError
 
 from volttron.server import server_argparser as config, aip as aipmod
+from volttron.types.server_config import ServerConfig
+from volttron.types import ServiceInterface
 from volttron.utils import (
     ClientContext as cc,
     get_address,
@@ -79,7 +81,7 @@ from volttron.client.known_identities import (
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 
-from volttron.services.auth import AuthEntry, AuthFile, AuthException
+from volttron.services.auth import AuthEntry, AuthFile, AuthService
 from volttron.utils.certs import Certs
 from volttron.utils.scheduling import periodic
 
@@ -124,16 +126,17 @@ rmq_mgmt = None
 CHUNK_SIZE = 4096
 
 
-class ControlService(BaseAgent):
+class ControlService(ServiceInterface, BaseAgent):
 
-    def __init__(self, aip: aipmod.AIPplatform, agent_monitor_frequency, *args, **kwargs):
+    def __init__(self, server_config: ServerConfig, *args, **kwargs):
 
         tracker = kwargs.pop("tracker", None)
         # Control config store not necessary right now
         kwargs["enable_store"] = False
         kwargs["enable_channel"] = True
+        agent_monitor_frequency = kwargs.pop("agent_monitor_frequency")
         super(ControlService, self).__init__(*args, **kwargs)
-        self._aip = aip
+        self._aip = server_config.aip
         self._tracker = tracker
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)

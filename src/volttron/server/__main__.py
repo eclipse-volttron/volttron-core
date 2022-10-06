@@ -35,10 +35,13 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
+import yaml
 from gevent import monkey
 
 # monkey.patch_all()
+from volttron.types.server_config import ServerConfig
+from volttron.server.serviceloader import init_services
+
 monkey.patch_socket()
 monkey.patch_ssl()
 
@@ -425,45 +428,62 @@ def start_volttron_process(opts):
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
         _log.debug("********************************************************************")
+
+        server_config = ServerConfig()
+        server_config.opts = opts
+        server_config.internal_address = address
+
+        server_config.aip = opts.aip
+        service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
+        if not service_config_file.exists():
+            # TODO add minimal service_config_file for backward compatability
+            with service_config_file.open("wt") as fp:
+                yaml.dump({}, fp)
+
+        server_config.service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
+        server_config.auth_file = Path(opts.volttron_home).joinpath("auth.json")
+        server_config.protected_topics_file = Path(
+            opts.volttron_home).joinpath("protected_topics.json")
+
+        # Initialize all of the services, using the service configuration file that has been
+        # created.  The list returned will have [(plugin_name, instance), (plugin_name1, instance1)]
+        services = init_services(server_config)
+
+        # Extract the services into two separate lists so it is easier to find out specific services
+        # by index of the plugin name.
+        plugin_names, service_instances = zip(*services)
+
+        # This variable will hold the executing services to determine when one of the services
+        # dies or the platform has been shutdown.
+        spawned_greenlets = []
+
+        # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
+        #  run the message bus regardless of whether it's zmq or rmq.
         if opts.message_bus == "zmq":
-            # Start the config store before auth so we may one day have auth use it.
-            config_store = ConfigStoreService(
-                address=address,
-                identity=CONFIGURATION_STORE,
-                message_bus=opts.message_bus,
-            )
+            # first service loaded must be the config store
+            config_store = service_instances[0]
+            assert isinstance(config_store, ConfigStoreService)
+            # start it up before anything else
+            spawned_greenlets.append(config_store.spawn_in_greenlet())
 
-            event = gevent.event.Event()
-            config_store_task = gevent.spawn(config_store.core.run, event)
-            event.wait()
-            del event
+            # If auth service is not found then we have no auth installed, therefore
+            # a value error is raised and no authentication is available.
+            try:
+                auth_index = plugin_names.index("volttron.services.auth")
+                auth_service = service_instances[auth_index]
+            except ValueError:
+                auth_service = None
 
-            # Ensure auth service is running before router
-            auth_file = os.path.join(opts.volttron_home, "auth.json")
-            auth = AuthService(
-                auth_file,
-                protected_topics_file,
-                opts.setup_mode,
-                opts.aip,
-                address=address,
-                identity=AUTH,
-                enable_store=False,
-                message_bus="zmq",
-            )
+            # if we have an auth service it should be started before the
+            # zmq router.
+            if auth_service:
+                spawned_greenlets.append(auth_service.spawn_in_greenlet())
 
-            event = gevent.event.Event()
-            auth_task = gevent.spawn(auth.core.run, event)
-            event.wait()
-            del event
-
-            protected_topics = auth.get_protected_topics()
-            _log.debug("MAIN: protected topics content {}".format(protected_topics))
             # Start ZMQ router in separate thread to remain responsive
             thread = threading.Thread(target=zmq_router, args=(config_store.core.stop, ))
             thread.daemon = True
             thread.start()
 
-            _log.debug("After thread start!")
             gevent.sleep(0.1)
             if not thread.is_alive():
                 sys.exit()
@@ -489,77 +509,79 @@ def start_volttron_process(opts):
             #         sys.exit()
 
             # Start the config store before auth so we may one day have auth use it.
-            config_store = ConfigStoreService(
-                address=address,
-                identity=CONFIGURATION_STORE,
-                message_bus=opts.message_bus,
-            )
+            # config_store = ConfigStoreService(
+            #     address=address,
+            #     identity=CONFIGURATION_STORE,
+            #     message_bus=opts.message_bus,
+            # )
+            #
+            # thread = threading.Thread(target=rmq_router, args=(config_store.core.stop, ))
+            # thread.daemon = True
+            # thread.start()
+            #
+            # gevent.sleep(0.1)
+            # if not thread.is_alive():
+            #     sys.exit()
+            #
+            # gevent.sleep(1)
+            # event = gevent.event.Event()
+            # config_store_task = gevent.spawn(config_store.core.run, event)
+            # event.wait()
+            # del event
+            #
+            # # Ensure auth service is running before router
+            # auth_file = os.path.join(opts.volttron_home, "auth.json")
+            # auth = AuthService(
+            #     auth_file,
+            #     protected_topics_file,
+            #     opts.setup_mode,
+            #     opts.aip,
+            #     address=address,
+            #     identity=AUTH,
+            #     enable_store=False,
+            #     message_bus="rmq",
+            # )
+            #
+            # event = gevent.event.Event()
+            # auth_task = gevent.spawn(auth.core.run, event)
+            # event.wait()
+            # del event
+            #
+            # protected_topics = auth.get_protected_topics()
+            #
+            # # Spawn Greenlet friendly ZMQ router
+            # # Necessary for backward compatibility with ZMQ message bus
+            # green_router = GreenRouter(
+            #     opts.vip_local_address,
+            #     opts.vip_address,
+            #     secretkey=secretkey,
+            #     publickey=publickey,
+            #     default_user_id="vip.service",
+            #     monitor=opts.monitor,
+            #     tracker=tracker,
+            #     volttron_central_address=opts.volttron_central_address,
+            #     volttron_central_serverkey=opts.volttron_central_serverkey,
+            #     instance_name=opts.instance_name,
+            #     bind_web_address=opts.bind_web_address,
+            #     protected_topics=protected_topics,
+            #     external_address_file=external_address_file,
+            #     msgdebug=opts.msgdebug,
+            #     service_notifier=notifier,
+            # )
+            #
+            # proxy_router = ZMQProxyRouter(
+            #     address=address,
+            #     identity=PROXY_ROUTER,
+            #     zmq_router=green_router,
+            #     message_bus=opts.message_bus,
+            # )
+            # event = gevent.event.Event()
+            # proxy_router_task = gevent.spawn(proxy_router.core.run, event)
+            # event.wait()
+            # del event
 
-            thread = threading.Thread(target=rmq_router, args=(config_store.core.stop, ))
-            thread.daemon = True
-            thread.start()
-
-            gevent.sleep(0.1)
-            if not thread.is_alive():
-                sys.exit()
-
-            gevent.sleep(1)
-            event = gevent.event.Event()
-            config_store_task = gevent.spawn(config_store.core.run, event)
-            event.wait()
-            del event
-
-            # Ensure auth service is running before router
-            auth_file = os.path.join(opts.volttron_home, "auth.json")
-            auth = AuthService(
-                auth_file,
-                protected_topics_file,
-                opts.setup_mode,
-                opts.aip,
-                address=address,
-                identity=AUTH,
-                enable_store=False,
-                message_bus="rmq",
-            )
-
-            event = gevent.event.Event()
-            auth_task = gevent.spawn(auth.core.run, event)
-            event.wait()
-            del event
-
-            protected_topics = auth.get_protected_topics()
-
-            # Spawn Greenlet friendly ZMQ router
-            # Necessary for backward compatibility with ZMQ message bus
-            green_router = GreenRouter(
-                opts.vip_local_address,
-                opts.vip_address,
-                secretkey=secretkey,
-                publickey=publickey,
-                default_user_id="vip.service",
-                monitor=opts.monitor,
-                tracker=tracker,
-                volttron_central_address=opts.volttron_central_address,
-                volttron_central_serverkey=opts.volttron_central_serverkey,
-                instance_name=opts.instance_name,
-                bind_web_address=opts.bind_web_address,
-                protected_topics=protected_topics,
-                external_address_file=external_address_file,
-                msgdebug=opts.msgdebug,
-                service_notifier=notifier,
-            )
-
-            proxy_router = ZMQProxyRouter(
-                address=address,
-                identity=PROXY_ROUTER,
-                zmq_router=green_router,
-                message_bus=opts.message_bus,
-            )
-            event = gevent.event.Event()
-            proxy_router_task = gevent.spawn(proxy_router.core.run, event)
-            event.wait()
-            del event
-
+        # TODO Better make this so that it removes instances from this file or it will just be an
+        #  ever increasing file depending on the number of instances it could get quite large.
         # The instance file is where we are going to record the instance and
         # its details according to
         instance_file = str(VOLTTRON_INSTANCES)
@@ -584,35 +606,17 @@ def start_volttron_process(opts):
         external_address_file = os.path.join(opts.volttron_home, "external_address.json")
         _log.debug("external_address_file file %s", external_address_file)
 
-        # Launch additional services and wait for them to start before
-        # auto-starting agents
-        services = [
-            ControlService(
-                opts.aip,
-                address=address,
-                identity=CONTROL,
-                tracker=tracker,
-                heartbeat_autostart=True,
-                enable_store=False,
-                enable_channel=True,
-                message_bus=opts.message_bus,
-                agent_monitor_frequency=opts.agent_monitor_frequency,
-            ),
-        # TODO Key discovery agent add in.
-        # KeyDiscoveryAgent(
-        #     address=address,
-        #     serverkey=publickey,
-        #     identity=KEY_DISCOVERY,
-        #     external_address_config=external_address_file,
-        #     setup_mode=opts.setup_mode,
-        #     bind_web_address=opts.bind_web_address,
-        #     enable_store=False,
-        #     message_bus="zmq",
-        # ),
-        ]
+        # Auth and config store services have already been run, so we can run the others now.
+        for i, plugin_name in enumerate(plugin_names):
+            if plugin_name not in ('volttron.services.auth', 'volttron.services.config_store'):
+                _log.debug(f"spawning {plugin_name}")
+                spawned_greenlets.append(service_instances[i].spawn_in_greenlet())
 
+        # Allow auth entry to be able to manage all config store entries.
+        control_service_index = plugin_names.index("volttron.services.control")
+        control_service = service_instances[control_service_index]
         entry = AuthEntry(
-            credentials=services[0].core.publickey,
+            credentials=control_service.core.publickey,
             user_id=CONTROL,
             capabilities=[
                 {
@@ -625,6 +629,19 @@ def start_volttron_process(opts):
             comments="Automatically added by platform on start",
         )
         AuthFile().add(entry, overwrite=True)
+
+        # # TODO Key discovery agent add in.
+        # # KeyDiscoveryAgent(
+        # #     address=address,
+        # #     serverkey=publickey,
+        # #     identity=KEY_DISCOVERY,
+        # #     external_address_config=external_address_file,
+        # #     setup_mode=opts.setup_mode,
+        # #     bind_web_address=opts.bind_web_address,
+        # #     enable_store=False,
+        # #     message_bus="zmq",
+        # # ),
+        # ]
 
         # Begin the webserver based options here.
         if opts.bind_web_address is not None:
@@ -667,14 +684,14 @@ def start_volttron_process(opts):
                     web_secret_key=opts.web_secret_key,
                 ))
 
-        ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
-        entry = AuthEntry(
-            credentials=encode_key(decode_key(ks_platformweb.public)),
-            user_id=PLATFORM_WEB,
-            capabilities=["allow_auth_modifications"],
-            comments="Automatically added by platform on start",
-        )
-        AuthFile().add(entry, overwrite=True)
+        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
+        # entry = AuthEntry(
+        #     credentials=encode_key(decode_key(ks_platformweb.public)),
+        #     user_id=PLATFORM_WEB,
+        #     capabilities=["allow_auth_modifications"],
+        #     comments="Automatically added by platform on start",
+        # )
+        # AuthFile().add(entry, overwrite=True)
 
         # # PLATFORM_WEB did not work on RMQ. Referred to agent as master
         # # Added this auth to allow RPC calls for credential authentication
@@ -686,23 +703,19 @@ def start_volttron_process(opts):
         #                   comments='Automatically added by platform on start')
         # AuthFile().add(entry, overwrite=True)
 
-        health_service = HealthService(
-            address=address,
-            identity=PLATFORM_HEALTH,
-            heartbeat_autostart=True,
-            enable_store=False,
-            message_bus=opts.message_bus,
-        )
+        health_service_index = plugin_names.index("volttron.services.health")
+        health_service = service_instances[health_service_index]
         notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
-        services.append(health_service)
-        events = [gevent.event.Event() for service in services]
-        tasks = [gevent.spawn(service.core.run, event) for service, event in zip(services, events)]
-        tasks.append(config_store_task)
-        tasks.append(auth_task)
-        if stop_event:
-            tasks.append(stop_event)
-        gevent.wait(events)
-        del events
+        # # #services.append(health_service)
+        # events = [gevent.event.Event() for service in service_instances]
+        # # tasks = [gevent.spawn(service.core.run, event) for service, event in zip(services, events)]
+        # # tasks.append(config_store_task)
+        # # tasks.append(auth_task)
+        # # if stop_event:
+        # #     tasks.append(stop_event)
+        # gevent.wait()
+        #
+        # del events
 
         # Auto-start agents now that all services are up
         if opts.autostart:
@@ -716,7 +729,7 @@ def start_volttron_process(opts):
 
         # Wait for any service to stop, signaling exit
         try:
-            gevent.wait(tasks, count=1)
+            gevent.wait(spawned_greenlets, count=1)
         except KeyboardInterrupt:
             _log.info("SIGINT received; shutting down")
         finally:
@@ -724,9 +737,9 @@ def start_volttron_process(opts):
             if proxy_router_task:
                 proxy_router.core.stop()
             _log.debug("Kill all service agent tasks")
-            for task in tasks:
+            for task in spawned_greenlets:
                 task.kill(block=False)
-            gevent.wait(tasks)
+            gevent.wait(spawned_greenlets)
     except Exception as e:
         _log.error(e)
         import traceback
