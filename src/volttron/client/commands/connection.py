@@ -1,3 +1,5 @@
+import logging
+
 import gevent
 
 from volttron.utils import ClientContext as cc
@@ -31,6 +33,9 @@ class ControlConnection(object):
         return self._server
 
     def call(self, method, *args, **kwargs):
+        _log.debug(f"Calling {self.peer} method: {method} with args {args}")
+        assert self.server
+        assert self.server.vip.rpc
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs).get(timeout=20)
 
     def call_no_get(self, method, *args, **kwargs):

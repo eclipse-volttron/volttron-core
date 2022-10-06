@@ -106,15 +106,6 @@ from volttron.client.vip.agent.subsystems.query import Query
 # TODO Move to volttron-cmds
 # from . install_agents import add_install_agent_parser, install_agent
 
-# try:
-#     import volttron.restricted
-# except ImportError:
-#     HAVE_RESTRICTED = False
-# else:
-#     from volttron.restricted import cgroups
-
-#     HAVE_RESTRICTED = True
-
 _stdout = sys.stdout
 _stderr = sys.stderr
 
@@ -2928,19 +2919,6 @@ def main(argv=sys.argv):
 
     run = add_parser("run", help="start any agent by path")
     run.add_argument("directory", nargs="+", help="path to agent directory")
-    if HAVE_RESTRICTED:
-        run.add_argument(
-            "--verify",
-            action="store_true",
-            dest="verify_agents",
-            help="verify agent integrity during run",
-        )
-        run.add_argument(
-            "--no-verify",
-            action="store_false",
-            dest="verify_agents",
-            help=argparse.SUPPRESS,
-        )
     run.set_defaults(func=run_agent)
     # ====================================================
     # rpc commands
