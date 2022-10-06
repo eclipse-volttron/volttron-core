@@ -1,17 +1,15 @@
 from __future__ import annotations
 
 import importlib
-import inspect
 import logging
 import pkgutil
+from copy import copy
 from types import ModuleType
 from typing import List, Tuple, Dict, Set, KeysView
 
-import sys
-
-#sys.path.append('/repos/volttron-lib-web/src')
-from volttron.utils import get_klass
-from volttron.utils import get_subclasses, get_module, get_klass
+from volttron.types.server_config import ServerConfig
+from volttron.types import ServiceInterface
+from volttron.utils import get_subclasses, get_module, get_class
 
 _log = logging.getLogger(__name__)
 
@@ -24,9 +22,9 @@ __plugin_startup_order__: List[str] = [
 ]
 __disabled_plugins__: Set[str] = set()
 
-__all__ = ["get_service_names", "start_services", "discover_services"]
+__all__ = ["get_service_names", "init_services", "discover_services"]
 
-__service_interface_class__ = get_klass('volttron.types', 'ServiceInterface')
+__service_interface_class__ = get_class('volttron.types', 'ServiceInterface')
 
 
 def get_service_names() -> KeysView[str]:
@@ -34,13 +32,7 @@ def get_service_names() -> KeysView[str]:
 
 
 def start_service(service_name: str):
-    # discover_services('volttron.services')
-    # #sys.path.insert(0, '/repos/volttron-lib-web/src')
-    # #print(sys.path)
-    # #discover_services('volttron.services')
-    # #volttron_module = importlib.import_module('volttron')
-    # #services_module = importlib.import_module('volttron.services')
-    service_interface = get_klass('volttron.types', 'ServiceInterface')
+    service_interface = get_class('volttron.types', 'ServiceInterface')
     module = get_module(service_name)
     subclasses = get_subclasses(module, service_interface)
     service = subclasses[0](serverkey=None,
@@ -50,41 +42,59 @@ def start_service(service_name: str):
     return greenlet
 
 
-def start_services():
+def init_services(config: ServerConfig) -> List[Tuple[str, ServiceInterface]]:
 
-    # service_interface_class = getattr(__types_module__, 'ServiceInterface')
-
-    klass = None
+    default_kwargs = dict(enable_store=False,
+                          address=config.internal_address,
+                          heartbeat_autostart=True)
 
     found = []
     if not __disabled_plugins__:
         found = __discover_services__("volttron.services")
 
+    def init_plugin(plugin_name, plugin):
+        try:
+            kwargs = copy(default_kwargs)
+            module = plugin    # get_module("volttron.services")
+            subclasses = get_subclasses(module, __service_interface_class__, return_all=True)
+            kwargs.update(config.get_service_kwargs(plugin_name))
+            if "identity" not in kwargs:
+                kwargs["identity"] = plugin_name.replace("volttron.services", "platform")
+            # TODO allow multiple subclasses in file suppport.
+            for sub in subclasses:
+                # TODO replace try except block with inspection of parameters
+                try:
+                    instance = sub(server_config=config, **kwargs)
+                except TypeError:
+                    _log.debug(f"{plugin_name} does not take a server_config as first param.")
+                    instance = sub(**kwargs)
+
+                return instance
+        except ValueError as ex:
+            _log.warning(ex.args)
+
+    inited_services = []
+
     for plugin_name in __plugin_startup_order__:
         if plugin_name not in found:
             raise ValueError(f"Invalid plugin specified in plugin_startup_order {plugin_name}")
-        _log.info(f"Starting plugin: {plugin_name}, {__discovered_plugins__[plugin_name]}")
+        _log.info(f"Init plugin: {plugin_name}, {__discovered_plugins__[plugin_name]}")
+        if plugin_name not in __disabled_plugins__:
+            plugin = __discovered_plugins__.pop(plugin_name)
+            inited_services.append((plugin_name, init_plugin(plugin_name, plugin)))
 
     for plugin_name, plugin in __discovered_plugins__.items():
         if plugin_name not in __plugin_startup_order__ and plugin_name not in __disabled_plugins__:
-            _log.info(f"Starting plugin {plugin_name}, {plugin}")
+            if config.get_service_enabled(plugin_name):
+                _log.info(f"Init plugin {plugin_name}, {plugin}")
+                service = init_plugin(plugin_name, plugin)
+                # Only add service to the list if the service has the correct interface.
+                if service is not None:
+                    inited_services.append((plugin_name, service))
+            else:
+                _log.debug(f"Plugin {plugin_name} not enabled.")
 
-            klass = None
-            module = get_module("volttron.services")
-            subclasses = get_subclasses(module, "ServiceInterface", return_all=True)
-            #
-            # for single_class in inspect.getmembers(plugin, inspect.isclass):
-            #     if service_interface_class in single_class[1].__bases__:
-            #     #if issubclass(single_class, service_interface_class):
-            #         _log.debug("Found")
-            #     else:
-            #         _log.error(f"Not found: {single_class}")
-
-            #klass_base_interface = getattr(plugin, 'ServiceInterface')
-
-            #plugin()
-            for sub in subclasses:
-                sub()
+    return inited_services
 
 
 def discover_services(namespace: str) -> List[str]:
