@@ -1,13 +1,15 @@
 import gevent
 
 from volttron.utils import ClientContext as cc
-from volttron.client.known_identities import CONTROL_CONNECTION
+from volttron.client.known_identities import CONTROL_CONNECTION, CONTROL
 from volttron.client.vip.agent import Agent as BaseAgent
+
+_log = logging.getLogger(__name__)
 
 
 class ControlConnection(object):
 
-    def __init__(self, address, peer="control"):
+    def __init__(self, address, peer=CONTROL):
         self.address = address
         self.peer = peer
         message_bus = cc.get_messagebus()
