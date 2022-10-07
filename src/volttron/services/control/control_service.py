@@ -51,7 +51,7 @@ import sys
 import tarfile
 import tempfile
 from datetime import timedelta, datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import gevent
 import gevent.event
@@ -119,13 +119,21 @@ CHUNK_SIZE = 4096
 
 class ControlService(ServiceInterface, BaseAgent):
 
+    @classmethod
+    def get_kwargs_defaults(cls) -> Dict[str, Any]:
+        """
+        Class method that allows the specific class to have the ability to specify
+        what service arguments are available as defaults.
+        """
+        return {"agent-monitor-frequency": 10}
+
     def __init__(self, server_config: ServerConfig, *args, **kwargs):
 
         tracker = kwargs.pop("tracker", None)
         # Control config store not necessary right now
         kwargs["enable_store"] = False
         kwargs["enable_channel"] = True
-        agent_monitor_frequency = kwargs.pop("agent_monitor_frequency")
+        agent_monitor_frequency = kwargs.pop("agent-monitor-frequency", 10)
         super(ControlService, self).__init__(*args, **kwargs)
         self._aip = server_config.aip
         self._tracker = tracker

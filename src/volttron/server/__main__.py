@@ -40,7 +40,7 @@ from gevent import monkey
 
 # monkey.patch_all()
 from volttron.types.server_config import ServerConfig
-from volttron.server.serviceloader import init_services
+from volttron.server.serviceloader import init_services, discover_services
 
 monkey.patch_socket()
 monkey.patch_ssl()
@@ -63,7 +63,7 @@ import gevent
 # import gevent.monkey
 # import gevent.threading as threading
 #
-from volttron.utils import ClientContext as cc
+from volttron.utils import ClientContext as cc, get_class, get_subclasses
 from volttron.utils.keystore import get_random_key
 
 # gevent.monkey.patch_socket()
@@ -430,18 +430,54 @@ def start_volttron_process(opts):
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
         _log.debug("********************************************************************")
 
+        # This block of code allows the volttron to write a service_config.yml file if it
+        # does not currently exist.  Each ServiceInterface class can declare a classmethod as
+        # follows:
+        #
+        # @classmethod
+        # def get_kwargs_defaults(cls) -> Dict[str, Any]:
+        #     return {
+        #         "agent-param-one": "a parameter"
+        #     }
+        #
+        # The return value will be added to the service_config.yml file in order to pass in
+        # the expected defaults. From there the user may choose to modify the defaults.
+        service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
+        if not service_config_file.exists():
+            default_configs = {}
+
+            # get the services so that we can get class objects for the services
+            discovered_services = discover_services("volttron.services")
+
+            # t is a type of "ServiceInterface" for use in finding subclasses.
+            t = get_class("volttron.types", "ServiceInterface")
+            for smodule in discovered_services:
+                try:
+                    classes = get_subclasses(smodule, t)
+                # No defaults if there isn't a ServiceInterface class found in the package
+                except ValueError:
+                    continue
+
+                # Determine if there is a default_kwargs specified on the class.  If so then
+                # add the service to the service_config.yml file.
+                #
+                # we don't use try catch for this block because in ServiceInterface there is a
+                # classmethod defined that returns {}
+                for cls in classes:
+                    defaults = cls.get_kwargs_defaults()
+                    if defaults:
+                        default_configs[smodule] = defaults
+
+            # write the default service_config.yml file
+            with service_config_file.open("wt") as fp:
+                yaml.dump(default_configs, fp)
+
         server_config = ServerConfig()
         server_config.opts = opts
         server_config.internal_address = address
 
         server_config.aip = opts.aip
-        service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
-        if not service_config_file.exists():
-            # TODO add minimal service_config_file for backward compatability
-            with service_config_file.open("wt") as fp:
-                yaml.dump({}, fp)
-
-        server_config.service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
+        server_config.service_config_file = service_config_file
         server_config.auth_file = Path(opts.volttron_home).joinpath("auth.json")
         server_config.protected_topics_file = Path(
             opts.volttron_home).joinpath("protected_topics.json")
