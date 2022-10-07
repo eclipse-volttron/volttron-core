@@ -300,6 +300,7 @@ def start_volttron_process(opts):
     if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
         _log.warning("insecure mode on key file")
     publickey = decode_key(keystore.public)
+    opts.volttron_publickey = keystore.public
     if publickey:
         # Authorize the platform key:
         entry = AuthEntry(
