@@ -38,7 +38,7 @@
 
 import pytest
 
-from src.volttron.utils.math_utils import (mean, pstdev, stdev)
+from volttron.utils.math_utils import (mean, pstdev, stdev)
 
 
 @pytest.mark.parametrize("data, expected", [([1, 7, 10], 6.0), ([1, 2, 3, 4], 2.5), ([42], 42.0)])

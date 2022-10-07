@@ -28,4 +28,4 @@ jobs:
         contains(github.event.pull_request.labels.*.name, 'bug')
       with:
         project: 'https://github.com/orgs/eclipse-volttron/projects/3'
-        column_name: 'Labeled'
+        column_name: 'No Status'

@@ -35,6 +35,7 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
+from __future__ import annotations
 
 __all__ = [
     "AuthService", "AuthFile", "AuthEntry", "AuthFileEntryAlreadyExists", "AuthFileIndexError",
@@ -56,6 +57,7 @@ import gevent.core
 from gevent.fileobject import FileObject
 from zmq import green as zmq
 
+from volttron.types import ServiceInterface
 from volttron.utils import (
     ClientContext as cc,
     create_file_if_missing,
@@ -74,6 +76,7 @@ from volttron.client.known_identities import (
 
 # TODO: it seems this should not be so nested of a import path.
 from volttron.client.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
+import volttron.types.server_config as server_config
 
 # from volttron.platform.certs import Certs
 # from volttron.platform.vip.agent.errors import VIPError
@@ -110,10 +113,12 @@ class AuthException(Exception):
     pass
 
 
-class AuthService(Agent):
+class AuthService(ServiceInterface, Agent):
 
-    def __init__(self, auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
+    def __init__(self, server_config: server_config.ServerConfig, *args, **kwargs):
+        #auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
         self.allow_any = kwargs.pop("allow_any", False)
+
         super(AuthService, self).__init__(*args, **kwargs)
 
         # This agent is started before the router so we need
@@ -122,17 +127,17 @@ class AuthService(Agent):
         self._certs = None
         if cc.get_messagebus() == "rmq":
             self._certs = Certs()
-        self.auth_file_path = os.path.abspath(auth_file)
+        self.auth_file_path = str(server_config.auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
-        self.aip = aip
+        self.aip = server_config.aip
         self.zap_socket = None
         self._zap_greenlet = None
         self.auth_entries = []
         self._is_connected = False
-        self._protected_topics_file = protected_topics_file
-        self._protected_topics_file_path = os.path.abspath(protected_topics_file)
+        self._protected_topics_file_path = str(server_config.protected_topics_file)
+        self._protected_topics_file = str(server_config.protected_topics_file)
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
-        self._setup_mode = setup_mode
+        self._setup_mode = server_config.opts.setup_mode
         self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []

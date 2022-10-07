@@ -2,13 +2,9 @@ name: Run Pytests
 
 on:
   push:
-    branches:
-      - main
-      - develop
-      - releases/**
     paths:
       - '**.py'
-      - '**.yml'
+      - 'poetry.yml'
   pull_request:
     types:
       - opened

@@ -1,14 +1,20 @@
 import os
+from pathlib import Path
 import shutil
 import sys
 import tempfile
 
 import pytest
 
-# add
+# the following assumes that the testconf.py is in the tests directory.
+volttron_src_path = Path(__file__).resolve().parent.parent.joinpath("src")
 
-if "volttron" not in sys.path:
-    sys.path.insert(0, "src/volttron")
+assert volttron_src_path.exists()
+
+print(sys.path)
+if str(volttron_src_path) not in sys.path:
+    print(f"Adding source path {volttron_src_path}")
+    sys.path.insert(0, str(volttron_src_path))
 
 
 def create_volttron_home(monkeypatch) -> str:
@@ -22,7 +28,8 @@ def create_volttron_home(monkeypatch) -> str:
     monkeypatch.setenv("VOLTTRON_HOME", volttron_home)
 
     # This is needed to run tests with volttron's secure mode. Without this
-    # default permissions for folders under /tmp directory doesn't not have read or execute for group or others
+    # default permissions for folders under /tmp directory doesn't not have read or execute for
+    # group or others
     os.chmod(volttron_home, 0o755)
 
     # Move volttron_home to be one level below the mkdir so that
