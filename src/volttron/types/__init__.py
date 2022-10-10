@@ -19,7 +19,7 @@ class ServiceInterface:
         Start the execution of a volttron agent.
         """
         event = gevent.event.Event()
-        task = gevent.spawn(self.core.run)
+        task = gevent.spawn(self.core.run, event)
         event.wait()
         del event
         return task
