@@ -48,6 +48,7 @@ import gevent
 
 from gevent.lock import Semaphore
 
+from volttron.types import ServiceInterface
 from volttron.utils import (
     parse_json_config,
     get_aware_utc_now,
@@ -117,7 +118,7 @@ def process_raw_config(config_string, config_type="raw"):
     raise ValueError("Unsupported configuration type.")
 
 
-class ConfigStoreService(Agent):
+class ConfigStoreService(ServiceInterface, Agent):
 
     def __init__(self, *args, **kwargs):
         super(ConfigStoreService, self).__init__(*args, **kwargs)

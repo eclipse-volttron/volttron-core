@@ -1,31 +1,22 @@
-name: Auto Assign to Project(s)
+name: Add bugs to bugs project
 
 on:
   issues:
-    types: [opened, labeled]
-  pull_request:
-    types: [opened, labeled]
-  issue_comment:
-    types: [created]
-env:
-  MY_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    types:
+      - opened
 
 jobs:
-  assign_one_project:
+  add-to-project:
+    name: Add issue to project
     runs-on: ubuntu-latest
-    name: Assign to One Project
     steps:
-    - name: Assign NEW issues and NEW pull requests to project 3
-      uses: srggrs/assign-one-project-github-action@1.3.1
-      if: github.event.action == 'opened'
-      with:
-        project: 'https://github.com/orgs/eclipse-volttron/projects/3'
-
-    - name: Assign issues and pull requests with `bug` label to project 3
-      uses: srggrs/assign-one-project-github-action@1.3.1
-      if: |
-        contains(github.event.issue.labels.*.name, 'bug') ||
-        contains(github.event.pull_request.labels.*.name, 'bug')
-      with:
-        project: 'https://github.com/orgs/eclipse-volttron/projects/3'
-        column_name: 'Labeled'
+      - uses: actions/add-to-project@v0.3.0
+        with:
+          # You can target a repository in a different organization
+          # to the issue
+          project-url: https://github.com/orgs/eclipse-volttron/projects/3
+          # project-url: https://github.com/orgs/<orgName>/projects/<projectNumber>
+          # github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          github-token: ${{ secrets.AUTO_PROJECT_PAT }}
+          # labeled: bug, needs-triage
+          # label-operator: OR

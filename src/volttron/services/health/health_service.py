@@ -41,6 +41,7 @@ from datetime import datetime
 import logging
 
 from volttron.client.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
+from volttron.types import ServiceInterface
 from volttron.utils import format_timestamp
 from volttron.client.vip.agent import Agent, Core, RPC
 
@@ -51,7 +52,7 @@ from volttron.client.vip.agent import Agent, Core, RPC
 _log = logging.getLogger(__name__)
 
 
-class HealthService(Agent):
+class HealthService(ServiceInterface, Agent):
 
     def __init__(self, **kwargs):
         super(HealthService, self).__init__(**kwargs)

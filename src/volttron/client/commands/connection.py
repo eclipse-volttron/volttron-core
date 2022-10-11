@@ -1,13 +1,17 @@
+import logging
+
 import gevent
 
 from volttron.utils import ClientContext as cc
-from volttron.client.known_identities import CONTROL_CONNECTION
+from volttron.client.known_identities import CONTROL_CONNECTION, CONTROL
 from volttron.client.vip.agent import Agent as BaseAgent
+
+_log = logging.getLogger(__name__)
 
 
 class ControlConnection(object):
 
-    def __init__(self, address, peer="control"):
+    def __init__(self, address, peer=CONTROL):
         self.address = address
         self.peer = peer
         message_bus = cc.get_messagebus()
@@ -29,6 +33,9 @@ class ControlConnection(object):
         return self._server
 
     def call(self, method, *args, **kwargs):
+        _log.debug(f"Calling {self.peer} method: {method} with args {args}")
+        assert self.server
+        assert self.server.vip.rpc
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs).get(timeout=20)
 
     def call_no_get(self, method, *args, **kwargs):

@@ -35,13 +35,11 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-"""The volttron.utils package contains generic utilities for handling json, storing configurations math libraries...and more."""
+"""The volttron.utils package contains generic utilities for handling json, storing configurations math
+libraries...and more. """
 
-import importlib.metadata as importlib_metadata
 import logging
 from pathlib import Path
-
-# from pbr.version import VersionInfo
 from typing import List
 
 import yaml
