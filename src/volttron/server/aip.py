@@ -76,12 +76,6 @@ from ..services.auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 # from volttron.utils.rmq_mgmt import RabbitMQMgmt
 # from volttron.platform import update_volttron_script_path
 
-try:
-    from volttron.restricted import auth
-    from volttron.restricted.resmon import ResourceError
-except ImportError:
-    auth = None
-
 _log = logging.getLogger(__name__)
 
 

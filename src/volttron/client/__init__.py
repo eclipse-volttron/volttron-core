@@ -73,11 +73,12 @@ from volttron.client.vip.agent.subsystems.configstore import ConfigStore
 from volttron.client.vip.agent.subsystems.auth import Auth
 from volttron.client.vip.agent.subsystems.query import Query
 
-__all__: List[str] = ["Agent", "Core", "RPC", "Channel", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health",
-                      "ConfigStore", "Auth", "Query"]
+__all__: List[str] = [
+    "Agent", "Core", "RPC", "Channel", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat",
+    "Health", "ConfigStore", "Auth", "Query"
+]
 
 _log = logging.getLogger(__name__)
-
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):

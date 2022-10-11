@@ -15,10 +15,10 @@ from volttron.utils.keystore import KeyStore
 
 from .base_router import BaseRouter, UNROUTABLE, ERROR, INCOMING
 
-from volttron.services.external import ExternalRPCService
+from volttron.services.routing import ExternalRPCService, PubSubService
+
 from volttron.services.peer import ServicePeerNotifier
 from volttron.services.routing import RoutingService
-from volttron.services.pubsub import PubSubService
 from volttron.server.monitor import Monitor
 
 # from ..server import __version__
