@@ -108,7 +108,7 @@ class ClientContext:
         """
         if not platform_instance_name:
             platform_instance_name = cls.get_config_param("instance-name")
-        return "{platform_instance_name}.{identity}"
+        return f"{platform_instance_name}.{identity}"
 
     @classmethod
     def get_messagebus(cls):
