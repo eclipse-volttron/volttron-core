@@ -58,17 +58,21 @@ from gevent.subprocess import PIPE
 
 # from wheel.tool import unpack
 from volttron.utils import (ClientContext as cc, get_utc_seconds_from_epoch, execute_command)
-from ..utils import jsonapi
-from volttron.utils.certs import Certs
-from volttron.utils.identities import is_valid_identity
-from volttron.utils.keystore import KeyStore
-from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.client.vip.agent import Agent
+from volttron.types import AgentFactory, ServerRuntime
+from volttron.utils import jsonapi
+# from volttron.utils.certs import Certs
+from volttron.utils.identities import is_valid_identity
+# from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
+#import volttron.client.vip.agent as vmod
+
+#from volttron.client.vip.agent import Agent
 
 # from volttron.platform.agent.utils import load_platform_config, \
 #     get_utc_seconds_from_epoch
 
-from ..services.auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
+# TODO do we need this?
+#from ..services.auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 
 # TODO route to wheel_wrap
 # from .packages import UnpackedPackage
@@ -179,7 +183,7 @@ class ExecutionEnvironment(object):
 
     def execute(self, *args, **kwargs):
         try:
-            self.env = kwargs.get("env", None)
+            self.env = kwargs.get("runtime", None)
             self.process = subprocess.Popen(*args, **kwargs, universal_newlines=True)
         except OSError as e:
             if e.filename:
@@ -220,7 +224,7 @@ class SecureExecutionEnvironment(object):
 
     def execute(self, *args, **kwargs):
         try:
-            self.env = kwargs.get("env", None)
+            self.env = kwargs.get("runtime", None)
             run_as_user = ["sudo", "-E", "-u", self.agent_user]
             run_as_user.extend(*args)
             _log.debug(run_as_user)
@@ -251,21 +255,7 @@ class SecureExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
-class AIPplatform(object):
-    """Manages the main workflow of receiving and sending agents."""
-
-    def __init__(self, env, **kwargs):
-        self.env = env
-        self.active_agents = {}
-        self.vip_id_uuid_map = {}
-        self.uuid_vip_id_map = {}
-        self.secure_agent_user = cc.is_secure_mode()
-        self.message_bus = cc.get_messagebus()
-
-        # if self.message_bus == 'rmq':
-        #     self.rmq_mgmt = RabbitMQMgmt()
-        self.instance_name = cc.get_instance_name()    # get_platform_instance_name()
-
+class SecureUserActions:
     def add_agent_user_group(self):
         user = pwd.getpwuid(os.getuid())
         group_name = "volttron_{}".format(self.instance_name)
@@ -399,6 +389,29 @@ class AIPplatform(object):
                                                                         stderr=stderr))
                 raise RuntimeError(stderr)
 
+
+class AIPplatform(object):
+    """Manages the main workflow of receiving and sending agents."""
+
+    def __init__(self, runtime: ServerRuntime):
+        self.runtime = runtime
+        self.active_agents = {}
+        self.vip_id_uuid_map = {}
+        self.uuid_vip_id_map = {}
+        # Dynamic factory for creating agents.
+        # self.agent_factory = agent_factory
+        # TODO: Secure agent user injection here.
+        self.secure_agent_user = False
+        # self.secure_agent_user = cc.is_secure_mode()
+        # self.message_bus = cc.get_messagebus()
+
+        # if self.message_bus == 'rmq':
+        #     self.rmq_mgmt = RabbitMQMgmt()
+        self.instance_name = cc.get_instance_name()    # get_platform_instance_name()
+
+        self.user_actions = SecureUserActions()
+
+
     def setup(self):
         """Creates paths for used directories for the instance."""
         for path in [self.run_dir, self.config_dir, self.install_dir]:
@@ -412,15 +425,15 @@ class AIPplatform(object):
         # so if volttron is run in secure mode, the first agent install would already have
         # the directories ready. In secure mode, agents will be run as separate user and will
         # not have access to create these directories
-        Certs()
+        # Certs()
 
         # load installed agent vip_id ids and uuids
 
-        for vip_id in os.listdir(self.install_dir):
-            with open(os.path.join(self.install_dir, vip_id, "UUID"), "r") as f:
+        for identity in os.listdir(self.install_dir):
+            with open(os.path.join(self.install_dir, identity, "UUID"), "r") as f:
                 agent_uuid = f.read().strip()
-                self.uuid_vip_id_map[agent_uuid] = vip_id
-                self.vip_id_uuid_map[vip_id] = agent_uuid
+                self.uuid_vip_id_map[agent_uuid] = identity
+                self.vip_id_uuid_map[identity] = agent_uuid
 
     def finish(self):
         for exeenv in self.active_agents.values():
@@ -459,10 +472,7 @@ class AIPplatform(object):
             os.kill(pid, signal.SIGINT)
             os.remove(pid_file)
 
-    subscribe_address = property(lambda me: me.env.subscribe_address)
-    publish_address = property(lambda me: me.env.publish_address)
-
-    config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
+    config_dir = property(lambda me: str(me.runtime.options.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, "agents"))
     run_dir = property(lambda me: os.path.join(me.config_dir, "run"))
 
@@ -570,7 +580,7 @@ class AIPplatform(object):
         except OSError as exc:
             raise
         try:
-            # if auth is not None and self.env.verify_agents:
+            # if auth is not None and self.runtime.verify_agents:
             #     unpacker = auth.VolttronPackageWheelFile(agent_wheel, certsobj=Certs())
             #     unpacker.unpack(dest=agent_path)
 
@@ -949,7 +959,7 @@ class AIPplatform(object):
         raise ValueError(errmsg)
 
     def check_resources(self, execreqs, agent_user=None):
-        resmon = getattr(self.env, "resmon", None)
+        resmon = getattr(self.runtime, "resmon", None)
         if resmon:
             return self._check_resources(resmon, execreqs, reserve=False, agent_user=agent_user)
 
@@ -1147,3 +1157,5 @@ class AIPplatform(object):
         for agent_uuid, execenv in self.active_agents.items():
             if execenv.process.pid == pid:
                 return agent_uuid if execenv.process.poll() is None else None
+
+

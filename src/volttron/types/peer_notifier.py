@@ -35,51 +35,58 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-"""VIP - VOLTTRON™ Interconnect Protocol implementation
 
-See https://volttron.readthedocs.io/en/develop/core_services/messagebus/VIP/VIP-Overview.html
-for protocol specification.
+import logging
 
-This module is for use within gevent. It provides some locking around
-send operations to protect the VIP state. It should be safe to use a
-single socket in multiple greenlets without any kind of locking.
-"""
-
-from contextlib import contextmanager as _contextmanager
-
-from gevent import sleep as _sleep
-from gevent.local import local as _local
-from gevent.lock import RLock as _RLock
-
-from zmq.green import NOBLOCK, POLLOUT
-from zmq import green as _green
-
-from volttron.utils.socket import _Socket
-# from volttron.client.vip.router import BaseRouter as _BaseRouter
+_log = logging.getLogger(__name__)
 
 
-class Socket(_Socket, _green.Socket):
-    _context_class = _green.Context
-    _local_class = _local
+class PeerNotifier(object):
+    """
+    This class is responsible for routing the base_router's connections and disconnections
+    from the MessageBus thread through to the registered callback functions.
+    """
 
-    def __init__(self, *args, **kwargs):
-        super(Socket, self).__init__(*args, **kwargs)
-        object.__setattr__(self, "_Socket__send_lock", _RLock())
+    def __init__(self):
+        self._registered_added = set()
+        self._registered_dropped = set()
 
-    @_contextmanager
-    def _sending(self, flags):
-        flags |= getattr(self._Socket__local, "flags", 0)
-        lock = self._Socket__send_lock
-        while not lock.acquire(not flags & NOBLOCK):
-            if not self.poll(0, POLLOUT):
-                raise _green.Again()
-            _sleep(0)
-        try:
-            yield flags
-        finally:
-            lock.release()
+    def register_peer_callback(self, added_callback, dropped_callback):
+        """
+        Register functions for adding callbacks for connected and disconnected peers
+        to the message bus.
 
+        The signature of the callback should be:
 
-# class BaseRouter(_BaseRouter):
-#     _context_class = _green.Context
-#     _socket_class = _green.Socket
+        .. code-block :: python
+
+            def added_callback(peer):
+                # the peer is a string identity connected.
+                pass
+
+        :param added_callback:
+        :param dropped_callback:
+        """
+        assert added_callback is not None
+        assert dropped_callback is not None
+
+        self._registered_added.add(added_callback)
+        self._registered_dropped.add(dropped_callback)
+
+    def peer_added(self, peer):
+        """
+        Handles calling registered methods
+        :param peer:
+        :return:
+        """
+        for fn in self._registered_added:
+            fn(peer)
+
+    def peer_dropped(self, peer):
+        """
+        Handles calling of registered methods when a peer drops a connection to the platform.
+        :param peer:
+        :return:
+        """
+        for fn in self._registered_dropped:
+            fn(peer)

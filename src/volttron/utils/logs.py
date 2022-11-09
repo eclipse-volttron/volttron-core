@@ -80,7 +80,7 @@ class FramesFormatter(object):
         self.frames = frames
 
     def __repr__(self):
-        return str([bytes(f) for f in self.frames])
+        return str([str(f) for f in self.frames])
 
     __str__ = __repr__
 

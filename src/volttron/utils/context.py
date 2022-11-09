@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
 
 class ClientContext:
     """
-    The `ClientContext` class is the single source of truth within
+    The `ConnectionContext` class is the single source of truth within
     a process running this system.
     """
 
@@ -24,7 +24,7 @@ class ClientContext:
                        "web-ssl-cert", "web-ssl-key", "web-secret-key", "secure-agent-users")
 
     @classmethod
-    def __load_config__(cls: "ClientContext"):
+    def __load_config__(cls: "ConnectionContext"):
         if cls.__config__ is None:
             cls.__config__ = FrozenDict()
 

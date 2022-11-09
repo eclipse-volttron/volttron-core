@@ -1,0 +1,2 @@
+class MessageBusError(Exception):
+    pass

@@ -36,7 +36,7 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
-from volttron.client import Agent
+from volttron.client.vip.agent import Agent
 
 
 def test_subsystems_available():
@@ -71,4 +71,4 @@ def test_subsystems_available():
     # assert agent.vip.peerlist
     # assert agent.vip.ping
     # assert agent.vip.pubsub
-    # assert agent.vip.rpc
+    # assert agent.vip.rpc_subsys

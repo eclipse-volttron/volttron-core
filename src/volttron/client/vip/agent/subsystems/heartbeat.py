@@ -38,11 +38,21 @@
 
 import weakref
 
-from volttron.client.vip.agent.subsystems.base import SubsystemBase
+from typing import TYPE_CHECKING
+
+import volttron.client.vip.agent.subsystems.base as subb
 from volttron.client.messaging.headers import TIMESTAMP
-from volttron.utils.time import get_aware_utc_now, format_timestamp
-from volttron.utils.scheduling import periodic
 from volttron.client.vip.agent.errors import Unreachable
+from volttron.utils import format_timestamp, get_aware_utc_now
+from volttron.utils.scheduling import periodic
+
+if TYPE_CHECKING:
+    import volttron.client.vip.agent as va
+    #from volttron.client.vip.agent import AgentStartupConfig
+    # from volttron.client.messaging.headers import TIMESTAMP
+    # from volttron.utils.time import get_aware_utc_now, format_timestamp
+    # from volttron.utils.scheduling import periodic
+    # from volttron.client.vip.agent.errors import Unreachable
 """The heartbeat subsystem adds an optional periodic publish to all agents.
 Heartbeats can be started with agents and toggled on and off at runtime.
 """
@@ -51,15 +61,15 @@ __docformat__ = "reStructuredText"
 __version__ = "1.0"
 
 
-class Heartbeat(SubsystemBase):
+class Heartbeat(subb.SubsystemBase):
 
-    def __init__(self, owner, core, rpc, pubsub, heartbeat_autostart, heartbeat_period):
+    def __init__(self, owner, core, rpc, pubsub, agent_startup_config: "AgentStartupConfig"):
         self.owner = owner
         self.core = weakref.ref(core)
         self.pubsub = weakref.ref(pubsub)
 
-        self.autostart = heartbeat_autostart
-        self.period = heartbeat_period
+        self.autostart = agent_startup_config.heartbeat_autostart
+        self.period = agent_startup_config.heartbeat_period
         self.enabled = False
         self.connect_error = False
 

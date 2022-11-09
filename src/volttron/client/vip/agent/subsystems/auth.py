@@ -49,7 +49,7 @@ from volttron.client.known_identities import AUTH
 from volttron.utils import ClientContext as cc
 from volttron.utils import jsonapi
 from volttron.utils.jsonrpc import RemoteError
-from volttron.utils.keystore import KeyStore
+
 """
 The auth subsystem allows an agent to quickly query authorization state
 (e.g., which capabilities each user has been granted).
@@ -82,7 +82,7 @@ class Auth(SubsystemBase):
         address,
         serverkey=None,
         agent_class: "Agent" = None,
-        keystore: KeyStore = None,
+#         keystore: KeyStore = None,
     ) -> Union["Agent", None]:
         """
         Agent atempts to connect to a remote platform to exchange data.

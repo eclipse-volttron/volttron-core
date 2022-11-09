@@ -325,7 +325,7 @@ def env_var_formatter(formatter_class=_argparse.HelpFormatter):
             if "%(env_var)" not in help:
                 env_var = getattr(action, "env_var", None)
                 if env_var is not None:
-                    help += " (env var: %(env_var)s)"
+                    help += " (runtime var: %(env_var)s)"
             return help
 
     return EnvHelpFormatter

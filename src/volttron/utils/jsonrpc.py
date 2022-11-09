@@ -119,7 +119,7 @@ class ParseError(Exception):
 
 
 class JsonRpcData(object):
-    """A `JsonRpcData` reprepresents the data associated with an rpc request."""
+    """A `JsonRpcData` reprepresents the data associated with an rpc_subsys request."""
 
     def __init__(self, id, version, method, params, authorization):
         self.id = id

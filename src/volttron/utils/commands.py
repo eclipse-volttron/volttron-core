@@ -111,6 +111,7 @@ def isapipe(fd):
 def vip_main(agent_class, identity=None, version="0.1", **kwargs):
     """Default main entry point implementation for VIP agents."""
     from volttron.utils import (ClientContext as cc, is_valid_identity, get_address)
+
     try:
         # If stdout is a pipe, re-open it line buffered
         if isapipe(sys.stdout):
@@ -161,7 +162,10 @@ def vip_main(agent_class, identity=None, version="0.1", **kwargs):
         # from volttron.client.certs import Certs
         # certs = Certs()
         if agent_class.__name__ == "Agent":
+            factories = Factories("volttron.messagebus.zmq")
+
             agent = agent_class(config_path=config,
+                                core=factories.agent_core(),
                                 identity=identity,
                                 address=address,
                                 agent_uuid=agent_uuid,

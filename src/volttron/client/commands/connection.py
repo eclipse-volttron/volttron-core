@@ -14,13 +14,10 @@ class ControlConnection(object):
     def __init__(self, address, peer=CONTROL):
         self.address = address
         self.peer = peer
-        message_bus = cc.get_messagebus()
         self._server = BaseAgent(
             address=self.address,
             enable_store=False,
-            identity=CONTROL_CONNECTION,
-            message_bus=message_bus,
-            enable_channel=True,
+            identity=CONTROL_CONNECTION
         )
         self._greenlet = None
 

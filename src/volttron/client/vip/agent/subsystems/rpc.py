@@ -48,7 +48,8 @@ import gevent.local
 from gevent.event import AsyncResult
 from volttron.utils import jsonapi
 
-from .base import SubsystemBase
+import volttron.client.vip.agent.subsystems.base as subbase
+# from .base import SubsystemBase
 from ..results import counter, ResultsDictionary
 from ..decorators import annotate, annotations, dualmethod, spawn
 from volttron.utils import jsonrpc
@@ -194,7 +195,7 @@ class Dispatcher(jsonrpc.Dispatcher):
         return response
 
 
-class RPC(SubsystemBase):
+class RPC(subbase.SubsystemBase):
 
     def __init__(self, core, owner, peerlist_subsys):
         self.core = weakref.ref(core)
@@ -211,12 +212,12 @@ class RPC(SubsystemBase):
             self._handle_error,
         )
         self._isconnected = True
-        self._message_bus = self.core().messagebus
+        #self._message_bus = self.core().messagebus
         self.peerlist_subsystem = peerlist_subsys
         self.peer_list = {}
 
         def export(member):    # pylint: disable=redefined-outer-name
-            for name in annotations(member, set, "rpc.exports"):
+            for name in annotations(member, set, "rpc_subsys.exports"):
                 self._exports[name] = member
 
         inspect.getmembers(owner, export)
@@ -263,7 +264,7 @@ class RPC(SubsystemBase):
         """
         for method_name in self._exports:
             method = self._exports[method_name]
-            caps = annotations(method, set, "rpc.allow_capabilities")
+            caps = annotations(method, set, "rpc_subsys.allow_capabilities")
             if caps:
                 self._exports[method_name] = self._add_auth_check(method, caps)
 
@@ -275,10 +276,10 @@ class RPC(SubsystemBase):
 
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
-            if self._message_bus == "rmq":
-                # When we address issue #2107 external platform user should
-                # have instance name also included in username.
-                user = user.split(".")[1]
+            # if self._message_bus == "rmq":
+            #     # When we address issue #2107 external platform user should
+            #     # have instance name also included in username.
+            #     user = user.split(".")[1]
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
             if user_capabilites:
@@ -471,11 +472,11 @@ class RPC(SubsystemBase):
     def export(cls, name=None):    # pylint: disable=no-self-argument
         if name is not None and not isinstance(name, str):
             method, name = name, name.__name__
-            annotate(method, set, "rpc.exports", name)
+            annotate(method, set, "rpc_subsys.exports", name)
             return method
 
         def decorate(method):
-            annotate(method, set, "rpc.exports", name)
+            annotate(method, set, "rpc_subsys.exports", name)
             return method
 
         return decorate
@@ -609,7 +610,7 @@ class RPC(SubsystemBase):
             cap = set([capabilities])
         else:
             cap = set(capabilities)
-        # Necessary if you have provided an alias for the rpc method.
+        # Necessary if you have provided an alias for the rpc_subsys method.
         if isinstance(method, str):
             if method in self._exports:
                 self._exports[method] = self._add_auth_check(self._exports[method], cap)
@@ -641,10 +642,10 @@ class RPC(SubsystemBase):
 
         def decorate(method):
             if isinstance(capabilities, str):
-                annotate(method, set, "rpc.allow_capabilities", capabilities)
+                annotate(method, set, "rpc_subsys.allow_capabilities", capabilities)
             else:
                 for cap in capabilities:
-                    annotate(method, set, "rpc.allow_capabilities", cap)
+                    annotate(method, set, "rpc_subsys.allow_capabilities", cap)
             return method
 
         return decorate

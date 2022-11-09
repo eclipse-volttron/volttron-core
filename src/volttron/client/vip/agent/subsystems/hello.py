@@ -39,6 +39,7 @@
 import logging
 import weakref
 
+from volttron.errors import MessageBusError
 from .base import SubsystemBase
 from ..results import ResultsDictionary
 from zmq import ZMQError
@@ -86,9 +87,14 @@ class Hello(SubsystemBase):
         else:
             try:
                 connection.send_vip(peer, "hello", args=["hello"], msg_id=result.ident)
-            except ZMQError as exc:
-                if exc.errno == ENOTSOCK:
-                    _log.error("Socket send on non socket {}".format(self.core().identity))
+            except MessageBusError as exc:
+                _log.exception(exc_info=exc)
+
+            # try:
+            #     connection.send_vip(peer, "hello", args=["hello"], msg_id=result.ident)
+            # except ZMQError as exc:
+            #     if exc.errno == ENOTSOCK:
+            #         _log.error("Socket send on non socket {}".format(self.core().identity))
 
         return result
 

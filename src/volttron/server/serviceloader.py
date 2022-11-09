@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 import logging
 import pkgutil
+from pathlib import Path
+
+import sys
 from copy import copy
 from types import ModuleType
-from typing import List, Tuple, Dict, Set, KeysView
+from typing import List, Tuple, Dict, Set, KeysView, Optional
 
-from volttron.types.server_config import ServerConfig
-from volttron.types import ServiceInterface
+from volttron.types import ServiceConfigs
+from volttron.types.service import ServiceInterface
+from volttron.types.server_options import ServerRuntime
 from volttron.utils import get_subclasses, get_module, get_class
 
 _log = logging.getLogger(__name__)
@@ -17,15 +22,19 @@ __discovered_plugins__: Dict[str, Tuple] = {}
 __namespaces__: Set[str] = set()
 __required_plugins__: Set[str] = set()
 __plugin_startup_order__: List[str] = [
-    "volttron.services.config_store",
-    "volttron.services.auth",
+    "volttron.services.config_store"
 ]
-__disabled_plugins__: Set[str] = set()
+__disabled_plugins__: Set[str] = {'volttron.services.health',
+                                  'volttron.services.routing',
+                                  'volttron.services.peer',
+                                  'volttron.services.external'}
 
-__all__ = ["get_service_names", "init_services", "discover_services"]
+__all__ = ["get_service_names", "init_services", "discover_services", "get_service_instance"]
 
 __service_interface_class__ = get_class('volttron.types', 'ServiceInterface')
 
+__started_services__: Dict[str, ServiceInterface] = {}
+__service_instances__: Dict[str, ServiceInterface] = {}
 
 def get_service_names() -> KeysView[str]:
     return __discovered_plugins__.keys()
@@ -38,37 +47,74 @@ def start_service(service_name: str):
     service = subclasses[0](serverkey=None,
                             identity="platform.web",
                             bind_web_address="http://127.0.0.1:8080")
+    __started_services__[service_name] = service
     greenlet = service.spawn_in_greenlet()
     return greenlet
 
 
-def init_services(config: ServerConfig) -> List[Tuple[str, ServiceInterface]]:
+def get_service_instance(service_name: str) -> Optional[ServiceInterface]:
+    return __service_instances__.get(service_name)
 
-    default_kwargs = dict(enable_store=False,
-                          address=config.internal_address,
-                          heartbeat_autostart=True)
 
-    found = []
-    if not __disabled_plugins__:
-        found = __discover_services__("volttron.services")
+def init_services(runtime: ServerRuntime, config: ServiceConfigs) -> List[Tuple[str, ServiceInterface]]:
+
+    # default_kwargs = dict(enable_store=False,
+    #                       address=config.internal_address,
+    #                       heartbeat_autostart=True)
+    # default_kwargs = dict(address=config.internal_address)
+
+    # First we discover the services in the default namespace for services.
+    found = __discover_services__("volttron.services")
+    if __disabled_plugins__:
+        found = list(set(found) - set(__disabled_plugins__))
+
+    # Then we loop over the configurations and see if there are any with the
+    # path element specified so that we can add them to the path and discover them
+    # path_services = config.get_services_with_path()
+    #
+    # for pname in path_services:
+    #     service_path = config.get_service_path(pname)
+    #     if service_path not in sys.path:
+    #         if not Path(service_path).exists():
+    #             raise ValueError(f"path for {pname} {service_path} does not exist.")
+    #         sys.path.insert(0, service_path)
+    #     __discover_services__(pname)
 
     def init_plugin(plugin_name, plugin):
         try:
+            # if config.get_service_path(plugin_name):
+            #     service_path = config.get_service_path(plugin_name)
+            #     if service_path not in sys.path:
+            #         sys.path.insert(0, service_path)
+            #
+            #     plugins = discover_services(plugin_name)
+            #     if not plugins:
+            #         raise ValueError(f"Invalid service detected {plugin_name} with path {service_path}")
+            #     module = plugins[0]
+            # else:
+            module = plugin
+
             kwargs = copy(default_kwargs)
-            module = plugin    # get_module("volttron.services")
             subclasses = get_subclasses(module, __service_interface_class__, return_all=True)
             kwargs.update(config.get_service_kwargs(plugin_name))
             if "identity" not in kwargs:
                 kwargs["identity"] = plugin_name.replace("volttron.services", "platform")
             # TODO allow multiple subclasses in file suppport.
             for sub in subclasses:
-                # TODO replace try except block with inspection of parameters
-                try:
+                # Look for parameter with server_config as an argument and pass that in if available
+                # otherwise just pass kwargs
+                params = inspect.signature(sub.__init__).parameters
+                if 'server_config' in params.keys():
                     instance = sub(server_config=config, **kwargs)
-                except TypeError:
+                else:
                     _log.debug(f"{plugin_name} does not take a server_config as first param.")
                     instance = sub(**kwargs)
-
+                # try:
+                #     instance = sub(server_config=config, **kwargs)
+                # except TypeError:
+                #     _log.debug(f"{plugin_name} does not take a server_config as first param.")
+                #     instance = sub(**kwargs)
+                __service_instances__[plugin_name] = instance
                 return instance
         except ValueError as ex:
             _log.warning(ex.args)

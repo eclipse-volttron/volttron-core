@@ -52,9 +52,36 @@ def get_class(module: str | ModuleType, class_name: str) -> Type:
         raise e
 
 
+def get_all_subclasses(cls):
+    """
+    Recursively finds all subclasses of the current class.
+    Like Python's __class__.__subclasses__(), but recursive.
+    Returns a list containing all subclasses.
+
+    @type cls: object
+    @param cls: A Python class.
+    @rtype: list(object)
+    @return: A list containing all subclasses.
+    """
+    result = set()
+    path = [cls]
+    while path:
+        parent = path.pop()
+        for child in parent.__subclasses__():
+            if not '.' in str(child):
+                # In a multi inheritance scenario, __subclasses__()
+                # also returns interim-classes that don't have all the
+                # methods. With this hack, we skip them.
+                continue
+            if child not in result:
+                result.add(child)
+                path.append(child)
+    return result
+
+
 def get_subclasses(module: ModuleType | str,
                    parent_class: Type | str,
-                   return_all=False) -> List[Type]:
+                   return_all: bool = False) -> List[Type]:
     """Returns a list of subclasses of a specific type. If return_all is set to True,
     returns all subclasses, otherwise return a list with only the first subclass found.
 
@@ -72,8 +99,10 @@ def get_subclasses(module: ModuleType | str,
 
     if isinstance(module, str):
         module = importlib.import_module(module)
+
     if isinstance(parent_class, str):
         parent_class = getattr(module, parent_class)
+
     for c in inspect.getmembers(module, inspect.isclass):
         if parent_class in c[1].__bases__:
             all_subclasses.append(c[1])

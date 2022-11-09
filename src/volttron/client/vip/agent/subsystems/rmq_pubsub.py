@@ -54,7 +54,7 @@
 # import requests
 # from requests.packages.urllib3.connection import ConnectionError, NewConnectionError
 #
-# from volttron.utils import ClientContext as cc
+# from volttron.utils import ConnectionContext as cc
 #
 # from volttron.utils import jsonapi
 # from ..decorators import annotate, annotations, dualmethod, spawn
@@ -77,7 +77,7 @@
 #
 #     def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
 #         self.core = weakref.ref(core)
-#         self.rpc = weakref.ref(rpc_subsys)
+#         self.rpc_subsys = weakref.ref(rpc_subsys)
 #         self.peerlist = weakref.ref(peerlist_subsys)
 #         self._owner = owner
 #         self._logger = logging.getLogger(__name__)

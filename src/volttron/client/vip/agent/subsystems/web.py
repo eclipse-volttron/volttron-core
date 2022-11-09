@@ -100,15 +100,15 @@ class WebSubSystem(SubsystemBase):
 
         .. code-block:: python
 
-            def callback(self, env, data):
-                print('The environmental variables {}'.format(env))
+            def callback(self, runtime, data):
+                print('The environmental variables {}'.format(runtime))
                 print('The data sent {}'.format(data))
 
         .. versionadded:: VOLTTRON 4.0.1
 
         :param endpoint:
             Http endpoint matching the PATH_INFO environmental variable
-        :param callback: Agent method to be called with the env and data.
+        :param callback: Agent method to be called with the runtime and data.
         :type endpoint: str
         :type callback: function
         """

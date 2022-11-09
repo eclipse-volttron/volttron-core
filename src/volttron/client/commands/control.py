@@ -38,6 +38,7 @@
 
 import argparse
 import collections
+import json
 import logging
 import logging.handlers
 import logging.config
@@ -79,7 +80,8 @@ import gevent.event
 # from volttron.utils.rmq_mgmt import RabbitMQMgmt
 # from volttron.utils.rmq_setup import check_rabbit_status
 # from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
-from volttron.client.commands.install_agents import add_install_agent_parser
+# from volttron.client.commands.install_agents import add_install_agent_parser
+from volttron.types import Credentials
 
 from volttron.utils import ClientContext as cc, get_address
 from volttron.utils import jsonapi
@@ -89,13 +91,13 @@ from volttron.utils.commands import (
     wait_for_volttron_shutdown,
 )
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
-from volttron.utils.keystore import KeyStore, KnownHostsStore
+# from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.utils import log_to_file
 
 from volttron.client.known_identities import (
     CONFIGURATION_STORE,
     PLATFORM_HEALTH,
-    AUTH,
+    AUTH, CONTROL_CONNECTION,
 )
 
 from volttron.client.vip.agent.subsystems.query import Query
@@ -277,7 +279,7 @@ def print_rpc_list(peers, code=False):
         print(f"{peer}")
         for method in peers[peer]:
             if code:
-                print(f"\tself.vip.rpc.call({peer}, {method}).get()")
+                print(f"\tself.vip.rpc_subsys.call({peer}, {method}).get()")
             else:
                 print(f"\t{method}")
 
@@ -293,10 +295,10 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
                                                             "No parameters for this method.")
             if code is True:
                 if len(params) == 0:
-                    print(f"self.vip.rpc.call({peer}, {method}).get()")
+                    print(f"self.vip.rpc_subsys.call({peer}, {method}).get()")
                 else:
                     print(
-                        f"self.vip.rpc.call({peer}, {method}, {[param for param in params]}).get()"
+                        f"self.vip.rpc_subsys.call({peer}, {method}, {[param for param in params]}).get()"
                     )
                 continue
             else:
@@ -429,9 +431,9 @@ def list_remotes(opts):
     Can be filters using the '--status' option, specifying
     pending, approved, or denied.
     The output printed includes:
-        user id of a ZMQ credential, or the common name of a CSR
-        remote address of the credential or csr
-        status of the credential or cert (either APPROVED, DENIED, or PENDING)
+        user id of a ZMQ credentials, or the common name of a CSR
+        remote address of the credentials or csr
+        status of the credentials or cert (either APPROVED, DENIED, or PENDING)
 
     """
     conn = opts.connection
@@ -528,9 +530,9 @@ def list_remotes(opts):
 
 
 def approve_remote(opts):
-    """Approves either a pending CSR or ZMQ credential.
+    """Approves either a pending CSR or ZMQ credentials.
     The platform must be running for this command to succeed.
-    :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+    :param opts.user_id: The ZMQ credentials user_id or pending CSR common name
     :type opts.user_id: str
     """
     conn = opts.connection
@@ -542,9 +544,9 @@ def approve_remote(opts):
 
 
 def deny_remote(opts):
-    """Denies either a pending CSR or ZMQ credential.
+    """Denies either a pending CSR or ZMQ credentials.
     The platform must be running for this command to succeed.
-    :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+    :param opts.user_id: The ZMQ credentials user_id or pending CSR common name
     :type opts.user_id: str
     """
     conn = opts.connection
@@ -556,9 +558,9 @@ def deny_remote(opts):
 
 
 def delete_remote(opts):
-    """Deletes either a pending CSR or ZMQ credential.
+    """Deletes either a pending CSR or ZMQ credentials.
     The platform must be running for this command to succeed.
-    :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+    :param opts.user_id: The ZMQ credentials user_id or pending CSR common name
     :type opts.user_id: str
     """
     conn = opts.connection
@@ -775,7 +777,7 @@ def shutdown_agents(opts):
 #             wheel.close()
 #             channel.close(linger=0)
 #
-#     result = connection.vip.rpc.call(
+#     result = connection.vip.rpc_subsys.call(
 #         peer, "install_agent", os.path.basename(path), channel.name
 #     )
 #     task = gevent.spawn(send)
@@ -1592,15 +1594,15 @@ def edit_config(opts):
 #         return self._server
 
 #     def call(self, method, *args, **kwargs):
-#         return self.server.vip.rpc.call(
+#         return self.server.vip.rpc_subsys.call(
 #             self.peer, method, *args, **kwargs).get()
 
 #     def call_no_get(self, method, *args, **kwargs):
-#         return self.server.vip.rpc.call(
+#         return self.server.vip.rpc_subsys.call(
 #             self.peer, method, *args, **kwargs)
 
 #     def notify(self, method, *args, **kwargs):
-#         return self.server.vip.rpc.notify(
+#         return self.server.vip.rpc_subsys.notify(
 #             self.peer, method, *args, **kwargs)
 
 #     def kill(self, *args, **kwargs):
@@ -2180,7 +2182,7 @@ def main():
         subparser = kwargs.pop("subparser", top_level_subparsers)
         return subparser.add_parser(*args, **kwargs)
 
-    add_install_agent_parser(add_parser)
+    #add_install_agent_parser(add_parser)
 
     tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
@@ -2276,16 +2278,16 @@ def main():
     run.add_argument("directory", nargs="+", help="path to agent directory")
 
     # ====================================================
-    # rpc commands
+    # rpc_subsys commands
     # ====================================================
-    rpc_ctl = add_parser("rpc", help="rpc controls")
+    rpc_ctl = add_parser("rpc_subsys", help="rpc_subsys controls")
 
     rpc_subparsers = rpc_ctl.add_subparsers(title="subcommands", metavar="", dest="store_commands")
 
     rpc_code = add_parser(
         "code",
         subparser=rpc_subparsers,
-        help="shows how to use rpc call in other agents",
+        help="shows how to use rpc_subsys call in other agents",
     )
 
     rpc_code.add_argument(
@@ -2298,7 +2300,7 @@ def main():
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods",
+        help="list all subsystem rpc_subsys methods in addition to the agent's rpc_subsys methods",
     )
 
     rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
@@ -2306,7 +2308,7 @@ def main():
     rpc_list = add_parser(
         "list",
         subparser=rpc_subparsers,
-        help="lists all agents and their rpc methods",
+        help="lists all agents and their rpc_subsys methods",
     )
 
     rpc_list.add_argument(
@@ -2323,7 +2325,7 @@ def main():
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
+        help="list all subsystem rpc_subsys methods in addition to the agent's rpc_subsys methods. If a method "
         "is specified, display the doc-string associated with the method.",
     )
 
@@ -2589,7 +2591,7 @@ def main():
     )
     auth_remote_approve_cmd.add_argument(
         "user_id",
-        help="user_id or identity of pending credential or cert to approve",
+        help="user_id or identity of pending credentials or cert to approve",
     )
     auth_remote_approve_cmd.set_defaults(func=approve_remote)
 
@@ -2600,7 +2602,7 @@ def main():
     )
     auth_remote_deny_cmd.add_argument(
         "user_id",
-        help="user_id or identity of pending credential or cert to deny",
+        help="user_id or identity of pending credentials or cert to deny",
     )
     auth_remote_deny_cmd.set_defaults(func=deny_remote)
 
@@ -2611,7 +2613,7 @@ def main():
     )
     auth_remote_delete_cmd.add_argument(
         "user_id",
-        help="user_id or identity of pending credential or cert to delete",
+        help="user_id or identity of pending credentials or cert to delete",
     )
     auth_remote_delete_cmd.set_defaults(func=delete_remote)
 
@@ -2666,7 +2668,7 @@ def main():
 
     config_store_edit = add_parser(
         "edit",
-        help="edit a configuration. (nano by default, respects EDITOR env variable)",
+        help="edit a configuration. (nano by default, respects EDITOR runtime variable)",
         subparser=config_store_subparsers,
     )
 
@@ -2900,13 +2902,13 @@ def main():
     # function
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
-    if len(args) > 0:
-        if args[0] not in ("list", "tag", "auth", "rabbitmq", "certs"):
-            # check pid file
-            if not is_volttron_running(volttron_home):
-                _stderr.write("VOLTTRON is not running. This command "
-                              "requires VOLTTRON platform to be running\n")
-                return 10
+    # if len(args) > 0:
+    #     if args[0] not in ("list", "tag", "auth", "rabbitmq", "certs"):
+    #         # check pid file
+    #         if not is_volttron_running(volttron_home):
+    #             _stderr.write("VOLTTRON is not running. This command "
+    #                           "requires VOLTTRON platform to be running\n")
+    #             return 10
 
     conf = os.path.join(volttron_home, "config")
     if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
@@ -2936,7 +2938,11 @@ def main():
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
-    opts.connection = ControlConnection(opts.vip_address)
+    credentials = Credentials.from_environment(opts.volttron_home, CONTROL_CONNECTION)
+    os.environ['VOLTTRON_CREDENTIAL'] = json.dumps(credentials.__dict__)
+    os.environ['VOLTTRON_SERVER_CREDENTIAL'] = json.dumps(credentials.__dict__)
+
+    opts.connection = ControlConnection(address=opts.vip_address)
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)

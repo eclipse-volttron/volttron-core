@@ -36,12 +36,18 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+import logging
 import weakref
+from typing import TYPE_CHECKING
 
 from volttron.client.messaging import topics
 from volttron.client.messaging.headers import DATE
-from volttron.client.messaging.health import *
-from .base import SubsystemBase
+from volttron.client.messaging.health import Status, STATUS_GOOD
+from volttron.client.vip.agent.subsystems.base import SubsystemBase
+
+if TYPE_CHECKING:
+    from volttron.client.vip.agent import RPC, Core
+
 """
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
@@ -55,18 +61,18 @@ _log = logging.getLogger(__name__)
 
 class Health(SubsystemBase):
 
-    def __init__(self, owner, core, rpc):
+    def __init__(self, owner, core: "Core", rpc_subsys: "RPC"):
         self._owner = owner
         self._core = weakref.ref(core)
-        self._rpc = weakref.ref(rpc)
+        self._rpc = weakref.ref(rpc_subsys)
         self._statusobj = Status.build(STATUS_GOOD, status_changed_callback=self._status_changed)
         self._status_callbacks = set()
 
         def onsetup(sender, **kwargs):
-            rpc.export(self.set_status, "health.set_status")
-            rpc.export(self.get_status, "health.get_status")
-            rpc.export(self.get_status, "health.get_status_json")
-            rpc.export(self.send_alert, "health.send_alert")
+            rpc_subsys.export(self.set_status, "health.set_status")
+            rpc_subsys.export(self.get_status, "health.get_status")
+            rpc_subsys.export(self.get_status, "health.get_status_json")
+            rpc_subsys.export(self.send_alert, "health.send_alert")
 
         core.onsetup.connect(onsetup, self)
 

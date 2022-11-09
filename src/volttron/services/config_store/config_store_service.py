@@ -118,10 +118,10 @@ def process_raw_config(config_string, config_type="raw"):
     raise ValueError("Unsupported configuration type.")
 
 
-class ConfigStoreService(ServiceInterface, Agent):
+class ConfigStoreService(ServiceInterface):
 
-    def __init__(self, *args, **kwargs):
-        super(ConfigStoreService, self).__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
         # This agent is started before the router so we need
         # to keep it from blocking.
@@ -137,7 +137,7 @@ class ConfigStoreService(ServiceInterface, Agent):
         try:
             # explicitly provide access to others. Needed for secure mode.
             # Agents needs access to its own store file in this dir
-            os.makedirs(self.store_path)
+            os.makedirs(self.store_path, exist_ok=True)
             os.chmod(self.store_path, 0o755)
         except OSError as e:
             if e.errno != errno.EEXIST:

@@ -52,7 +52,6 @@ from volttron.utils.commands import wait_for_volttron_startup, wait_for_volttron
 from volttron.utils.dynamic_helper import get_module, get_class, get_subclasses
 from volttron.utils.file_access import create_file_if_missing
 from volttron.utils.frame_serialization import serialize_frames, deserialize_frames
-from volttron.utils.keystore import encode_key, decode_key
 from volttron.utils.identities import normalize_identity, is_valid_identity
 from volttron.utils.jsonapi import strip_comments, parse_json_config
 from volttron.utils.logs import setup_logging, log_to_file

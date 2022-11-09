@@ -63,7 +63,8 @@ import gevent.event
 # from requests.exceptions import ConnectionError
 
 from volttron.server import server_argparser as config, aip as aipmod
-from volttron.types.server_config import ServerConfig
+from volttron.server.aip import AIPplatform
+from volttron.types.server_config import ServiceConfigs
 from volttron.types import ServiceInterface
 from volttron.utils import (
     ClientContext as cc,
@@ -79,9 +80,9 @@ from volttron.client.known_identities import (
     AUTH,
 )
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
-from volttron.utils.keystore import KeyStore, KnownHostsStore
 
-from volttron.services.auth import AuthEntry, AuthFile, AuthService
+# TODO Do we need this here?
+# from volttron.services.auth import AuthEntry, AuthFile, AuthService
 from volttron.utils.certs import Certs
 from volttron.utils.scheduling import periodic
 
@@ -117,7 +118,7 @@ rmq_mgmt = None
 CHUNK_SIZE = 4096
 
 
-class ControlService(ServiceInterface, BaseAgent):
+class ControlService(ServiceInterface):
 
     @classmethod
     def get_kwargs_defaults(cls) -> Dict[str, Any]:
@@ -127,15 +128,12 @@ class ControlService(ServiceInterface, BaseAgent):
         """
         return {"agent-monitor-frequency": 10}
 
-    def __init__(self, server_config: ServerConfig, *args, **kwargs):
+    def __init__(self, aip: AIPplatform, **kwargs):
 
         tracker = kwargs.pop("tracker", None)
-        # Control config store not necessary right now
-        kwargs["enable_store"] = False
-        kwargs["enable_channel"] = True
         agent_monitor_frequency = kwargs.pop("agent-monitor-frequency", 10)
-        super(ControlService, self).__init__(*args, **kwargs)
-        self._aip = server_config.aip
+        super().__init__(**kwargs)
+        self._aip = aip
         self._tracker = tracker
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
@@ -601,7 +599,7 @@ class ControlService(ServiceInterface, BaseAgent):
         # at this point if agent_uuid is populated then there is an
         # identity of that already available.
         agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
-        _log.debug(f"rpc: install_agent {agent_uuid}")
+        _log.debug(f"rpc_subsys: install_agent {agent_uuid}")
         # Prepare to install agent that is passed over to us.
         peer = self.vip.rpc.context.vip_message.peer
         channel = self.vip.channel(peer, channel_name)
@@ -873,7 +871,7 @@ def print_rpc_list(peers, code=False):
         print(f"{peer}")
         for method in peers[peer]:
             if code:
-                print(f"\tself.vip.rpc.call({peer}, {method}).get()")
+                print(f"\tself.vip.rpc_subsys.call({peer}, {method}).get()")
             else:
                 print(f"\t{method}")
 
@@ -889,10 +887,10 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
                                                             "No parameters for this method.")
             if code is True:
                 if len(params) == 0:
-                    print(f"self.vip.rpc.call({peer}, {method}).get()")
+                    print(f"self.vip.rpc_subsys.call({peer}, {method}).get()")
                 else:
                     print(
-                        f"self.vip.rpc.call({peer}, {method}, {[param for param in params]}).get()"
+                        f"self.vip.rpc_subsys.call({peer}, {method}, {[param for param in params]}).get()"
                     )
                 continue
             else:
@@ -1025,9 +1023,9 @@ def list_remotes(opts):
     Can be filters using the '--status' option, specifying
     pending, approved, or denied.
     The output printed includes:
-        user id of a ZMQ credential, or the common name of a CSR
-        remote address of the credential or csr
-        status of the credential or cert (either APPROVED, DENIED, or PENDING)
+        user id of a ZMQ credentials, or the common name of a CSR
+        remote address of the credentials or csr
+        status of the credentials or cert (either APPROVED, DENIED, or PENDING)
 
     """
     conn = opts.connection
@@ -1117,9 +1115,9 @@ def list_remotes(opts):
 
 
 def approve_remote(opts):
-    """Approves either a pending CSR or ZMQ credential.
+    """Approves either a pending CSR or ZMQ credentials.
     The platform must be running for this command to succeed.
-    :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+    :param opts.user_id: The ZMQ credentials user_id or pending CSR common name
     :type opts.user_id: str
     """
     conn = opts.connection
@@ -1131,9 +1129,9 @@ def approve_remote(opts):
 
 
 def deny_remote(opts):
-    """Denies either a pending CSR or ZMQ credential.
+    """Denies either a pending CSR or ZMQ credentials.
     The platform must be running for this command to succeed.
-    :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+    :param opts.user_id: The ZMQ credentials user_id or pending CSR common name
     :type opts.user_id: str
     """
     conn = opts.connection
@@ -1145,9 +1143,9 @@ def deny_remote(opts):
 
 
 def delete_remote(opts):
-    """Deletes either a pending CSR or ZMQ credential.
+    """Deletes either a pending CSR or ZMQ credentials.
     The platform must be running for this command to succeed.
-    :param opts.user_id: The ZMQ credential user_id or pending CSR common name
+    :param opts.user_id: The ZMQ credentials user_id or pending CSR common name
     :type opts.user_id: str
     """
     conn = opts.connection
@@ -2929,16 +2927,16 @@ def main(argv=sys.argv):
     run.add_argument("directory", nargs="+", help="path to agent directory")
     run.set_defaults(func=run_agent)
     # ====================================================
-    # rpc commands
+    # rpc_subsys commands
     # ====================================================
-    rpc_ctl = add_parser("rpc", help="rpc controls")
+    rpc_ctl = add_parser("rpc_subsys", help="rpc_subsys controls")
 
     rpc_subparsers = rpc_ctl.add_subparsers(title="subcommands", metavar="", dest="store_commands")
 
     rpc_code = add_parser(
         "code",
         subparser=rpc_subparsers,
-        help="shows how to use rpc call in other agents",
+        help="shows how to use rpc_subsys call in other agents",
     )
 
     rpc_code.add_argument("pattern", nargs="*", help="Identity of agent, followed by method(s)"
@@ -2947,14 +2945,14 @@ def main(argv=sys.argv):
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods",
+        help="list all subsystem rpc_subsys methods in addition to the agent's rpc_subsys methods",
     )
 
     rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
 
     rpc_list = add_parser("list",
                           subparser=rpc_subparsers,
-                          help="lists all agents and their rpc methods")
+                          help="lists all agents and their rpc_subsys methods")
 
     rpc_list.add_argument("-i",
                           "--vip",
@@ -2968,7 +2966,7 @@ def main(argv=sys.argv):
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
+        help="list all subsystem rpc_subsys methods in addition to the agent's rpc_subsys methods. If a method "
         "is specified, display the doc-string associated with the method.",
     )
 
@@ -3224,7 +3222,7 @@ def main(argv=sys.argv):
         help="approves pending or denied remote connection",
     )
     auth_remote_approve_cmd.add_argument(
-        "user_id", help="user_id or identity of pending credential or cert to approve")
+        "user_id", help="user_id or identity of pending credentials or cert to approve")
     auth_remote_approve_cmd.set_defaults(func=approve_remote)
 
     auth_remote_deny_cmd = add_parser(
@@ -3233,7 +3231,7 @@ def main(argv=sys.argv):
         help="denies pending or denied remote connection",
     )
     auth_remote_deny_cmd.add_argument(
-        "user_id", help="user_id or identity of pending credential or cert to deny")
+        "user_id", help="user_id or identity of pending credentials or cert to deny")
     auth_remote_deny_cmd.set_defaults(func=deny_remote)
 
     auth_remote_delete_cmd = add_parser(
@@ -3242,7 +3240,7 @@ def main(argv=sys.argv):
         help="approves pending or denied remote connection",
     )
     auth_remote_delete_cmd.add_argument(
-        "user_id", help="user_id or identity of pending credential or cert to delete")
+        "user_id", help="user_id or identity of pending credentials or cert to delete")
     auth_remote_delete_cmd.set_defaults(func=delete_remote)
 
     # ====================================================
@@ -3294,7 +3292,7 @@ def main(argv=sys.argv):
 
     config_store_edit = add_parser(
         "edit",
-        help="edit a configuration. (nano by default, respects EDITOR env variable)",
+        help="edit a configuration. (nano by default, respects EDITOR runtime variable)",
         subparser=config_store_subparsers,
     )
 
