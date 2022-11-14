@@ -3,7 +3,7 @@ from typing import Optional
 import zmq
 from zmq import green as _green
 
-from volttron.services.peer import ServicePeerNotifier
+from volttron.types.peer import ServicePeerNotifier
 from .router import Router
 
 

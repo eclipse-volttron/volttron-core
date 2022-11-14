@@ -68,9 +68,6 @@ class AgentFormatter(logging.Formatter):
     def format(self, record):
         if "composite_name" not in record.__dict__:
             record.__dict__["composite_name"] = self.composite_name(record)
-        if (len(record.args) > 0 and "tornado.access" in record.__dict__["composite_name"]):
-            record.__dict__["msg"] = ",".join([str(b) for b in record.args])
-            record.__dict__["args"] = []
         return super(AgentFormatter, self).format(record)
 
 
@@ -80,7 +77,10 @@ class FramesFormatter(object):
         self.frames = frames
 
     def __repr__(self):
-        return str([bytes(f) for f in self.frames])
+        output = ''
+        for f in self.frames:
+            output += str(f)
+        return output
 
     __str__ = __repr__
 
