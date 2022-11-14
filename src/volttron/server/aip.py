@@ -68,7 +68,7 @@ from volttron.client.vip.agent import Agent
 # from volttron.platform.agent.utils import load_platform_config, \
 #     get_utc_seconds_from_epoch
 
-from ..services.auth import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
+from volttron.services.auth.auth_service import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 
 # TODO route to wheel_wrap
 # from .packages import UnpackedPackage

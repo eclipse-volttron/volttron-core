@@ -118,10 +118,10 @@ def process_raw_config(config_string, config_type="raw"):
     raise ValueError("Unsupported configuration type.")
 
 
-class ConfigStoreService(ServiceInterface, Agent):
+class ConfigStoreService(ServiceInterface):
 
-    def __init__(self, *args, **kwargs):
-        super(ConfigStoreService, self).__init__(*args, **kwargs)
+    def __init__(self, **kwargs):
+        super(ConfigStoreService, self).__init__(**kwargs)
 
         # This agent is started before the router so we need
         # to keep it from blocking.

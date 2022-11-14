@@ -81,7 +81,7 @@ from volttron.client.known_identities import (
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 
-from volttron.services.auth import AuthEntry, AuthFile, AuthService
+from volttron.services.auth.auth_service import AuthEntry, AuthFile, AuthService
 from volttron.utils.certs import Certs
 from volttron.utils.scheduling import periodic
 
@@ -117,7 +117,7 @@ rmq_mgmt = None
 CHUNK_SIZE = 4096
 
 
-class ControlService(ServiceInterface, BaseAgent):
+class ControlService(ServiceInterface):
 
     @classmethod
     def get_kwargs_defaults(cls) -> Dict[str, Any]:
@@ -127,15 +127,15 @@ class ControlService(ServiceInterface, BaseAgent):
         """
         return {"agent-monitor-frequency": 10}
 
-    def __init__(self, server_config: ServerConfig, *args, **kwargs):
+    def __init__(self, aip, **kwargs):
 
         tracker = kwargs.pop("tracker", None)
         # Control config store not necessary right now
         kwargs["enable_store"] = False
         kwargs["enable_channel"] = True
         agent_monitor_frequency = kwargs.pop("agent-monitor-frequency", 10)
-        super(ControlService, self).__init__(*args, **kwargs)
-        self._aip = server_config.aip
+        super(ControlService, self).__init__(**kwargs)
+        self._aip = aip
         self._tracker = tracker
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)

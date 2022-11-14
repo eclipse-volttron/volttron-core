@@ -113,31 +113,32 @@ class AuthException(Exception):
     pass
 
 
-class AuthService(ServiceInterface, Agent):
+class AuthService(ServiceInterface):
 
-    def __init__(self, server_config: server_config.ServerConfig, *args, **kwargs):
+    def __init__(self, server_config, **kwargs):
         #auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
         self.allow_any = kwargs.pop("allow_any", False)
 
-        super(AuthService, self).__init__(*args, **kwargs)
+        super(AuthService, self).__init__(**kwargs)
 
+        self._server_config = server_config
         # This agent is started before the router so we need
         # to keep it from blocking.
         self.core.delay_running_event_set = False
         self._certs = None
         if cc.get_messagebus() == "rmq":
             self._certs = Certs()
-        self.auth_file_path = str(server_config.auth_file)
+        self.auth_file_path = str(self._server_config.auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
-        self.aip = server_config.aip
+        self.aip = self._server_config.aip
         self.zap_socket = None
         self._zap_greenlet = None
         self.auth_entries = []
         self._is_connected = False
-        self._protected_topics_file_path = str(server_config.protected_topics_file)
-        self._protected_topics_file = str(server_config.protected_topics_file)
+        self._protected_topics_file_path = str(self._server_config.protected_topics_file)
+        self._protected_topics_file = str(self._server_config.protected_topics_file)
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
-        self._setup_mode = server_config.opts.setup_mode
+        self._setup_mode = self._server_config.opts.setup_mode
         self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []
