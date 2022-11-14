@@ -53,10 +53,10 @@ PLATFORM_HISTORIAN = "platform.historian"
 PLATFORM_MARKET_SERVICE = "platform.market"
 
 ROUTER = ""
-CONTROL = "volttron.platform.control"
+CONTROL = "platform.control"
 CONTROL_CONNECTION = "control.connection"
-PLATFORM_WEB = "volttron.platform.web"
-CONFIGURATION_STORE = "volttron.platform.config_store"
+PLATFORM_WEB = "platform.web"
+CONFIGURATION_STORE = "platform.config_store"
 KEY_DISCOVERY = "keydiscovery"
 PROXY_ROUTER = "zmq.proxy.router"
 
