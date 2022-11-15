@@ -20,6 +20,7 @@ from volttron.services.routing import ExternalRPCService, PubSubService
 from volttron.types.peer import ServicePeerNotifier
 from volttron.services.routing import RoutingService
 from volttron.server.monitor import Monitor
+from ...client.known_identities import CONTROL
 
 _log = logging.getLogger(__name__)
 
@@ -189,7 +190,7 @@ class Router(BaseRouter):
             # was if sender == 'control' and user_id == self.default_user_id:
             # now we serialize frames and if user_id is always the sender and not
             # recipents.get('User-Id') or default user name
-            if sender == "control":
+            if sender == CONTROL:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()
