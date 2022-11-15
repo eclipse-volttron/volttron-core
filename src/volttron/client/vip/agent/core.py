@@ -630,8 +630,7 @@ class Core(BasicCore):
             self.connection.send_vip_object(message)
 
         def hello_response(sender, version="", router="", identity=""):
-            _log.info("Connected to platform: "
-                      "router: {} version: {} identity: {}".format(router, version, identity))
+            _log.info(f"Connected to platform: identity: {identity} version: {version}")
             _log.debug("Running onstart methods.")
             hello_response_event.set()
             self.onstart.sendby(self.link_receiver, self)

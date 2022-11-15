@@ -36,6 +36,11 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 
+from gevent import monkey
+monkey.patch_all()
+import gevent
+import gevent.event
+
 import argparse
 import collections
 import logging
@@ -51,8 +56,6 @@ import tempfile
 from typing import List
 from datetime import timedelta, datetime
 
-import gevent
-import gevent.event
 
 # TODO Requests dependency
 # import requests
@@ -80,6 +83,7 @@ import gevent.event
 # from volttron.utils.rmq_setup import check_rabbit_status
 # from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.client.commands.install_agents import add_install_agent_parser
+from volttron.client.commands.connection import ControlConnection
 
 from volttron.utils import ClientContext as cc, get_address
 from volttron.utils import jsonapi
@@ -100,8 +104,6 @@ from volttron.client.known_identities import (
 
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.client.vip.agent.errors import Unreachable, VIPError
-
-from .connection import ControlConnection
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -2941,8 +2943,8 @@ def main():
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)
 
-    with gevent.Timeout(opts.timeout):
-        return opts.func(opts)
+    # with gevent.Timeout(opts.timeout):
+    #     return opts.func(opts)
 
     try:
         with gevent.Timeout(opts.timeout):

@@ -25,7 +25,7 @@ class ClientContext:
 
     @classmethod
     def __load_config__(cls: "ClientContext"):
-        if cls.__config__ is None:
+        if not cls.__config__:
             cls.__config__ = FrozenDict()
 
             volttron_home = ClientContext.get_volttron_home()

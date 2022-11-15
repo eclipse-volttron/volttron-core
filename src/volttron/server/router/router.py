@@ -17,11 +17,9 @@ from .base_router import BaseRouter, UNROUTABLE, ERROR, INCOMING
 
 from volttron.services.routing import ExternalRPCService, PubSubService
 
-from volttron.services.peer import ServicePeerNotifier
+from volttron.types.peer import ServicePeerNotifier
 from volttron.services.routing import RoutingService
 from volttron.server.monitor import Monitor
-
-# from ..server import __version__
 
 _log = logging.getLogger(__name__)
 
@@ -62,7 +60,7 @@ class Router(BaseRouter):
         self._publickey = publickey
         self.logger = logging.getLogger("vip.router")
         if self.logger.level == logging.NOTSET:
-            self.logger.setLevel(logging.WARNING)
+            self.logger.setLevel(logging.DEBUG) # .WARNING)
         self._monitor = monitor
         self._tracker = tracker
         self._volttron_central_address = volttron_central_address
@@ -147,11 +145,11 @@ class Router(BaseRouter):
         elif topic == UNROUTABLE:
             log("unroutable: %s: %s", extra, formatter)
         else:
-            log(
-                "%s: %s",
-                ("incoming" if topic == INCOMING else "outgoing"),
-                formatter,
-            )
+            direction = "incoming" if topic == INCOMING else "outgoing"
+            if direction == "outgoing":
+                log(f"{direction}: {deserialize_frames(frames)}")
+            else:
+                log(f"{direction}: {frames}")
         if self._tracker:
             self._tracker.hit(topic, frames, extra)
         if self._msgdebug:

@@ -1,2 +1,2 @@
 # import volttron.server.control
-from .auth_service import (AuthService, AuthFile, AuthEntry, AuthFileEntryAlreadyExists)
+from volttron.services.auth.auth_service import (AuthService, AuthFile, AuthEntry, AuthFileEntryAlreadyExists)
