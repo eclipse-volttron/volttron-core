@@ -53,7 +53,7 @@ class ServiceConfigs:
         for mod_name in self._discovered_services:
             try:
                 cls = get_subclasses(mod_name, service_interface_cls)[0]
-                identity = mod_name.replace("services", "platform")
+                identity = mod_name.replace("volttron.services", "platform")
                 self._identity_map[mod_name] = identity
                 self._plugin_map[mod_name] = cls
                 self._config_map[mod_name] = self._loaded.get(mod_name, {})
