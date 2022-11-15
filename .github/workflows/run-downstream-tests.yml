@@ -11,7 +11,7 @@ on:
 env:
   LANG: en_US.utf-8
   LC_ALL: en_US.utf-8
-  PYTHON_VERSION: '3.8'
+  PYTHON_VERSION: '3.10'
   EVENT_TYPE: downstream-testing
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
         # The name of the repo takes the following form: <OWNER>/<REPO NAME>
         # For example, to add the OpenADR agent repo, use the following name:
         # VOLTTRON/volttron-openadr-ven
-        repo: [ VOLTTRON/volttron-listener-agent ]
+        repo: [ eclipse-volttron/volttron-listener, eclipse-volttron/volttron-testing ]
           # , 'VOLTTRON/volttron-openadr-ven' ]
 
     runs-on: ubuntu-20.04
