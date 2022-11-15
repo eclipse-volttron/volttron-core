@@ -3,8 +3,15 @@ from typing import Dict, Any
 import gevent
 from gevent import Greenlet
 
+from volttron.client.vip.agent import Agent
+from volttron.types.server_config import ServerConfig
 
-class ServiceInterface:
+
+class ServiceInterface(Agent):
+
+    def __init__(self, server_config: ServerConfig = None, **kwargs):
+        self._server_config = server_config
+        super().__init__(**kwargs)
 
     @classmethod
     def get_kwargs_defaults(cls) -> Dict[str, Any]:

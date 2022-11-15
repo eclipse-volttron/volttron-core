@@ -52,7 +52,7 @@ from volttron.client.vip.agent import Agent, Core, RPC
 _log = logging.getLogger(__name__)
 
 
-class HealthService(ServiceInterface, Agent):
+class HealthService(ServiceInterface):
 
     def __init__(self, **kwargs):
         super(HealthService, self).__init__(**kwargs)

@@ -13,6 +13,7 @@ class ControlConnection(object):
 
     def __init__(self, address, peer=CONTROL):
         self.address = address
+        _log.debug(f"Address is: {address}")
         self.peer = peer
         message_bus = cc.get_messagebus()
         self._server = BaseAgent(
