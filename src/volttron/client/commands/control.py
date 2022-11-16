@@ -2945,7 +2945,9 @@ def main():
 
     # with gevent.Timeout(opts.timeout):
     #     return opts.func(opts)
-
+    # with gevent.Timeout(opts.timeout):
+    #     return opts.func(opts)
+    # sys.exit(0)
     try:
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)
@@ -2978,12 +2980,18 @@ def main():
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
             try:
-                opts.connection.server.core.stop()
-            except Unreachable:
-                # its ok for this to fail at this point it might not even be valid.
-                pass
+                opts.connection.kill()
             finally:
                 opts.connection = None
+            # try:
+            #     opts.connection.server.core.stop(timeout=1)
+            # except gevent.Timeout:
+            #     pass
+            # except Unreachable:
+            #     # its ok for this to fail at this point it might not even be valid.
+            #     pass
+            # finally:
+            #     opts.connection = None
 
     if opts.debug:
         print_tb()
