@@ -7,7 +7,7 @@ import tempfile
 import pytest
 
 # the following assumes that the testconf.py is in the tests directory.
-volttron_src_path = Path(__file__).resolve().parent.parent
+volttron_src_path = Path(__file__).resolve().parent.parent.joinpath("src")
 
 assert volttron_src_path.exists()
 
