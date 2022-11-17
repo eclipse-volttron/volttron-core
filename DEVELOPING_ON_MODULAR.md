@@ -16,7 +16,7 @@ See [poetry installation](https://github.com/eclipse-volttron/volttron-core/tree
 # Development
 
 ##  New Agent 
-* Please use the tool [copier-poetry-volttron-agent](https://github.com/VOLTTRON/copier-poetry-volttron-agent) to create a new agent. 
+* Please use the tool [copier-poetry-volttron-agent](https://github.com/VOLTTRON/copier-poetry-volttron-agent/tree/develop) to create a new agent. 
 
 ## Existing Agent
 * Fork the Agent repo on Github
@@ -35,7 +35,7 @@ poetry install
 poetry run pytest tests/
 ```
 * Create a Pull Request (PR)
-  * Please see the [contributing.md](https://github.com/eclipse-volttron/volttron-core/blob/develop/CONTRIBUTING.md) document before contributing to this repo.
+  * Please see the [contributing.md](CONTRIBUTING.md) document before contributing to this repo.
   * Go on your forked Github repo and create a PR.  
 
 ## Building a Wheel
