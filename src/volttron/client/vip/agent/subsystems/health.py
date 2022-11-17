@@ -41,7 +41,8 @@ import weakref
 from volttron.client.messaging import topics
 from volttron.client.messaging.headers import DATE
 from volttron.client.messaging.health import *
-from .base import SubsystemBase
+from volttron.client.vip.agent.subsystems.base import SubsystemBase
+from volttron.utils.context import ClientContext as cc
 """
 The health subsystem allows an agent to store it's health in a non-intrusive
 way.
@@ -70,20 +71,20 @@ class Health(SubsystemBase):
 
         core.onsetup.connect(onsetup, self)
 
-    def send_alert(self, alert_key, statusobj):
+    def send_alert(self, alert_key: str, statusobj: Status):
         """
         An alert_key is a quasi-unique key.  A listener to the alert can
         determine whether to pass the alert on to a higher level based upon
         the frequency of this alert.
 
+        :param statusobj: The status for the alert.
         :param alert_key:
-        :param context:
         :return:
         """
         if not isinstance(statusobj, Status):
             raise ValueError("statusobj must be a Status object.")
         agent_class = self._owner.__class__.__name__
-        fq_identity = get_fq_identity(self._core().identity)
+        fq_identity = cc.get_fq_identity(self._core().identity)
         # RMQ and other message buses can't handle '.' because it's used as the separator.  This
         # causes us to change the alert topic's agent_identity to have '_' rather than '.'.
         topic = topics.ALERTS(agent_class=agent_class,
