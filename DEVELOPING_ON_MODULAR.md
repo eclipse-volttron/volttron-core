@@ -10,7 +10,16 @@ so they are available to be used throughout the README.
 * Poetry 1.2.2
 
 ## Installing poetry
-See [poetry installation](https://github.com/eclipse-volttron/volttron-core/tree/develop#poetry)
+
+VOLTTRON uses [Poetry](https://python-poetry.org/), a dependency management and packaging tool for Python. If you don't have Poetry installed on your machine, follow [these steps](https://python-poetry.org/docs/#installation) to install it on your machine.
+
+To check if Poetry is installed, run `poetry --version`. If you receive the error 'command not found: poetry', add the following line to your '~/.bashrc' script: ```export PATH=$PATH:$HOME/.local/bin```.
+
+### Recommended configuration for poetry
+
+By default, poetry creates a virtual environment in {cache-dir}/virtualenvs. To configure 'poetry' to create the virtualenv inside this project's root directory, run the following command:
+
+[```poetry config virtualenvs.in-project true```](https://python-poetry.org/docs/configuration)
 
 
 # Development
@@ -80,9 +89,9 @@ dev dependency. Use poetry to install `volttron-testing` into your environment:
 poetry add volttron-testing
 ```
 
-`volttron-testing` offers several tools that you can use to write tests. 
-
 ## Tests
+
+`volttron-testing` offers several tools that you can use to write tests. 
 
 ### Unit Tests
 
