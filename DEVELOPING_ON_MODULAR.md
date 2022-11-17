@@ -19,6 +19,9 @@ See [poetry installation](https://github.com/eclipse-volttron/volttron-core/tree
 * Please use the tool [copier-poetry-volttron-agent](https://github.com/VOLTTRON/copier-poetry-volttron-agent/tree/develop) to create a new agent. 
 
 ## Existing Agent
+
+The recommended development path is outlined below:
+
 * Fork the Agent repo on Github
 * Clone the repo in your local environment
 * Setup the environment using poetry
