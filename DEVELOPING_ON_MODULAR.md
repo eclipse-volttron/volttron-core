@@ -91,15 +91,15 @@ poetry add volttron-testing
 
 ## Tests
 
-`volttron-testing` offers several tools that you can use to write tests. 
+[`volttron-testing`](https://github.com/eclipse-volttron/volttron-testing/tree/develop) is Volttron's testing framework to support writing tests on Modular Volttron. It offers several tools that you can use to write tests. 
 
 ### Unit Tests
 
-Use `TestServer` to create the testing environment for unit tests. For an example of a unit test, 
+Use [`TestServer`](https://github.com/eclipse-volttron/volttron-testing/blob/develop/src/volttrontesting/server_mock.py) to create the testing environment for unit tests. For an example of a unit test, 
 see the unit tests created for [volttron-listener](https://github.com/eclipse-volttron/volttron-listener/blob/develop/tests/test_agent_workings.py)
 
 
 ### Integration Tests
 
-Use `PlatformWrapper` to create the testing environment for integration tests. For an example of an integration test, 
+Use [`PlatformWrapper`](https://github.com/eclipse-volttron/volttron-testing/blob/develop/src/volttrontesting/platformwrapper.py) to create the testing environment for integration tests. For an example of an integration test, 
 see the integration tests created for [volttron-listener](https://github.com/eclipse-volttron/volttron-listener/blob/develop/tests/test_integration.py)
