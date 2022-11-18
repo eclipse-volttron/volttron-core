@@ -27,7 +27,7 @@ pip install volttron
 
  3. Install listener agent
     ```bash
-    > vctl install volttron-listener
+    > vctl install volttron-listener --start
     ```
 
  4. View status of platform
