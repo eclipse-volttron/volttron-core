@@ -31,8 +31,8 @@ By default, poetry creates a virtual environment in {cache-dir}/virtualenvs. To 
 
 The recommended development path is outlined below:
 
-* Fork the Agent repo on Github
-* Clone the repo in your local environment
+* Fork the Agent repository on Github
+* Clone the repository in your local environment
 * Setup the environment using poetry
 
 ```shell
@@ -47,12 +47,12 @@ poetry install
 poetry run pytest tests/
 ```
 * Create a Pull Request (PR)
-  * Please see the [contributing.md](CONTRIBUTING.md) document before contributing to this repo.
-  * Go on your forked Github repo and create a PR.  
+  * Please see the [contributing.md](CONTRIBUTING.md) document before contributing to this repository.
+  * Go on your forked Github repository and create a PR.  
 
 ## Building a Wheel
 
-To build a wheel from this project, execute the following command at the root level of this repo:
+To build a wheel from this project, execute the following command at the root level of this repository:
 
 ```shell
 poetry build
