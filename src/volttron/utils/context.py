@@ -118,7 +118,17 @@ class ClientContext:
     @classmethod
     def get_instance_name(cls):
         """Get type of message bus - zeromq or rabbbitmq."""
-        return cls.get_config_param("instance-name")
+        instance_name = cls.get_config_param('instance-name', None)
+        if instance_name is not None:
+            instance_name = instance_name.strip('"')
+
+        if not instance_name:
+            _log.warning("Using hostname as instance name.")
+            if os.path.isfile('/etc/hostname'):
+                with open('/etc/hostname') as f:
+                    instance_name = f.read().strip()
+
+        return instance_name
 
     @classmethod
     def is_web_enabled(cls):
