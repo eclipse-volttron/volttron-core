@@ -34,6 +34,7 @@ tzlocal = "^4.1"
 psutil = "^5.9.0"
 cryptography = "^36.0.1"
 watchdog-gevent = "^0.1.1"
+pip = "22.2.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
