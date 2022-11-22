@@ -513,29 +513,19 @@ class AIPplatform(object):
 
         cmd = ["pip", "install", agent_wheel]
         response = execute_command(cmd)
-
+        agent_name = None
         find_success = re.match("Successfully installed (.*)", response.strip().split("\n")[-1])
-
-        if not find_success:
+        if find_success:
+            agent_name = self._get_agent_name_on_success(find_success)
+        elif not find_success:
             find_already_installed = re.match(
                 f"Requirement already satisfied: (.*) from file://{agent_wheel}", response)
             if not find_already_installed:
-                groups = re.search(".*\n(.*) is already installed with the same version",
-                                   response).groups()
-                if groups:
-                    find_already_installed = groups[0].strip()
-                    cmd = ["pip", "show", find_already_installed]
-                    response = execute_command(cmd)
-                    version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
-                    agent_name = find_already_installed + "-" + version
-                else:
-                    raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
+                agent_name = self._get_agent_name_on_response(response, agent_wheel)
             else:
                 _log.info("Wheel already installed...")
                 agent_name = find_already_installed.groups()[0].replace("==", "-")
-        else:
-            agent_name = find_success.groups()[0]
-
+        _log.info(f"AGENT_NAME: {agent_name}")
         final_identity = self._setup_agent_vip_id(agent_name, vip_identity=vip_identity)
 
         if self.secure_agent_user:
@@ -600,6 +590,22 @@ class AIPplatform(object):
 
         return agent_uuid
 
+    def _get_agent_name_on_success(self, find_success):
+        # assume that the last package is the agent package name
+        packages = find_success.groups()[0]
+        return packages.split()[-1]
+
+    def _get_agent_name_on_response(self, response, agent_wheel):
+        groups = re.search(".*\n(.*) is already installed with the same version",
+                                   response).groups()
+        if groups:
+            find_already_installed = groups[0].strip()
+            cmd = ["pip", "show", find_already_installed]
+            response = execute_command(cmd)
+            version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
+            return find_already_installed + "-" + version
+        raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
+
     def _setup_agent_vip_id(self, agent_name, vip_identity=None):
         # agent_path = os.path.join(self.install_dir, agent_name)
         # name = self.agent_name(agent_name)
@@ -633,7 +639,7 @@ class AIPplatform(object):
                 "Agent with VIP ID {} already installed on platform.".format(name_template))
 
         if not is_valid_identity(final_identity):
-            raise ValueError("Invalid identity detecated: {}".format(",".format(final_identity)))
+            raise ValueError("Invalid identity detected: {}".format(",".format(final_identity)))
 
         # identity_filename = os.path.join(agent_path, "IDENTITY")
         #
