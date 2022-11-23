@@ -451,6 +451,9 @@ class ConfigStoreService(ServiceInterface):
     ):
         """Adds a processed configuration to the store."""
         agent_store = self.store.get(identity)
+        # Make sure that the agent is alive before sending update.
+        if send_update:
+            send_update = identity in self.vip.peerlist().get()
 
         action = "UPDATE"
 
