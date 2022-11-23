@@ -2952,7 +2952,7 @@ def main():
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)
     except gevent.Timeout:
-        _stderr.write("{}: operation timed out\n".format(opts.command))
+        _stderr.write(f"{opts.command} function {opts.func.__name__}: operation timed out\n")
         return 75
     except RemoteError as exc:
         print_tb = exc.print_tb
