@@ -508,6 +508,8 @@ class AIPplatform(object):
         Installs the agent into the current environment, setup the agent data directory and
         agent data structure.
         """
+        _log.info(f"AGENT_WHEEL: {agent_wheel}")
+
         if agent_config is None:
             agent_config = dict()
 
@@ -515,12 +517,16 @@ class AIPplatform(object):
         response = execute_command(cmd)
         agent_name = None
         find_success = re.match("Successfully installed (.*)", response.strip().split("\n")[-1])
+
         if find_success:
-            agent_name = self._get_agent_name_on_success(find_success)
+            _log.debug("Successfully installed package: {find_success}")
+            agent_name = self._get_agent_name_on_success(
+                find_success, self._construct_package_name_from_agent_wheel(agent_wheel))
         elif not find_success:
             find_already_installed = re.match(
                 f"Requirement already satisfied: (.*) from file://{agent_wheel}", response)
             if not find_already_installed:
+                _log.debug("Wheel NOT already installed...")
                 agent_name = self._get_agent_name_on_response(response, agent_wheel)
             else:
                 _log.info("Wheel already installed...")
@@ -590,14 +596,24 @@ class AIPplatform(object):
 
         return agent_uuid
 
-    def _get_agent_name_on_success(self, find_success):
-        # assume that the last package is the agent package name
-        packages = find_success.groups()[0]
-        return packages.split()[-1]
+    def _construct_package_name_from_agent_wheel(self, agent_wheel):
+        wheel = agent_wheel.split("/")[-1]
+        wheel = wheel.replace("-py3-none-any.whl", "")
+        return wheel.replace("_", "-")
+
+    def _get_agent_name_on_success(self, find_success, wheel_target):
+        _log.info(f"wheel_target: {wheel_target}")
+
+        for package in find_success.groups()[0].split():
+            # search for the agent name nthat we want
+            _log.debug(f"package: {package}")
+            if package == wheel_target:
+                return package
+        raise ValueError("Could not find package")
 
     def _get_agent_name_on_response(self, response, agent_wheel):
         groups = re.search(".*\n(.*) is already installed with the same version",
-                                   response).groups()
+                           response).groups()
         if groups:
             find_already_installed = groups[0].strip()
             cmd = ["pip", "show", find_already_installed]
