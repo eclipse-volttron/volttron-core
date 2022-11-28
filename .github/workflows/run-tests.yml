@@ -12,6 +12,7 @@ on:
       - reopened
     paths:
       - '**.py'
+  workflow_dispatch:
 
 defaults:
   run:
