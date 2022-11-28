@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
     - develop
-
+  workflow_dispatch:
 env:
   LANG: en_US.utf-8
   LC_ALL: en_US.utf-8
