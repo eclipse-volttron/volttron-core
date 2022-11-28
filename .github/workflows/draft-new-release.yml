@@ -51,10 +51,10 @@ jobs:
 
           echo "::set-output name=commit::$(git rev-parse HEAD)"
 
-      - name: Get previous tag
-        run: |
-          PRE_VERSION=$(git describe --abbrev=0 --tags `git rev-list --tags --skip=1 --max-count=1`)
-          echo "PRE_VERSION=$PRE_VERSION" >> $GITHUB_ENV
+      # - name: Get previous tag
+      #   run: |
+      #     PRE_VERSION=$(git describe --abbrev=0 --tags `git rev-list --tags --skip=1 --max-count=1`)
+      #     echo "PRE_VERSION=$PRE_VERSION" >> $GITHUB_ENV
 
       - name: Push new branch
         run: git push origin release/${{ github.event.inputs.version }}
