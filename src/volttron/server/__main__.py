@@ -1,46 +1,31 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Installable Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
-import yaml
+
 from gevent import monkey
 
 # monkey.patch_all()
-from volttron.types.server_config import ServerConfig
-from volttron.server.serviceloader import init_services, discover_services
+from volttron.server.serviceloader import init_services
 
 monkey.patch_socket()
 monkey.patch_ssl()
@@ -63,7 +48,7 @@ import gevent
 # import gevent.monkey
 # import gevent.threading as threading
 #
-from volttron.utils import ClientContext as cc, get_class, get_subclasses
+from volttron.utils import ClientContext as cc
 from volttron.utils.keystore import get_random_key
 
 # gevent.monkey.patch_socket()
@@ -83,35 +68,28 @@ green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying
 
 from volttron.client.known_identities import (
     PLATFORM_WEB,
-    CONFIGURATION_STORE,
-    AUTH,
     CONTROL,
     CONTROL_CONNECTION,
-    PLATFORM_HEALTH,
-    PROXY_ROUTER,
 )
 from volttron.utils import store_message_bus_config
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.utils.persistance import load_create_store
 
-from .tracking import Tracker
-
+from volttron.server.tracking import Tracker
+from volttron.types.server_config import ServiceConfigs, ServerConfig
 # TODO rmq
 # from .vip.rmq_router import RMQRouter
 
 # from volttron.utils.rmq_setup import start_rabbit
 # from volttron.utils.rmq_config_params import RMQConfig
 
-from volttron.server.router import Router, GreenRouter
-from ..services.health import HealthService
-from ..services.peer import ServicePeerNotifier
-from ..services.auth import AuthService, AuthFile, AuthEntry
-from ..services.control import ControlService
-from ..services.config_store import ConfigStoreService
+from volttron.server.router import Router
+from volttron.types.peer import ServicePeerNotifier
+from volttron.services.auth.auth_service import AuthFile, AuthEntry, AuthFileUserIdAlreadyExists
 
 # TODO Key Discovery RPC
 # from ..services.external import ExternalRPCService, KeyDiscoveryAgent
-from ..services.routing import ZMQProxyRouter
+# from ..services.routing import ZMQProxyRouter
 
 try:
     from services.web import PlatformWebService
@@ -120,27 +98,29 @@ try:
 except ImportError:
     HAS_WEB = False
 
-from .log_actions import log_to_file, configure_logging, LogLevelAction
-from . import server_argparser as config, aip
+from volttron.server.log_actions import log_to_file, configure_logging, LogLevelAction
+from volttron.server import server_argparser as config, aip
 
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
 # Only show debug on the platform when really necessary!
-# log_level_info = (
-#     'volttron.platform.main',
-#     'volttron.platform.vip.zmq_connection',
-#     'urllib3.connectionpool',
-#     'watchdog.observers.inotify_buffer',
-#     'volttron.platform.auth',
-#     'volttron.platform.store',
-#     'volttron.platform.control',
-#     'volttron.platform.vip.agent.core',
-#     'volttron.utils',
-#     'volttron.platform.vip.router'
-# )
+log_level_info = (
+    'volttron.platform.main',
+    'volttron.platform.vip.zmq_connection',
+    'urllib3.connectionpool',
+    'watchdog.observers.inotify_buffer',
+    'volttron.platform.auth',
+    'volttron.platform.store',
+    'volttron.platform.control',
+    'volttron.platform.vip.agent.core',
+    'volttron.utils',
+    'volttron.platform.vip.router',
+    'vip.router',
+    'volttron.server.router.router'
+)
 
-# for log_name in log_level_info:
-#     logging.getLogger(log_name).setLevel(logging.INFO)
+for log_name in log_level_info:
+    logging.getLogger(log_name).setLevel(logging.INFO)
 
 # No need for str after python 3.8
 VOLTTRON_INSTANCES = Path("~/.volttron_instances").expanduser().resolve()
@@ -231,32 +211,6 @@ def start_volttron_process(opts):
         # try to retrieve from config or default a value and store it in the config
         cc.get_instance_name()
 
-    if opts.bind_web_address:
-        os.environ["BIND_WEB_ADDRESS"] = opts.bind_web_address
-        parsed = urlparse(opts.bind_web_address)
-        if parsed.scheme not in ("http", "https"):
-            raise Exception("bind-web-address must begin with http or https.")
-        opts.bind_web_address = config.expandall(opts.bind_web_address)
-        # zmq with tls is supported
-        if opts.message_bus == "zmq" and parsed.scheme == "https":
-            if not opts.web_ssl_key or not opts.web_ssl_cert:
-                raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
-            if not os.path.isfile(opts.web_ssl_key) or not os.path.isfile(opts.web_ssl_cert):
-                raise Exception("zmq https requires a web-ssl-key and a web-ssl-cert file.")
-        # zmq without tls is supported through the use of a secret key, if it's None then
-        # we want to generate a secret key and set it in the config file.
-        elif opts.message_bus == "zmq" and opts.web_secret_key is None:
-            opts.web_secret_key = get_random_key()
-            _update_config_file(web_secret_key=opts.web_secret_key)
-
-    if opts.volttron_central_address:
-        parsed = urlparse(opts.volttron_central_address)
-        if parsed.scheme not in ("http", "https", "tcp", "amqp", "amqps"):
-            raise Exception(
-                "volttron-central-address must begin with tcp, amqp, amqps, http or https.")
-        opts.volttron_central_address = config.expandall(opts.volttron_central_address)
-    opts.volttron_central_serverkey = opts.volttron_central_serverkey
-
     # Log configuration options
     if getattr(opts, "show_config", False):
         _log.info("volttron version: {}".format(get_version()))
@@ -338,7 +292,10 @@ def start_volttron_process(opts):
         ],
         comments="Automatically added by platform on start",
     )
-    AuthFile().add(entry, overwrite=True)
+    try:
+        AuthFile().add(entry)
+    except AuthFileUserIdAlreadyExists:
+        pass
 
     # The following line doesn't appear to do anything, but it creates
     # a context common to the green and non-green zmq modules.
@@ -393,36 +350,10 @@ def start_volttron_process(opts):
             _log.debug("In finally")
             stop(platform_shutdown=True)
 
-    # RMQ router
-    def rmq_router(stop):
-        try:
-            RMQRouter(
-                opts.vip_address,
-                opts.vip_local_address,
-                opts.instance_name,
-                opts.vip_address,
-                volttron_central_address=opts.volttron_central_address,
-                volttron_central_serverkey=opts.volttron_central_serverkey,
-                bind_web_address=opts.bind_web_address,
-                service_notifier=notifier,
-            ).run()
-        except Exception:
-            _log.exception("Unhandled exception in rmq router loop")
-        except KeyboardInterrupt:
-            pass
-        finally:
-            _log.debug("In RMQ router finally")
-            stop(platform_shutdown=True)
-
     address = "inproc://vip"
     pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
     try:
-
-        stop_event = None
-
-        auth_task = None
         protected_topics = {}
-        config_store_task = None
         proxy_router = None
         proxy_router_task = None
 
@@ -430,65 +361,21 @@ def start_volttron_process(opts):
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
         _log.debug("********************************************************************")
 
-        # This block of code allows the volttron to write a service_config.yml file if it
-        # does not currently exist.  Each ServiceInterface class can declare a classmethod as
-        # follows:
-        #
-        # @classmethod
-        # def get_kwargs_defaults(cls) -> Dict[str, Any]:
-        #     return {
-        #         "agent-param-one": "a parameter"
-        #     }
-        #
-        # The return value will be added to the service_config.yml file in order to pass in
-        # the expected defaults. From there the user may choose to modify the defaults.
-        service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
-        if not service_config_file.exists():
-            default_configs = {}
-
-            # get the services so that we can get class objects for the services
-            discovered_services = discover_services("volttron.services")
-
-            # t is a type of "ServiceInterface" for use in finding subclasses.
-            t = get_class("volttron.types", "ServiceInterface")
-            for smodule in discovered_services:
-                try:
-                    classes = get_subclasses(smodule, t)
-                # No defaults if there isn't a ServiceInterface class found in the package
-                except ValueError:
-                    continue
-
-                # Determine if there is a default_kwargs specified on the class.  If so then
-                # add the service to the service_config.yml file.
-                #
-                # we don't use try catch for this block because in ServiceInterface there is a
-                # classmethod defined that returns {}
-                for cls in classes:
-                    defaults = cls.get_kwargs_defaults()
-                    if defaults:
-                        default_configs[smodule] = defaults
-
-            # write the default service_config.yml file
-            with service_config_file.open("wt") as fp:
-                yaml.dump(default_configs, fp)
-
         server_config = ServerConfig()
         server_config.opts = opts
         server_config.internal_address = address
-
         server_config.aip = opts.aip
-        server_config.service_config_file = service_config_file
+
         server_config.auth_file = Path(opts.volttron_home).joinpath("auth.json")
         server_config.protected_topics_file = Path(
             opts.volttron_home).joinpath("protected_topics.json")
 
-        # Initialize all of the services, using the service configuration file that has been
-        # created.  The list returned will have [(plugin_name, instance), (plugin_name1, instance1)]
-        services = init_services(server_config)
-
-        # Extract the services into two separate lists so it is easier to find out specific services
-        # by index of the plugin name.
-        plugin_names, service_instances = zip(*services)
+        # The return value will be added to the service_config.yml file in order to pass in
+        # the expected defaults. From there the user may choose to modify the defaults.
+        service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
+        service_configs = ServiceConfigs(service_config_file=service_config_file,
+                                         server_config=server_config)
+        service_configs.init_services(server_config=server_config)
 
         # This variable will hold the executing services to determine when one of the services
         # dies or the platform has been shutdown.
@@ -498,23 +385,28 @@ def start_volttron_process(opts):
         #  run the message bus regardless of whether it's zmq or rmq.
         if opts.message_bus == "zmq":
             # first service loaded must be the config store
-            config_store = service_instances[0]
-            assert isinstance(config_store, ConfigStoreService)
-            # start it up before anything else
-            spawned_greenlets.append(config_store.spawn_in_greenlet())
+            config_store = service_configs.get_service_instance("volttron.services.config_store")
 
-            # If auth service is not found then we have no auth installed, therefore
-            # a value error is raised and no authentication is available.
-            try:
-                auth_index = plugin_names.index("volttron.services.auth")
-                auth_service = service_instances[auth_index]
-            except ValueError:
-                auth_service = None
+            # start it up before anything else
+            event = gevent.event.Event()
+            task = gevent.spawn(config_store.core.run, event)
+            event.wait()
+            del event
+            spawned_greenlets.append(task)
 
             # if we have an auth service it should be started before the
             # zmq router.
+
+            auth_service = service_configs.get_service_instance("volttron.services.auth")
+            if auth_service is None:
+                _log.warning("Auth service disabled.")
+
             if auth_service:
-                spawned_greenlets.append(auth_service.spawn_in_greenlet())
+                event = gevent.event.Event()
+                task = gevent.spawn(auth_service.core.run, event)
+                event.wait()
+                del event
+                spawned_greenlets.append(task)
 
             # Start ZMQ router in separate thread to remain responsive
             thread = threading.Thread(target=zmq_router, args=(config_store.core.stop, ))
@@ -524,98 +416,6 @@ def start_volttron_process(opts):
             gevent.sleep(0.1)
             if not thread.is_alive():
                 sys.exit()
-        else:
-            pass
-            # TODO: Add rabbit
-            # Start RabbitMQ server if not running
-            # rmq_config = RMQConfig()
-            # if rmq_config is None:
-            #     _log.error("DEBUG: Exiting due to error in rabbitmq config file. Please check.")
-            #     sys.exit()
-
-            # # If RabbitMQ is started as service, don't start it through the code
-            # if not rmq_config.rabbitmq_as_service:
-            #     try:
-            #         start_rabbit(rmq_config.rmq_home)
-            #     except AttributeError as exc:
-            #         _log.error("Exception while starting RabbitMQ. Check the path in the config file.")
-            #         sys.exit()
-            #     except subprocess.CalledProcessError as exc:
-            #         _log.error("Unable to start rabbitmq server. "
-            #                    "Check rabbitmq log for errors")
-            #         sys.exit()
-
-            # Start the config store before auth so we may one day have auth use it.
-            # config_store = ConfigStoreService(
-            #     address=address,
-            #     identity=CONFIGURATION_STORE,
-            #     message_bus=opts.message_bus,
-            # )
-            #
-            # thread = threading.Thread(target=rmq_router, args=(config_store.core.stop, ))
-            # thread.daemon = True
-            # thread.start()
-            #
-            # gevent.sleep(0.1)
-            # if not thread.is_alive():
-            #     sys.exit()
-            #
-            # gevent.sleep(1)
-            # event = gevent.event.Event()
-            # config_store_task = gevent.spawn(config_store.core.run, event)
-            # event.wait()
-            # del event
-            #
-            # # Ensure auth service is running before router
-            # auth_file = os.path.join(opts.volttron_home, "auth.json")
-            # auth = AuthService(
-            #     auth_file,
-            #     protected_topics_file,
-            #     opts.setup_mode,
-            #     opts.aip,
-            #     address=address,
-            #     identity=AUTH,
-            #     enable_store=False,
-            #     message_bus="rmq",
-            # )
-            #
-            # event = gevent.event.Event()
-            # auth_task = gevent.spawn(auth.core.run, event)
-            # event.wait()
-            # del event
-            #
-            # protected_topics = auth.get_protected_topics()
-            #
-            # # Spawn Greenlet friendly ZMQ router
-            # # Necessary for backward compatibility with ZMQ message bus
-            # green_router = GreenRouter(
-            #     opts.vip_local_address,
-            #     opts.vip_address,
-            #     secretkey=secretkey,
-            #     publickey=publickey,
-            #     default_user_id="vip.service",
-            #     monitor=opts.monitor,
-            #     tracker=tracker,
-            #     volttron_central_address=opts.volttron_central_address,
-            #     volttron_central_serverkey=opts.volttron_central_serverkey,
-            #     instance_name=opts.instance_name,
-            #     bind_web_address=opts.bind_web_address,
-            #     protected_topics=protected_topics,
-            #     external_address_file=external_address_file,
-            #     msgdebug=opts.msgdebug,
-            #     service_notifier=notifier,
-            # )
-            #
-            # proxy_router = ZMQProxyRouter(
-            #     address=address,
-            #     identity=PROXY_ROUTER,
-            #     zmq_router=green_router,
-            #     message_bus=opts.message_bus,
-            # )
-            # event = gevent.event.Event()
-            # proxy_router_task = gevent.spawn(proxy_router.core.run, event)
-            # event.wait()
-            # del event
 
         # TODO Better make this so that it removes instances from this file or it will just be an
         #  ever increasing file depending on the number of instances it could get quite large.
@@ -644,14 +444,17 @@ def start_volttron_process(opts):
         _log.debug("external_address_file file %s", external_address_file)
 
         # Auth and config store services have already been run, so we can run the others now.
-        for i, plugin_name in enumerate(plugin_names):
-            if plugin_name not in ('volttron.services.auth', 'volttron.services.config_store'):
-                _log.debug(f"spawning {plugin_name}")
-                spawned_greenlets.append(service_instances[i].spawn_in_greenlet())
+        for svc_name in service_configs.get_service_names():
+            if svc_name not in ('volttron.services.auth', 'volttron.services.config_store'):
+                _log.debug(f"Starting service: {svc_name}")
+                obj = service_configs.get_service_instance(svc_name)
+                event = gevent.event.Event()
+                task = gevent.spawn(obj.core.run, event)
+                event.wait()
+                spawned_greenlets.append(task)
 
-        # Allow auth entry to be able to manage all config store entries.
-        control_service_index = plugin_names.index("volttron.services.control")
-        control_service = service_instances[control_service_index]
+        control_service = service_configs.get_service_instance("volttron.services.control")
+
         entry = AuthEntry(
             credentials=control_service.core.publickey,
             user_id=CONTROL,
@@ -665,7 +468,10 @@ def start_volttron_process(opts):
             ],
             comments="Automatically added by platform on start",
         )
-        AuthFile().add(entry, overwrite=True)
+        try:
+            AuthFile().add(entry)
+        except AuthFileUserIdAlreadyExists:
+            pass
 
         # # TODO Key discovery agent add in.
         # # KeyDiscoveryAgent(
@@ -680,79 +486,9 @@ def start_volttron_process(opts):
         # # ),
         # ]
 
-        # Begin the webserver based options here.
-        if opts.bind_web_address is not None:
-            if not HAS_WEB:
-                sys.stderr.write("Web libraries not installed, but bind web address specified\n")
-                sys.stderr.write("Please install web libraries using python3 bootstrap.py --web\n")
-                sys.exit(-1)
-
-            if opts.instance_name is None:
-                _update_config_file()
-
-            if opts.message_bus == "rmq":
-                if (opts.web_ssl_key is None or opts.web_ssl_cert is None
-                        or (not os.path.isfile(opts.web_ssl_key)
-                            and not os.path.isfile(opts.web_ssl_cert))):
-                    # This is different than the master.web cert which is used for the agent to connect
-                    # to rmq server.  The master.web-server certificate will be used for the platform web
-                    # services.
-                    base_webserver_name = PLATFORM_WEB + "-server"
-                    from volttron.utils.certs import Certs
-
-                    certs = Certs()
-                    certs.create_signed_cert_files(base_webserver_name, cert_type="server")
-                    opts.web_ssl_key = certs.private_key_file(base_webserver_name)
-                    opts.web_ssl_cert = certs.cert_file(base_webserver_name)
-
-            _log.info("Starting platform web service")
-            services.append(
-                PlatformWebService(
-                    serverkey=publickey,
-                    identity=PLATFORM_WEB,
-                    address=address,
-                    bind_web_address=opts.bind_web_address,
-                    volttron_central_address=opts.volttron_central_address,
-                    enable_store=False,
-                    message_bus=opts.message_bus,
-                    volttron_central_rmq_address=opts.volttron_central_rmq_address,
-                    web_ssl_key=opts.web_ssl_key,
-                    web_ssl_cert=opts.web_ssl_cert,
-                    web_secret_key=opts.web_secret_key,
-                ))
-
-        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path(PLATFORM_WEB))
-        # entry = AuthEntry(
-        #     credentials=encode_key(decode_key(ks_platformweb.public)),
-        #     user_id=PLATFORM_WEB,
-        #     capabilities=["allow_auth_modifications"],
-        #     comments="Automatically added by platform on start",
-        # )
-        # AuthFile().add(entry, overwrite=True)
-
-        # # PLATFORM_WEB did not work on RMQ. Referred to agent as master
-        # # Added this auth to allow RPC calls for credential authentication
-        # # when using the RMQ messagebus.
-        # ks_platformweb = KeyStore(KeyStore.get_agent_keystore_path('master'))
-        # entry = AuthEntry(credentials=encode_key(decode_key(ks_platformweb.public)),
-        #                   user_id='master',
-        #                   capabilities=['allow_auth_modifications'],
-        #                   comments='Automatically added by platform on start')
-        # AuthFile().add(entry, overwrite=True)
-
-        health_service_index = plugin_names.index("volttron.services.health")
-        health_service = service_instances[health_service_index]
-        notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
-        # # #services.append(health_service)
-        # events = [gevent.event.Event() for service in service_instances]
-        # # tasks = [gevent.spawn(service.core.run, event) for service, event in zip(services, events)]
-        # # tasks.append(config_store_task)
-        # # tasks.append(auth_task)
-        # # if stop_event:
-        # #     tasks.append(stop_event)
-        # gevent.wait()
-        #
-        # del events
+        health_service = service_configs.get_service_instance("volttron.services.health")
+        if health_service is not None:
+            notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
 
         # Auto-start agents now that all services are up
         if opts.autostart:

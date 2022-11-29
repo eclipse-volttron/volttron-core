@@ -1,40 +1,34 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Installable Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
+from gevent import monkey
+
+from volttron.services.auth import AuthFile
+from volttron.services.auth.auth_service import AuthException, AuthEntry
+
+monkey.patch_all()
+import gevent
+import gevent.event
 
 import argparse
 import collections
@@ -50,9 +44,6 @@ import tarfile
 import tempfile
 from typing import List
 from datetime import timedelta, datetime
-
-import gevent
-import gevent.event
 
 # TODO Requests dependency
 # import requests
@@ -80,6 +71,7 @@ import gevent.event
 # from volttron.utils.rmq_setup import check_rabbit_status
 # from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.client.commands.install_agents import add_install_agent_parser
+from volttron.client.commands.connection import ControlConnection
 
 from volttron.utils import ClientContext as cc, get_address
 from volttron.utils import jsonapi
@@ -100,8 +92,6 @@ from volttron.client.known_identities import (
 
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.client.vip.agent.errors import Unreachable, VIPError
-
-from .connection import ControlConnection
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -188,7 +178,7 @@ def filter_agent(agents, pattern, opts):
 
 def backup_agent_data(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.sep)    # os.path.basename(source_dir))
+        tar.add(source_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
 
 
 def restore_agent_data_from_tgz(source_file, output_dir):
@@ -217,7 +207,7 @@ def tag_agent(opts):
             msg = "agent not found"
         _stderr.write("{}: error: {}: {}\n".format(opts.command, msg, opts.agent))
         return 10
-    (agent, ) = agents
+    (agent,) = agents
     if opts.tag:
         _stdout.write("Tagging {} {}\n".format(agent.uuid, agent.name))
         opts.connection.call("tag_agent", agent.uuid, opts.tag)
@@ -258,7 +248,6 @@ def _calc_min_uuid_length(agents):
 
 
 def list_agents(opts):
-
     def get_priority(agent):
         return opts.aip.agent_priority(agent.uuid) or ""
 
@@ -608,11 +597,11 @@ def status_agents(opts):
             agent = agents[uuid]
             agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = Agent(name,
-                                         None,
-                                         uuid,
-                                         vip_identity=identity,
-                                         agent_user=agent_user)
+            agents[uuid] = agent = AgentMeta(name,
+                                             None,
+                                             uuid,
+                                             vip_identity=identity,
+                                             agent_user=agent_user)
         status[uuid] = stat
     agents = list(agents.values())
 
@@ -885,19 +874,18 @@ def list_auth(opts, indices=None):
 
 
 def _ask_for_auth_fields(
-    domain=None,
-    address=None,
-    user_id=None,
-    capabilities=None,
-    roles=None,
-    groups=None,
-    mechanism="CURVE",
-    credentials=None,
-    comments=None,
-    enabled=True,
-    **kwargs,
+        domain=None,
+        address=None,
+        user_id=None,
+        capabilities=None,
+        roles=None,
+        groups=None,
+        mechanism="CURVE",
+        credentials=None,
+        comments=None,
+        enabled=True,
+        **kwargs,
 ):
-
     class Asker(object):
 
         def __init__(self):
@@ -1430,7 +1418,6 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
 
 
 def get_agent_publickey(opts):
-
     def get_key(agent):
         return opts.aip.get_agent_keystore(agent.uuid).public
 
@@ -2292,7 +2279,7 @@ def main():
         "pattern",
         nargs="*",
         help="Identity of agent, followed by method(s)"
-        "",
+             "",
     )
     rpc_code.add_argument(
         "-v",
@@ -2324,7 +2311,7 @@ def main():
         "--verbose",
         action="store_true",
         help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
-        "is specified, display the doc-string associated with the method.",
+             "is specified, display the doc-string associated with the method.",
     )
 
     rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
@@ -2705,7 +2692,7 @@ def main():
         dest="new_config",
         action="store_true",
         help="Ignore any existing configuration and creates new empty file."
-        " Configuration is not written if left empty. Type defaults to JSON.",
+             " Configuration is not written if left empty. Type defaults to JSON.",
     )
 
     config_store_edit.set_defaults(func=edit_config, config_type="json")
@@ -2941,14 +2928,16 @@ def main():
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)
 
-    with gevent.Timeout(opts.timeout):
-        return opts.func(opts)
-
+    # with gevent.Timeout(opts.timeout):
+    #     return opts.func(opts)
+    # with gevent.Timeout(opts.timeout):
+    #     return opts.func(opts)
+    # sys.exit(0)
     try:
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)
     except gevent.Timeout:
-        _stderr.write("{}: operation timed out\n".format(opts.command))
+        _stderr.write(f"{opts.command} function {opts.func.__name__}: operation timed out\n")
         return 75
     except RemoteError as exc:
         print_tb = exc.print_tb
@@ -2976,12 +2965,18 @@ def main():
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
             try:
-                opts.connection.server.core.stop()
-            except Unreachable:
-                # its ok for this to fail at this point it might not even be valid.
-                pass
+                opts.connection.kill()
             finally:
                 opts.connection = None
+            # try:
+            #     opts.connection.server.core.stop(timeout=1)
+            # except gevent.Timeout:
+            #     pass
+            # except Unreachable:
+            #     # its ok for this to fail at this point it might not even be valid.
+            #     pass
+            # finally:
+            #     opts.connection = None
 
     if opts.debug:
         print_tb()
