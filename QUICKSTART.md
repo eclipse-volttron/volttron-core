@@ -38,11 +38,6 @@ Depending on how one wants to deploy VOLTTRON an environment must be built/creat
     (env)> vctl status
     No installed Agents found
     (env)> tail volttron.log
-    2022-11-30 10:14:16,763 () volttron.services.auth.auth_service(335) INFO: authentication success: userid=b'44db930a-9de7-4534-b7cd-b25466cf020f' domain='vip', address='localhost:9001:1000:5658', mechanism='CURVE', credentials=['pQeU_zSK9uFAX1_J_ISnhYMd-U--qvyn6WRgvfkfCBE'], user='control.connection'
-2022-11-30 10:14:29,657 () volttron.services.auth.auth_service(333) INFO: AUTH: After authenticate user id: control.connection, b'44db930a-9de7-4534-b7cd-b25466cf020f'
-2022-11-30 10:14:29,657 () volttron.services.auth.auth_service(335) INFO: authentication success: userid=b'44db930a-9de7-4534-b7cd-b25466cf020f' domain='vip', address='localhost:9001:1000:5690', mechanism='CURVE', credentials=['pQeU_zSK9uFAX1_J_ISnhYMd-U--qvyn6WRgvfkfCBE'], user='control.connection'
-2022-11-30 10:14:29,660 () volttron.services.control.control_service(311) INFO: CONTROL RPC list_agents
-2022-11-30 10:14:29,664 () volttron.services.control.control_service(311) INFO: CONTROL RPC list_agents
     ```
 
 ### Agent and Library Installation
@@ -120,7 +115,7 @@ Depending on how one wants to deploy VOLTTRON an environment must be built/creat
 
 ## Finding Agents/Libraries
 
-All agents and libraries are stored on (pypi)[https://pypi.org/].  Searching for `volttron` will give you all of the deployed agents and libraries available.
+All agents and libraries are stored on [pypi](https://pypi.org/).  Searching for `volttron` will give you all of the deployed agents and libraries available.
 
 ## Development
 
