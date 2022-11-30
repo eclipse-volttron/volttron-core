@@ -1,6 +1,6 @@
 # Quickstart Deployment Guide
 
-The following document shows how to install and configure the platform driver with a fake driver, the sqlite-historian and a listener agent.
+The following document shows how to install and configure the platform driver with a fake driver, the sqlite-historian, and a listener agent.
 
 ## Requirements
 
@@ -94,14 +94,14 @@ Depending on how one wants to deploy VOLTTRON an environment must be built/creat
     ```
  1. Install the fake driver library into the python environment
     ```shell
-    # Note this is not an agent, but a library that extends from volttron-lib-base-driver.  
+    # Note this is not an agent, but a library that extends from volttron-lib-base-driver.
     # Libraries allow the volttron-platform-driver agent to interact with devices without the volttron-platform-driver
-    # knowing anything about the device protocol itself. 
+    # knowing anything about the device protocol itself.
     (env)> pip install volttron-lib-fake-driver
     ```
  1. Install the volttron-platform driver to the VOLTTRON instance.
     ```shell
-    (env)> vctl install volttron-platform-driver --vip-identity platform.driver --start 
+    (env)> vctl install volttron-platform-driver --vip-identity platform.driver --start
     ```
  1. Store the configuration files into the platform.driver's config store
     ```shell
@@ -112,11 +112,15 @@ Depending on how one wants to deploy VOLTTRON an environment must be built/creat
     ```shell
     (env)> vctl install volttron-sqlite-historian --vip-identity platform.historian --start
     ```
+ 1. Verify that all agents have been successfully installed and are running.
+    ```shell
+    (env)> vctl status
+    ```
 
 ## Finding Agents/Libraries
 
-All agents and libraries are stored on [pypi](https://pypi.org/).  Searching for `volttron` will give you all of the deployed agents and libraries available.
+All agents and libraries are stored on [pypi](https://pypi.org/search/?q=volttron).  Searching for `volttron` will give you all of the deployed agents and libraries available.
 
 ## Development
 
-For information on developing new agents and libraries please see (DEVELOPING_ON_MODULAR.md)[DEVELOPING_ON_MODULAR.md]
+For information on developing new agents and libraries please see [DEVELOPING_ON_MODULAR.md](DEVELOPING_ON_MODULAR.md)
