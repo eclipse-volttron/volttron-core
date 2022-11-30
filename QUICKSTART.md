@@ -4,7 +4,7 @@ The following document shows how to install and configure the platform driver wi
 
 ## Requirements
 
-There are system level requirements that must be met before installing VOLTTRON.  One can install on ubuntu using the following commands:
+There are system level requirements that must be met before installing VOLTTRON.  One can install on Ubuntu using the following commands:
 
 ```shell
 sudo apt-get update
