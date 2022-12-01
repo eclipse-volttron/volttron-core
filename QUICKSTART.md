@@ -100,12 +100,12 @@ Depending on how one wants to deploy VOLTTRON an environment must be built/creat
     (env)> pip install volttron-lib-fake-driver
     ```
  1. Install the volttron-platform driver to the VOLTTRON instance.
-    ```shell   
-    (env)> vctl install volttron-platform-driver --agent-config  --vip-identity platform.driver --start
+    ```shell
+    (env)> vctl install volttron-platform-driver --vip-identity platform.driver --start
     ```
  1. Store the configuration files into the platform.driver's config store
     ```shell
-    (env)> vctl config store platform.driver devices/campus/building/fake fake.config.json
+    (env)> vctl config store platform.driver devices/campus/building/fake fake.config
     (env)> vctl config store platform.driver fake.csv fake.csv --csv
     ```
  1. Create a config file for the sqlite historian.
