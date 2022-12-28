@@ -1,3 +1,27 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Installable Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
+
 from configparser import ConfigParser
 
 # used to make sure that volttron_home hasn't be modified
@@ -118,7 +142,17 @@ class ClientContext:
     @classmethod
     def get_instance_name(cls):
         """Get type of message bus - zeromq or rabbbitmq."""
-        return cls.get_config_param("instance-name")
+        instance_name = cls.get_config_param('instance-name', None)
+        if instance_name is not None:
+            instance_name = instance_name.strip('"')
+
+        if not instance_name:
+            _log.warning("Using hostname as instance name.")
+            if os.path.isfile('/etc/hostname'):
+                with open('/etc/hostname') as f:
+                    instance_name = f.read().strip()
+
+        return instance_name
 
     @classmethod
     def is_web_enabled(cls):

@@ -1,40 +1,27 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Installable Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
+
 """Component for the instantiation and packaging of agents."""
 
 import errno
@@ -508,34 +495,30 @@ class AIPplatform(object):
         Installs the agent into the current environment, setup the agent data directory and
         agent data structure.
         """
+        _log.info(f"AGENT_WHEEL: {agent_wheel}")
+
         if agent_config is None:
             agent_config = dict()
 
         cmd = ["pip", "install", agent_wheel]
         response = execute_command(cmd)
-
+        agent_name = None
         find_success = re.match("Successfully installed (.*)", response.strip().split("\n")[-1])
 
-        if not find_success:
+        if find_success:
+            _log.debug("Successfully installed package: {find_success}")
+            agent_name = self._get_agent_name_on_success(
+                find_success, self._construct_package_name_from_agent_wheel(agent_wheel))
+        elif not find_success:
             find_already_installed = re.match(
                 f"Requirement already satisfied: (.*) from file://{agent_wheel}", response)
             if not find_already_installed:
-                groups = re.search(".*\n(.*) is already installed with the same version",
-                                   response).groups()
-                if groups:
-                    find_already_installed = groups[0].strip()
-                    cmd = ["pip", "show", find_already_installed]
-                    response = execute_command(cmd)
-                    version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
-                    agent_name = find_already_installed + "-" + version
-                else:
-                    raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
+                _log.debug("Wheel NOT already installed...")
+                agent_name = self._get_agent_name_on_response(response, agent_wheel)
             else:
                 _log.info("Wheel already installed...")
                 agent_name = find_already_installed.groups()[0].replace("==", "-")
-        else:
-            agent_name = find_success.groups()[0]
-
+        _log.info(f"AGENT_NAME: {agent_name}")
         final_identity = self._setup_agent_vip_id(agent_name, vip_identity=vip_identity)
 
         if self.secure_agent_user:
@@ -600,6 +583,32 @@ class AIPplatform(object):
 
         return agent_uuid
 
+    def _construct_package_name_from_agent_wheel(self, agent_wheel):
+        wheel = agent_wheel.split("/")[-1]
+        wheel = wheel.replace("-py3-none-any.whl", "")
+        return wheel.replace("_", "-")
+
+    def _get_agent_name_on_success(self, find_success, wheel_target):
+        _log.info(f"wheel_target: {wheel_target}")
+
+        for package in find_success.groups()[0].split():
+            # search for the agent name nthat we want
+            _log.debug(f"package: {package}")
+            if package == wheel_target:
+                return package
+        raise ValueError("Could not find package")
+
+    def _get_agent_name_on_response(self, response, agent_wheel):
+        groups = re.search(".*\n(.*) is already installed with the same version",
+                           response).groups()
+        if groups:
+            find_already_installed = groups[0].strip()
+            cmd = ["pip", "show", find_already_installed]
+            response = execute_command(cmd)
+            version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
+            return find_already_installed + "-" + version
+        raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
+
     def _setup_agent_vip_id(self, agent_name, vip_identity=None):
         # agent_path = os.path.join(self.install_dir, agent_name)
         # name = self.agent_name(agent_name)
@@ -633,7 +642,7 @@ class AIPplatform(object):
                 "Agent with VIP ID {} already installed on platform.".format(name_template))
 
         if not is_valid_identity(final_identity):
-            raise ValueError("Invalid identity detecated: {}".format(",".format(final_identity)))
+            raise ValueError("Invalid identity detected: {}".format(",".format(final_identity)))
 
         # identity_filename = os.path.join(agent_path, "IDENTITY")
         #
