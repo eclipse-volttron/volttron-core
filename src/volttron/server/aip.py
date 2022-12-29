@@ -873,7 +873,7 @@ class AIPplatform(object):
                 raise ValueError("invalid agent")
             vip_identity = self.uuid_vip_id_map[agent_uuid]
 
-        tag_file = os.path.join(self.install_dir, vip_identity, "TAG")
+        tag_file = self.get_subpath(vip_identity, "TAG")
         with ignore_enoent, open(tag_file, "r") as file:
             return file.readline(64)
 
@@ -887,11 +887,38 @@ class AIPplatform(object):
         # TODO: wheel_wrap
         # pkg = UnpackedPackage(os.path.join(agent_path, name))
         return pkg.version
+    
+    def get_subpath(self, uuid_or_identity: str, path: str = "") -> str:
+        """ Retrieve a path inside the agent's directory
+        
+        This method does not check for existence of the path.  It will only return the
+        correct string reference.  It is up to the caller to check for existence or non-existence
+        of the path.
+        
+        :param uuid_or_identity: 
+            An identifier for the agent either the uuid associated with the agent or it's identity.
+            
+        :param path:
+            A path below the agent's directory in VOLTTRON_HOME/agents/<identity> that the
+            caller wants to referenece.
+
+        :returns: A string referencing the correct subpath to the requestors path.
+        
+        :since
+        """
+        
+        try:
+            uuid_passed = uuid.UUID(uuid_or_identity)
+            identity = self.uuid_vip_id_map[uuid_or_identity]
+        except ValueError:
+            identity = uuid_or_identity
+        
+        return os.path.join(self.install_dir, identity, path)
 
     def agent_dir(self, agent_uuid):
         if "/" in agent_uuid or agent_uuid in [".", ".."]:
             raise ValueError("invalid agent")
-        return os.path.join(self.install_dir, agent_uuid, self.agent_name(agent_uuid))
+        return self.get_subpath(agent_uuid)
 
     def agent_versions(self):
         agents = {}
@@ -905,14 +932,12 @@ class AIPplatform(object):
                 pass
         return agents
 
-    def _agent_priority(self, agent_uuid):
-        # TODO update path
-        autostart = os.path.join(self.install_dir, agent_uuid, "AUTOSTART")
+    def _agent_priority(self, agent_uuid):        
+        autostart = self.get_subpath(agent_uuid, "AUTOSTART")
         with ignore_enoent, open(autostart) as file:
             return file.readline(100).strip()
 
     def agent_priority(self, agent_uuid):
-        # TODO update path
         if "/" in agent_uuid or agent_uuid in [".", ".."]:
             raise ValueError("invalid agent")
         return self._agent_priority(agent_uuid)
@@ -920,7 +945,7 @@ class AIPplatform(object):
     def prioritize_agent(self, agent_uuid, priority="50"):
         if "/" in agent_uuid or agent_uuid in [".", ".."]:
             raise ValueError("invalid agent")
-        autostart = os.path.join(self.install_dir, agent_uuid, "AUTOSTART")
+        autostart = self.get_subpath(agent_uuid, "AUTOSTART")
         if priority is None:
             with ignore_enoent:
                 os.unlink(autostart)
