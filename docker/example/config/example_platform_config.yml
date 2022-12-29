@@ -1,0 +1,75 @@
+# Properties to be added to the root config file
+# the properties should be ingestible for volttron
+# the values will be presented in the config file
+# as key=value
+config:
+  vip-address: tcp://0.0.0.0:22916
+  instance-name: volttron1
+
+services:
+  volttron.services.web:
+    libraries: 
+      - volttron-lib-web
+    enabled: true
+    kwargs:
+      bind_web_address: http://127.0.0.1:8080
+      # Since http we need a web_secret_key for authentication
+      web_secret_key: "A secret hasher"
+
+# Agents dictionary to install. The key must be a valid
+# identity for the agent to be installed correctly.
+agents:
+
+  # Each agent identity.config file should be in the configs
+  # directory and will be used to install the agent.
+  listener:
+    source: volttron-listener
+    tag: listener
+
+  platform.driver:
+    source: volttron-platform-driver
+    libraries:
+      - volttron-lib-fake-driver
+    config_store:
+      fake.csv:
+        file: platform.driver/fake.csv
+        type: --csv
+      devices/fake-campus/fake-building/fake-device:
+        file: platform.driver/fake.json
+    tag: driver
+
+  # # TLDR: If you want to install a Volttron Central Platform agent, you must first install the
+  # # Platform Driver before installing VCP agent
+  # # Additional: VolttronCentralPlatform requires Bacpypes, which gets installed only when Platform Driver is installed.
+  # # This is an unfortunate and not ideal setup, however, this issue will be addresed in a later PR so that VCP Agent
+  # # can be installed on its own without having to install Platform Driver first.
+  # platform.agent:
+  #   source: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform
+  #   config: $CONFIG/vcp.config
+  #   tag: vcp
+
+  # platform.actuator:
+  #   source: $VOLTTRON_ROOT/services/core/ActuatorAgent
+  #   tag: actuator
+
+  # platform.historian:
+  #   source: $VOLTTRON_ROOT/services/core/SQLHistorian
+  #   config: $CONFIG/historian.config
+  #   tag: historian
+
+  # volttron.central:
+  #   source: $VOLTTRON_ROOT/services/core/VolttronCentral
+  #   config: $CONFIG/vc.config
+  #   tag: vc
+
+#  weather:
+#    source: $VOLTTRON_ROOT/examples/DataPublisher
+#    config: $CONFIG/weather.config
+
+#  price:
+#    source: $VOLTTRON_ROOT/examples/DataPublisher
+#    config: $CONFIG/price.config
+
+#  platform.bacnet_proxy:
+#    source: $VOLTTRON_ROOT/services/core/BACnetProxy
+#    config: $CONFIG/bacnet-proxy.json
