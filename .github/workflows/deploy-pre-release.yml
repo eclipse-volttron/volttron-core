@@ -81,13 +81,34 @@ jobs:
       #----------------------------------------------
       - name: Bump Version
         run: |
+
+          poetry_short = poetry version --short | cut -f1 -d"-"
+
           # current_tag is the last tagged relese in the repository.   From there
           # we need to remove the v from the begining of the tag.
           if ! $(git tag -l "v*" = ''); then
             # uses -V which is version sort to keep it monotonically increasing.
             current_tag=$(git tag -l "v*" | grep --invert-match '-' | sort --reverse -V  | sed -n 1p)
+            if [[ $current_tag == *"-"* ]]
+            then
+              version=$(echo $current_tag | cut -f1 -d"-")
+            else
+              version=$(echo $current_tag | cut -f1 -d"a")
+            fi
+
+            version=${version:1}
+                        
+            if [[ "${version}" < "${poetry_short}" ]]
+            then
+              current_tag=v${poetry_short}
+            fi
+            if [[ $version == $poetry_short ]]
+            then
+              current_tag=v${poetry_short}
+            fi
+
           else
-            current_tag=v10.0.0
+            current_tag=v${poetry_short}
           fi
 
           current_tag=${current_tag#?}
