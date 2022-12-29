@@ -82,7 +82,7 @@ jobs:
       - name: Bump Version
         run: |
 
-          poetry_short=poetry version --short | cut -f1 -d"-"
+          poetry_short=$(poetry version --short | cut -f1 -d"-")
 
           # current_tag is the last tagged relese in the repository.   From there
           # we need to remove the v from the begining of the tag.
