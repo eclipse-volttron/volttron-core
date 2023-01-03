@@ -33,6 +33,7 @@ import re
 import shutil
 import signal
 import sys
+import tarfile
 import uuid
 from typing import Optional
 
@@ -483,42 +484,67 @@ class AIPplatform(object):
             raise
         return agent_uuid
 
+    def backup_agent_data(self, agent_uuid, publickey, secretkey, vip_identity):
+        backup_agent_file = None
+        if agent_uuid:
+            _log.debug(f"There is an existing agent {agent_uuid}")
+            old_agent_data_dir = self.get_agent_data_dir(agent_uuid)
+            if os.listdir(old_agent_data_dir):
+                # And there is data to backup
+                backup_agent_file = "/tmp/{}.tar.gz".format(agent_uuid)
+                with tarfile.open(backup_agent_file, "w:gz") as tar:
+                    tar.add(old_agent_data_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
+            # current agent's keystore overrides any keystore data passed
+            keystore = self.__get_agent_keystore__(vip_identity, publickey, secretkey)
+            publickey = keystore.public
+            secretkey = keystore.secret
+
+            _log.info('Removing previous version of agent "{}"\n'.format(vip_identity))
+            self.remove_agent(agent_uuid)
+        return backup_agent_file, publickey, secretkey
+
+    @staticmethod
+    def restore_agent_data_from_tgz(source_file, output_dir):
+        # Open tarfile
+        with tarfile.open(source_file, mode="r:gz") as tar:
+            tar.extractall(output_dir)
+
     def install_agent(self,
-                      agent_wheel,
+                      agent,
                       vip_identity=None,
                       publickey=None,
                       secretkey=None,
-                      agent_config=None):
+                      agent_config=None,
+                      force=False):
         """
-        Install the agent into the current environment.
-
-        Installs the agent into the current environment, setup the agent data directory and
+        Installs the agent into the current environment, set up the agent data directory and
         agent data structure.
         """
-        _log.info(f"AGENT_WHEEL: {agent_wheel}")
-
         if agent_config is None:
             agent_config = dict()
 
-        cmd = ["pip", "install", agent_wheel]
-        response = execute_command(cmd)
-        agent_name = None
-        find_success = re.match("Successfully installed (.*)", response.strip().split("\n")[-1])
+        agent_name = self.install_agent_source(agent, force)
 
-        if find_success:
-            _log.debug("Successfully installed package: {find_success}")
-            agent_name = self._get_agent_name_on_success(
-                find_success, self._construct_package_name_from_agent_wheel(agent_wheel))
-        elif not find_success:
-            find_already_installed = re.match(
-                f"Requirement already satisfied: (.*) from file://{agent_wheel}", response)
-            if not find_already_installed:
-                _log.debug("Wheel NOT already installed...")
-                agent_name = self._get_agent_name_on_response(response, agent_wheel)
-            else:
-                _log.info("Wheel already installed...")
-                agent_name = find_already_installed.groups()[0].replace("==", "-")
-        _log.info(f"AGENT_NAME: {agent_name}")
+        # get default vip_identity if vip_identity is not passed
+        # default value will be in "agent_name-default-vip-id" file in site-packages dir
+        if vip_identity is None:
+            # get site-packages dir using agent's package name
+            # installed package name is agent_name without version. Version is at the end. ex. agent-name-0.2.1
+            installed_package_name = agent_name[0:agent_name.rfind("-")]
+            cmd = ["pip", "show", installed_package_name]
+            response = execute_command(cmd)
+            site_package_dir = re.search(".*\nLocation: (.*)", response).groups()[0].strip()
+            # get default vip id
+            default_vip_id_file = os.path.join(site_package_dir, f"{agent_name}-default-vip-id")
+            _log.info(f"Default vip id file is {default_vip_id_file}")
+            if os.path.isfile(default_vip_id_file):
+                with open(str(default_vip_id_file)) as fin:
+                    vip_identity = fin.read().strip()
+
+        agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
+
+        backup_agent_file, publickey, secretkey = self.backup_agent_data(agent_uuid, publickey, secretkey, vip_identity)
+
         final_identity = self._setup_agent_vip_id(agent_name, vip_identity=vip_identity)
 
         if self.secure_agent_user:
@@ -526,13 +552,6 @@ class AIPplatform(object):
 
         uuid_values = self.uuid_vip_id_map.keys()
 
-        # After the while statement either error out or we have
-        # an agent directory with UUID file in it.
-        # agents/
-        #     agent_identity/
-        #           data/
-        #           UUID
-        #
         while True:
             agent_uuid = str(uuid.uuid4())
             # will need below check if dynamic agents get uuid
@@ -577,30 +596,95 @@ class AIPplatform(object):
             self.vip_id_uuid_map[final_identity] = agent_uuid
             self.uuid_vip_id_map[agent_uuid] = final_identity
 
+            if backup_agent_file is not None:
+                self.restore_agent_data_from_tgz(
+                    backup_agent_file,
+                    self.get_agent_data_dir(agent_uuid),
+                )
+
         except Exception:
             shutil.rmtree(agent_path)
             raise
 
         return agent_uuid
 
-    def _construct_package_name_from_agent_wheel(self, agent_wheel):
-        wheel = agent_wheel.split("/")[-1]
-        wheel = wheel.replace("-py3-none-any.whl", "")
-        return wheel.replace("_", "-")
+    def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
+        """
+        This will raise a ValueError if the identity passed exists but
+        force was not True when this function is called.
 
-    def _get_agent_name_on_success(self, find_success, wheel_target):
-        _log.info(f"wheel_target: {wheel_target}")
+        This function should be called before any agent is installed through
+        the respective message buses.
+        """
+        # at this point if agent_uuid is populated then there is an
+        # identity of that already available.
+        agent_uuid = None
+        if vip_identity:
+            agent_uuid = self.vip_id_uuid_map.get(vip_identity)
+        if agent_uuid and not force:
+            raise ValueError("Identity already exists, but not forced!")
+        return agent_uuid
 
+    def install_agent_source(self, agent, force):
+        _log.info(f"AGENT_WHEEL: {agent}")
+
+        if force:
+            cmd = ["pip", "install", "--force-reinstall", agent]
+        else:
+            cmd = ["pip", "install", agent]
+
+        response = execute_command(cmd)
+        agent_name = None
+        last_line = response.strip().split("\n")[-1]
+        _log.debug(f"last line of response {last_line}")
+        find_success = re.match("Successfully installed (.*)", last_line)
+
+        if find_success:
+            _log.debug(f"Successfully installed package: {find_success}")
+            # if successfully installed packages includes the agent then agent_name should be returned.
+            agent_name = self._get_agent_name_on_success(
+                find_success, self._construct_package_name_from_agent_wheel(agent))
+
+        # agent was not installed. Check if agent package already exists
+        if not agent_name:
+            # output in this case depends on whether you install from pypi or wheel
+            if agent.endswith(".whl") and os.path.isfile(agent):
+                # format :
+                # {package name} is already installed with the same version as the provided wheel.
+                agent_name = self._parse_wheel_install_response(response, agent)
+            else:
+                # install from pypi - output will have format
+                # Requirement already satisfied: {name} in ./.venv/lib/python3.8/site-packages ({version})
+                agent_name = self._parse_pypi_install_response(response, agent)
+        return agent_name
+
+    @staticmethod
+    def _construct_package_name_from_agent_wheel(agent_wheel):
+        agent_name = agent_wheel
+        if agent_wheel.endswith(".whl"):
+            wheel = agent_wheel.split("/")[-1]
+            agent_name = wheel.replace("-py3-none-any.whl", "").replace("_", "-")
+        return agent_name
+
+    @staticmethod
+    def _get_agent_name_on_success(find_success, agent_package):
+        _log.info(f"searching for: {agent_package} in response of successful pip install")
         for package in find_success.groups()[0].split():
-            # search for the agent name nthat we want
+            # search for the agent name that we want. agent_package might not have version number
             _log.debug(f"package: {package}")
-            if package == wheel_target:
+            if package.startswith(agent_package):
                 return package
-        raise ValueError("Could not find package")
+        # List of successfully installed packages does not include agent package. maybe we installed only
+        # some missing dependencies but agent package already exists. Return none
+        return None
 
-    def _get_agent_name_on_response(self, response, agent_wheel):
-        groups = re.search(".*\n(.*) is already installed with the same version",
-                           response).groups()
+    @staticmethod
+    def _parse_wheel_install_response(response, agent_wheel):
+        groups = None
+        result = re.search(".*\n(.*) is already installed with the same version as the provided wheel",
+                           response)
+        if result:
+            groups = result.groups()
         if groups:
             find_already_installed = groups[0].strip()
             cmd = ["pip", "show", find_already_installed]
@@ -608,6 +692,19 @@ class AIPplatform(object):
             version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
             return find_already_installed + "-" + version
         raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
+
+    @staticmethod
+    def _parse_pypi_install_response(response, package_name):
+        _log.info(f"Parsing pypi install response {response}")
+        line = response.split('\r\n')[0]
+        match = re.match(f"Requirement already satisfied: {package_name}.*\\((.*)\\)", line)
+        groups = None
+        if match:
+            groups = match.groups()
+        if groups:
+            version = groups[0].strip()
+            return package_name + "-" + version
+        raise ValueError(f"Couldn't install {package_name}\n{response}")
 
     def _setup_agent_vip_id(self, agent_name, vip_identity=None):
         # agent_path = os.path.join(self.install_dir, agent_name)
