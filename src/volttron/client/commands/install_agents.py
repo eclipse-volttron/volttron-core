@@ -467,8 +467,10 @@ def send_agent(
             # Allows larger files to be sent across the message bus without
             # raising an error.
         gevent.wait([result], timeout=300)
-    except Exception as e:
-        print(e)
+    except gevent.Timeout:
+        print("Install agent timed out")
+    except BaseException as e:
+        print("Install agent failed with exception: {e}")
     return result
 
 
