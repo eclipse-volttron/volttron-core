@@ -493,15 +493,15 @@ class ControlService(ServiceInterface):
 
     @RPC.export
     def install_agent(self,
-                      agent,
-                      channel_name,
-                      vip_identity=None,
-                      publickey=None,
-                      secretkey=None,
-                      force=False,
-                      agent_config=None):
+                      agent: str,
+                      channel_name: str,
+                      vip_identity: str = None,
+                      publickey: str = None,
+                      secretkey: str = None,
+                      force: bool = False,
+                      agent_config: str = None):
         """
-        Installs an agent on the instance instance.
+        Installs an agent on the instance.
 
         The installation of an agent through this method involves sending
         the binary data of the agent file through a channel.  The following
@@ -553,6 +553,7 @@ class ControlService(ServiceInterface):
 
         if agent_config is None:
             agent_config = dict()
+        # TODO ship config
 
         # at this point if agent_uuid is populated then there is an
         # identity of that already available.
@@ -560,8 +561,7 @@ class ControlService(ServiceInterface):
 
         if not agent.endswith(".whl"):
             # agent passed is package name to install from pypi.
-            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force)
-            return agent_uuid
+            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force)
 
         # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
         peer = self.vip.rpc.context.vip_message.peer
