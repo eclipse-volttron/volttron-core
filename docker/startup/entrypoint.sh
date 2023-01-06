@@ -7,7 +7,12 @@ then
     mkdir -p $VOLTTRON_HOME
 fi
 
-chown -R volttron:volttron $VOLTTRON_HOME
+if [ ! -d $VOLTTRON_AGENT_ENV ]
+then
+    mkdir -p $VOLTTRON_AGENT_ENV
+fi
+
+chown -R volttron:volttron $VOLTTRON_DATA_VOLUME
 
 if [ -d "/config" ]
 then
@@ -19,5 +24,7 @@ then
         #exec runuser -u volttron -- "python /startup/setup-platform.py"
     fi
 fi
+
+
 
 exec runuser -u volttron -- "$@"

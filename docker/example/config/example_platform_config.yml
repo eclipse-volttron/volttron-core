@@ -36,6 +36,7 @@ agents:
         type: --csv
       devices/fake-campus/fake-building/fake-device:
         file: platform.driver/fake.json
+        type: --json
     tag: driver
 
   # # TLDR: If you want to install a Volttron Central Platform agent, you must first install the

@@ -1107,8 +1107,8 @@ class AIPplatform(object):
 
     def start_agent(self, agent_uuid):
         name = self.agent_name(agent_uuid)
-        name_no_version = name[0:name.rfind(
-            "-")]    # get last index of - to split version number from name
+        # get last index of - to split version number from name
+        name_no_version = name[0:name.rfind("-")]
 
         vip_identity = self.uuid_vip_id_map[agent_uuid]
         agent_dir = os.path.join(self.install_dir, vip_identity)

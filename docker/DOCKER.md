@@ -18,8 +18,13 @@ docker logs volttron
 ```
 
 ```bash
-# creates a bash script inside the container.
-docker exec --name volttron bash
+# run a single command from the command line
+docker exec --user volttron vctl status
+```
+
+```bash
+# creates a bash shell inside the container.
+docker exec --user volttron bash
 
 vctl status
 
@@ -30,11 +35,11 @@ vctl status
 vctl shutdown --platform
 ```
 
-## Persisting the VOLTTRON_HOME 
+## Persisting the VOLTTRON data 
 
 ```bash
 # Starts a volttron persisting volttron home.
-docker run -d -v $PWD/vhome:/home/volttron/.volttron \
+docker run -d -v $PWD/datavolume:/home/volttron/datavolume \
     --name volttron --rm -it eclipsevolttron/volttron:v10
 ```
 
@@ -43,7 +48,7 @@ docker run -d -v $PWD/vhome:/home/volttron/.volttron \
 ```bash
 # Starts a volttron persisting volttron home.
 docker run -d -v $PWD/example/config:/config \
-    -v $PWD/vhome:/home/volttron/.volttron \
+    -v $PWD/datavolume:/home/volttron/datavolume \
     -e 'PLATFORM_CONFIG=/config/example_platform_config.yml' \
     --name volttron --rm -it eclipsevolttron/volttron:v10
 ```

@@ -41,65 +41,64 @@ class AgentConfig:
     libraries: Optional[List[str]] = field(default_factory=list)
     config: Optional[str | Dict] = None
     tag: Optional[str] = None
-    config_store: Dict[str: ConfigStoreEntry] = field(default_factory=dict)
-    
+    config_store: Dict[str:ConfigStoreEntry] = field(default_factory=dict)
+
+    def __post_init__(self):
+        for name in self.config_store.keys():
+            self.config_store[name] = ConfigStoreEntry(name, self.config_store[name]['file'],
+                                                       self.config_store[name].get('type', ""))
+
     @staticmethod
-    def build(identity:str, data: Dict) -> AgentConfig:
+    def build(identity: str, data: Dict) -> AgentConfig:
         ac = AgentConfig(identity=identity, **data)
         return ac
-        
+
 
 @dataclass
 class PlatformConfig:
     vip_address: str
     instance_name: str
-    
+
     verbosity: Optional[str] = "-vv"
     services: List[AgentConfig] = field(default_factory=list)
     agents: List[AgentConfig] = field(default_factory=list)
-    
+
     @staticmethod
     def build(file: str) -> PlatformConfig:
         file = Path(file)
         if not file.exists():
             raise ValueError("Invalid file specified for PlatformConfig.build")
-        
+
         contents = yaml.safe_load(file.open().read())
         pprint(contents)
-                
+
         def normailze_dashes(data: Dict) -> Dict:
             new_dict = {}
             for k, v in data.items():
                 new_k = k.replace('-', '_')
                 new_dict[new_k] = v
             return new_dict
-        
+
         contents['config'] = normailze_dashes(data=contents.get('config', {}))
-        
-                
+
         vip_address = contents['config'].get('vip_address', 'tcp://127.0.0.1:22916')
         instance_name = contents['config'].get('instance_name', os.environ['HOSTNAME'])
-        
+
         pc = PlatformConfig(vip_address=vip_address, instance_name=instance_name)
-        
+
         for identity, service_config in contents.get("services", {}).items():
             print(service_config)
             pc.services.append(ServiceConfig.build(identity, service_config))
-        
+
         for identity, agent_config in contents.get("agents", {}).items():
             print(identity)
             pc.agents.append(AgentConfig.build(identity, agent_config))
-            
+
         pprint(pc.__dict__)
-        
+
         return pc
-    
-        
-        
-        
-    
-    
-    
+
+
 # from volttron.platform import set_home, certs
 # from volttron.platform.agent.known_identities import PLATFORM_WEB
 # from volttron.utils import get_hostname
@@ -117,7 +116,6 @@ class PlatformConfig:
 # INSTALL_PATH = "{}/scripts/install-agent.py".format(VOLTTRON_ROOT)
 # KEYSTORES = os.path.join(VOLTTRON_HOME, "keystores")
 # AGENT_START_TIME = "10"
-
 
 # if not VOLTTRON_HOME:
 #     VOLTTRON_HOME = "/home/volttron/.volttron"
@@ -204,9 +202,7 @@ def _create_certs(cfg_path, platform_cfg):
     copy(crts.cert_file(crts.root_ca_name), crts.cert_file(crts.trusted_ca_name))
 
     print("Creating new web server certificate.")
-    print(
-        "Creating and signing new certificate using the newly created CA certificate."
-    )
+    print("Creating and signing new certificate using the newly created CA certificate.")
     name = f"{platform_cfg.get('instance-name')}-{PLATFORM_WEB}"
     crts.create_signed_cert_files(
         name=name + "-server",
@@ -215,12 +211,8 @@ def _create_certs(cfg_path, platform_cfg):
         fqdn=get_hostname(),
     )
 
-    master_web_cert = os.path.join(
-        VOLTTRON_HOME, "certificates/certs/", name + "-server.crt"
-    )
-    master_web_key = os.path.join(
-        VOLTTRON_HOME, "certificates/private/", name + "-server.pem"
-    )
+    master_web_cert = os.path.join(VOLTTRON_HOME, "certificates/certs/", name + "-server.crt")
+    master_web_key = os.path.join(VOLTTRON_HOME, "certificates/private/", name + "-server.pem")
     print("Writing ssl cert and key paths to config.")
     with open(os.path.join(cfg_path), "a") as fout:
         fout.write(f"web-ssl-cert = {master_web_cert}\n")
@@ -230,14 +222,10 @@ def _create_certs(cfg_path, platform_cfg):
 def _create_rmq_config(platform_cfg, config):
     # validation checks
     if not config.get("rabbitmq-config"):
-        sys.stderr.write(
-            "Invalid rabbit-config entry in platform configuration file.\n"
-        )
+        sys.stderr.write("Invalid rabbit-config entry in platform configuration file.\n")
         sys.exit(1)
 
-    rabbitcfg_file = os.path.expandvars(
-        os.path.expanduser(config.get("rabbitmq-config"))
-    )
+    rabbitcfg_file = os.path.expandvars(os.path.expanduser(config.get("rabbitmq-config")))
     if not os.path.isfile(rabbitcfg_file):
         sys.stderr.write("Invalid rabbit-config entry {} \n".format(rabbitcfg_file))
         sys.exit(1)
@@ -245,8 +233,7 @@ def _create_rmq_config(platform_cfg, config):
         hostname = hostfile.read().strip()
     if not hostname:
         sys.stderr.write(
-            "Invalid hostname set, please set it in the docker-compose or in the container."
-        )
+            "Invalid hostname set, please set it in the docker-compose or in the container.")
         sys.exit(1)
 
     # Now we can configure the rabbit/rmq configuration
@@ -259,9 +246,7 @@ def _create_rmq_config(platform_cfg, config):
     # set use-existing-certs
     certs_test_path = os.path.join(
         VOLTTRON_HOME,
-        "certificates/certs/{}-trusted-cas.crt".format(
-            platform_cfg.get("instance-name")
-        ),
+        "certificates/certs/{}-trusted-cas.crt".format(platform_cfg.get("instance-name")),
     )
     if os.path.isfile(certs_test_path):
         rabbit_config["use-existing-certs"] = True
@@ -285,9 +270,7 @@ def _setup_rmq(platform_cfg):
     # we must import the function here because it requires pyzmq, which is not installed during the image build but in configure_platform, which is called before this function
     from volttron.platform.instance_setup import setup_rabbitmq_volttron
 
-    setup_rabbitmq_volttron(
-        "single", True, instance_name=platform_cfg.get("instance-name")
-    )
+    setup_rabbitmq_volttron("single", True, instance_name=platform_cfg.get("instance-name"))
     os.chdir(now_dir)
 
 
@@ -351,29 +334,19 @@ def install_agents(agents):
             # get the source code of the agent
             agent_source = os.path.expandvars(os.path.expanduser(spec["source"]))
             if not os.path.exists(agent_source):
-                slogger.info(
-                    f"Invalid agent source {agent_source} for identity {identity}"
-                )
-                sys.stderr.write(
-                    "Invalid agent source ({}) for agent id identity: {}\n".format(
-                        agent_source, identity
-                    )
-                )
+                slogger.info(f"Invalid agent source {agent_source} for identity {identity}")
+                sys.stderr.write("Invalid agent source ({}) for agent id identity: {}\n".format(
+                    agent_source, identity))
                 continue
 
             # get agent configuration
             agent_cfg = None
             if "config" in spec and spec["config"]:
-                agent_cfg = os.path.abspath(
-                    os.path.expandvars(os.path.expanduser(spec["config"]))
-                )
+                agent_cfg = os.path.abspath(os.path.expandvars(os.path.expanduser(spec["config"])))
                 if not os.path.exists(agent_cfg):
                     slogger.info(f"Invalid config {agent_cfg} for identity {identity}")
-                    sys.stderr.write(
-                        "Invalid config ({}) for agent id identity: {}\n".format(
-                            agent_cfg, identity
-                        )
-                    )
+                    sys.stderr.write("Invalid config ({}) for agent id identity: {}\n".format(
+                        agent_cfg, identity))
                     continue
 
             # grab the priority from the system config file
@@ -409,25 +382,16 @@ def install_agents(agents):
                 for key, entry in spec["config_store"].items():
                     if "file" not in entry or not entry["file"]:
                         slogger.info(
-                            f"Invalid config store entry; file must be specified for {key}"
-                        )
+                            f"Invalid config store entry; file must be specified for {key}")
                         sys.stderr.write(
-                            "Invalid config store entry file must be specified for {}".format(
-                                key
-                            )
-                        )
+                            "Invalid config store entry file must be specified for {}".format(key))
                         continue
                     entry_file = os.path.expandvars(os.path.expanduser(entry["file"]))
 
                     if not os.path.exists(entry_file):
-                        slogger.info(
-                            f"Invalid config store file not exist: {entry_file}"
-                        )
+                        slogger.info(f"Invalid config store file not exist: {entry_file}")
                         sys.stderr.write(
-                            "Invalid config store file does not exist {}".format(
-                                entry_file
-                            )
-                        )
+                            "Invalid config store file does not exist {}".format(entry_file))
                         continue
 
                     entry_cmd = [
@@ -462,31 +426,32 @@ def final_platform_configurations():
 
 
 if __name__ == "__main__":
-    
+
     platform_config_file = os.environ.get("PLATFORM_CONFIG")
     reinit_platform = os.environ.get("REINITIALIZE")
-    
+
     def get_path_from_home(path: str):
         return f"{os.environ['VOLTTRON_HOME']}/{path}"
-    
+
     if platform_config_file:
-        
+
         if not Path(platform_config_file).exists():
-            raise ValueError(f"PLATFORM_CONFIG file not found {platform_config_file} did you mount properly.")
-        
+            raise ValueError(
+                f"PLATFORM_CONFIG file not found {platform_config_file} did you mount properly.")
+
         initialized_file = Path(get_path_from_home('initialized'))
         if initialized_file.exists() and not reinit_platform:
             sys.exit(0)
-            
+
         platform_config = PlatformConfig.build(platform_config_file)
-        
+
         libs_needed = set()
         for s in platform_config.services:
             libs_needed.update(s.libraries)
-        
+
         for a in platform_config.agents:
             libs_needed.update(s.libraries)
-        
+
         if libs_needed:
             cmd = ["pip", "install"]
             cmd.extend(libs_needed)
@@ -495,13 +460,13 @@ if __name__ == "__main__":
             process = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE)
             while process.poll() is None:
                 line = process.stdout.readline()
-                
+
                 #if line.startswith("Collecting") or line.startswith("Install"):
                 sys.stdout.write(line)
                 time.sleep(0.1)
             # completed = subprocess.run(cmd, capture_output=True)
             # completed.check_returncode()
-        
+
         if platform_config.services:
             service_config_path = Path(f"{os.environ['VOLTTRON_HOME']}/service_config.yml")
             os.makedirs(service_config_path.parent, exist_ok=True)
@@ -510,75 +475,83 @@ if __name__ == "__main__":
                 service_dict[s.service] = {}
                 service_dict[s.service]['kwargs'] = s.kwargs
                 service_dict[s.service]['enabled'] = s.enabled
-            
+
             yaml.safe_dump(service_dict, service_config_path.open('wt'))
-            
+
         pid_pth = Path(get_path_from_home("VOLTTRON_PID"))
         if pid_pth.exists():
             os.remove(pid_pth)
-            
-        if platform_config.agents:       
-            print("Starting volttron")
-            process = subprocess.Popen(["volttron", "-vv"], text=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-            time_slept = 0
-            while process.poll() is None:
-                if time_slept > 5:
-                    break
-                #line = process.stdout.readline()
-                line_err = process.stderr.readline()
-                #sys.stdout.write(line)
-                sys.stdout.write(line_err)
-                time_slept += 0.1
-                time.sleep(0.1)
-                
+
+        print("Starting volttron")
+        platform = subprocess.Popen(["volttron", "-vv"],
+                                    text=True,
+                                    stderr=subprocess.PIPE,
+                                    stdout=subprocess.PIPE)
+        if platform_config.agents:
+
             time.sleep(10)
-                
+
             for agent in platform_config.agents:
                 print(f"Installing agent {agent.identity}")
                 config_pth = ""
                 if isinstance(agent.config, str):
                     config_pth = Path(f"/config/{agent.config}")
-                
-                install_cmd = ["vctl",
-                               "-vv",
-                               "install", 
-                               "--vip-identity", agent.identity,
-                               "--force",
-                               "--enable",
-                               "--start"]
-                
-                if config_pth:
+
+                install_cmd = [
+                    "vctl", "-vv", "install", "--vip-identity", agent.identity, "--force",
+                    "--enable", "--start"
+                ]
+
+                if not isinstance(config_pth, str) and config_pth.exists():
                     install_cmd.extend(["--agent-config", str(config_pth)])
-                    
+
                 install_cmd.append(agent.source)
-                
-                success = subprocess.Popen(install_cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+                success = subprocess.Popen(install_cmd,
+                                           text=True,
+                                           stdout=subprocess.PIPE,
+                                           stderr=subprocess.PIPE)
                 while success.poll() is None:
                     line = success.stdout.readline()
                     sys.stdout.write(line)
                     time.sleep(0.1)
-            
-            print("Shutting down platform")
-            process = subprocess.Popen(["vctl", "shutdown", "--platform"], text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            
-            while process.poll():
-                line = success.stdout.readline()
-                sys.stdout.write(line)        
-                time.sleep(0.1)
+
+                if agent.config_store:
+                    for name, entry in agent.config_store.items():
+                        file = Path(f"/config/{entry.file}")
+                        if not file.exists():
+                            raise ValueError(
+                                f"Missing agent config_store file for {agent.identity} {file}")
+                        config_store_cmd = [
+                            "vctl", "config", "store", agent.identity, name,
+                            str(file)
+                        ]
+                        if entry.type:
+                            config_store_cmd.append(entry.type)
+
+                        process = subprocess.Popen(config_store_cmd,
+                                                   text=True,
+                                                   stdout=subprocess.PIPE,
+                                                   stderr=subprocess.PIPE)
+                        while process.poll() is None:
+                            line = process.stdout.readline()
+                            sys.stdout.write(line)
+                            time.sleep(0.1)
 
             initialized_file.open("wt").write("Woot I have been initialized!")
-            
-            
-            
-        
 
-            
-        
+            while platform.poll() is None:
+                #line = process.stdout.readline()
+                line_err = platform.stderr.readline()
+                #sys.stdout.write(line)
+                sys.stdout.write(line_err)
+                time.sleep(0.1)
+
     # set_home(VOLTTRON_HOME)
     # config_tmp, agents_tmp, platform_cfg_tmp = get_platform_configurations(
     #     get_platform_config_path()
     # )
-    
+
     # configure_platform(platform_cfg_tmp, config_tmp)
     # install_agents(agents_tmp)
     # final_platform_configurations()
