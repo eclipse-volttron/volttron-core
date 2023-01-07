@@ -34,7 +34,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 from datetime import timedelta, datetime
 from typing import Optional, Dict, Any
@@ -390,7 +389,7 @@ class ControlService(ServiceInterface):
         return self._vip_identity_exists(identity)
 
     @RPC.export
-    def install_agent_rmq(self, filename, topic, vip_identity, publickey, secretkey, force,
+    def install_agent_rmq(self, agent, topic, vip_identity, publickey, secretkey, force,
                           agent_config, response_topic):
         """
         Install the agent through the rmq message bus.
@@ -410,9 +409,16 @@ class ControlService(ServiceInterface):
             response_received = True
 
         agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
+        if not agent.endswith(".whl"):
+            # agent passed is package name to install from pypi.
+            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force)
+            return agent_uuid
+
+        # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
+        tmpdir = None
         try:
             tmpdir = tempfile.mkdtemp()
-            path = os.path.join(tmpdir, os.path.basename(filename))
+            path = os.path.join(tmpdir, os.path.basename(agent))
             store = open(path, "wb")
             sha512 = hashlib.sha512()
 
@@ -480,58 +486,22 @@ class ControlService(ServiceInterface):
                 self.vip.pubsub.unsubscribe("pubsub", response_topic, protocol_subscription)
                 _log.debug("Unsubscribing on server")
 
-            agent_uuid = self._install_wheel_to_platform(agent_uuid, vip_identity, path, publickey,
-                                                         secretkey, agent_config)
+            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
 
-    def _install_wheel_to_platform(self, agent_uuid, vip_identity, path, publickey, secretkey,
-                                   agent_config):
-        old_agent_data_dir = None
-        backup_agent_file = None
-
-        # Note if this is anything then we know we have already got an agent
-        # mapped to the identity.
-        backup_agent_file = None
-
-        if agent_uuid:
-            _log.debug(f"There is an existing agent {agent_uuid}")
-            old_agent_data_dir = self._aip.get_agent_data_dir(agent_uuid)
-            if os.listdir(old_agent_data_dir):
-                # And there is data to backup
-                backup_agent_file = "/tmp/{}.tar.gz".format(agent_uuid)
-                backup_agent_data(backup_agent_file, old_agent_data_dir)
-            # current agent's keystore overrides any keystore data passed
-            keystore = self._aip.__get_agent_keystore__(vip_identity, publickey, secretkey)
-            publickey = keystore.public
-            secretkey = keystore.secret
-
-            _log.info('Removing previous version of agent "{}"\n'.format(vip_identity))
-            self.remove_agent(agent_uuid)
-        _log.debug("Calling aip install_agent.")
-        agent_uuid = self._aip.install_agent(path, vip_identity, publickey, secretkey,
-                                             agent_config)
-
-        if backup_agent_file is not None:
-            restore_agent_data_from_tgz(
-                backup_agent_file,
-                self._aip.get_agent_data_dir(agent_uuid),
-            )
-        _log.debug(f"Returning {agent_uuid}")
-        return agent_uuid
-
     @RPC.export
     def install_agent(self,
-                      filename,
-                      channel_name,
-                      vip_identity=None,
-                      publickey=None,
-                      secretkey=None,
-                      force=False,
-                      agent_config=None):
+                      agent: str,
+                      channel_name: str,
+                      vip_identity: str = None,
+                      publickey: str = None,
+                      secretkey: str = None,
+                      force: bool = False,
+                      agent_config: str = None):
         """
-        Installs an agent on the instance instance.
+        Installs an agent on the instance.
 
         The installation of an agent through this method involves sending
         the binary data of the agent file through a channel.  The following
@@ -583,17 +553,23 @@ class ControlService(ServiceInterface):
 
         if agent_config is None:
             agent_config = dict()
+        # TODO ship config
 
         # at this point if agent_uuid is populated then there is an
         # identity of that already available.
         agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
-        _log.debug(f"rpc: install_agent {agent_uuid}")
-        # Prepare to install agent that is passed over to us.
+
+        if not agent.endswith(".whl"):
+            # agent passed is package name to install from pypi.
+            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force)
+
+        # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
         peer = self.vip.rpc.context.vip_message.peer
         channel = self.vip.channel(peer, channel_name)
+        tmpdir = None
         try:
             tmpdir = tempfile.mkdtemp()
-            path = os.path.join(tmpdir, os.path.basename(filename))
+            path = os.path.join(tmpdir, os.path.basename(agent))
             store = open(path, "wb")
             sha512 = hashlib.sha512()
 
@@ -635,8 +611,7 @@ class ControlService(ServiceInterface):
                 del channel
 
             _log.debug("After transferring wheel to us now to do stuff.")
-            agent_uuid = self._install_wheel_to_platform(agent_uuid, vip_identity, path, publickey,
-                                                         secretkey, agent_config)
+            agent_uuid = self._aip.install_agent(path, vip_identity, publickey, secretkey, agent_config, force)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -720,18 +695,6 @@ def filter_agents(agents, patterns, opts):
 
 def filter_agent(agents, pattern, opts):
     return next(filter_agents(agents, [pattern], opts))[1]
-
-
-def backup_agent_data(output_filename, source_dir):
-    with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.sep)    # os.path.basename(source_dir))
-
-
-def restore_agent_data_from_tgz(source_file, output_dir):
-    # Open tarfile
-    with tarfile.open(source_file, mode="r:gz") as tar:
-        tar.extractall(output_dir)
-
 
 def get_agent_data_dir_by_uuid(opts, agent_uuid):
     agent_data_dir = opts.aip.get_agent_data_dir(agent_uuid=agent_uuid)
