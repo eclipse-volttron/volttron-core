@@ -8,32 +8,31 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     openssl \ 
     libssl-dev \
-    libevent-dev
+    libevent-dev 
+    
+RUN pip install PyYaml
+    #pip install PyYaml
 
 RUN adduser --disabled-password --gecos "" volttron
 ENV VOLTTRON_DATA_VOLUME=/home/volttron/datavolume
-ENV VOLTTRON_HOME=${VOLTTRON_DATA_VOLUME}/.volttron
-ENV VOLTTRON_AGENT_ENV=${VOLTTRON_DATA_VOLUME}/venv
+ENV VOLTTRON_HOME=${VOLTTRON_DATA_VOLUME}/volttron_home
+ENV VOLTTRON_VENV=${VOLTTRON_DATA_VOLUME}/venv
+ENV PIP_CACHE_DIR=${VOLTTRON_DATA_VOLUME}/cache
 
 USER volttron
 WORKDIR /home/volttron
 
-VOLUME $VOLTTRON_HOME
-RUN mkdir -p $VOLTTRON_HOME
-RUN mkdir -p VOLTTRON_AGENT_ENV
+VOLUME $VOLTTRON_DATA_VOLUME
+RUN mkdir -p $VOLTTRON_HOME && \
+    mkdir -p $VOLTTRON_VENV && \
+    mkdir -p $PIP_CACHE_DIR && \
+    mkdir -p /home/volttron/.local && \
+    mkdir -p /home/volttron/.config/pip
 
-VOLUME /home/volttron/.local
-RUN mkdir -p /home/volttron/.local
-
-# install minimal volttron
-RUN pip install volttron==10.0.3a0
-
-RUN mkdir -p /home/volttron/.config/pip
-
-ENV PATH="/home/volttron/datavolume/venv:/home/volttron/.local/bin:${PATH}"
+ENV PATH="${VOLTTRON_VENV}/bin:${PATH}"
 USER root
 COPY startup /startup
+RUN mv /startup/pip.conf /home/volttron/.config/pip
 RUN chown volttron:volttron /startup
-RUN cp /startup/pip.conf /home/volttron/.config/pip
 ENTRYPOINT ["/bin/sh", "/startup/entrypoint.sh"]
 CMD volttron -vv
