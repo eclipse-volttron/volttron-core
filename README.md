@@ -42,8 +42,9 @@ pip install volttron
 
 ## Docker
 
-See [DOCKER.md](./docker/DOCKER.md) for information
+The eclipsevolttron organization on dockerhub is our official location.  Starting with [v10](https://hub.docker.com/r/eclipsevolttron/volttron/tags)
 
+See [DOCKER.md](./docker/DOCKER.md) for details on using our docker images.
 
 ## Contributing to VOLTTRON
 
