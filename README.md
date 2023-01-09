@@ -40,7 +40,10 @@ pip install volttron
     > vctl shutdown --platform
     ```
 
-Full VOLTTRON documentation available at [VOLTTRON Readthedocs](https://volttron.readthedocs.io)
+## Docker
+
+See [DOCKER.md](./docker/DOCKER.md) for information
+
 
 ## Contributing to VOLTTRON
 
