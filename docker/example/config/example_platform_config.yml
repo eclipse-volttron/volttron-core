@@ -30,6 +30,13 @@ agents:
     source: volttron-platform-driver
     libraries:
       - volttron-lib-fake-driver
+    # Config store entries are able to be programatically looked up
+    # by a key.  In the following there are two entries
+    # - fake.csv
+    # - devices/fake-campus/fake-building/fake-device
+    #
+    # The contents of the file will be available at the specific
+    # key during runtime.
     config_store:
       fake.csv:
         file: platform.driver/fake.csv
