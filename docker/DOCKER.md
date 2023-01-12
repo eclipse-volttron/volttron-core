@@ -1,12 +1,16 @@
 # VOLTTRON Docker Image
 
-This is the readme for the VOLTTRON docker image. 
+This is the readme for the VOLTTRON docker image.  The readme gives commands for starting a minimal volttron
+environment (one without any agents) through to initializing the full environment using custom configuration and
+datavolumes.
+
+Note: it is assumed the commands below are executing in the ```docker``` directory of volttron-core repository.
 
 
 ## Minimal Execution
 
 A volttron is able to be executed directly from docker.  This will create a running volttron, but will not
-persist after the container stops.
+persist on the host after the container stops.
 
 ```bash
 # Starts a volttron in the background
@@ -14,11 +18,12 @@ docker run -d --name volttron --rm -it eclipsevolttron/volttron:v10
 ```
 
 ```bash
+# View the logs add --follow to keep the logs outputing.
 docker logs volttron
 ```
 
 ```bash
-# run a single command from the command line
+# run a single volttron command from the command line
 docker exec --user volttron -it volttron vctl status
 ```
 
@@ -37,6 +42,12 @@ vctl shutdown --platform
 
 ## Persisting the VOLTTRON data 
 
+Creating a datavolume allows a container to maintain its state over restarting.  The
+volttron container stores it's state in a directory /home/volttron/datavolume.  
+
+This first command will create a directory on the host called $PWD/datavolume (if it doesn't exist)
+and will use it for maintaining a VOLTTRON_HOME and a virtual environment that is used inside the container.
+
 ```bash
 # Allow the datavolume (contains VOLTTRON_HOME and virtual environment) to
 # be persisted to the host.
@@ -45,6 +56,11 @@ docker run -d -v $PWD/datavolume:/home/volttron/datavolume \
 ```
 
 ## Initialization of Platform
+
+Initialization of the platform requires getting information to the docker container so that the
+volttron can be created.  To do this a second mount point is specified using the flags ```-v $PWD/example/config:/config```.
+This will mount the contents on the host at $PWD/examples/config to the point inside the container /config.  The 
+environmental variable ```-e 'PLATFORM_CONFIG=/config/example_platform_config.yml'``` informs the volttron container where its configuration file for the platform is located.  Note that this is from the containers perspective not the host.
 
 ```bash
 # Starts a volttron persisting volttron home.
