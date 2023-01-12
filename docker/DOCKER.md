@@ -19,12 +19,12 @@ docker logs volttron
 
 ```bash
 # run a single command from the command line
-docker exec --user volttron vctl status
+docker exec --user volttron -it volttron vctl status
 ```
 
 ```bash
 # creates a bash shell inside the container.
-docker exec --user volttron bash
+docker exec --user volttron -it volttron bash
 
 vctl status
 
@@ -38,7 +38,8 @@ vctl shutdown --platform
 ## Persisting the VOLTTRON data 
 
 ```bash
-# Starts a volttron persisting volttron home.
+# Allow the datavolume (contains VOLTTRON_HOME and virtual environment) to
+# be persisted to the host.
 docker run -d -v $PWD/datavolume:/home/volttron/datavolume \
     --name volttron --rm -it eclipsevolttron/volttron:v10
 ```
