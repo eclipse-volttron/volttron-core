@@ -69,3 +69,6 @@ docker run -d -v $PWD/example/config:/config \
     -e 'PLATFORM_CONFIG=/config/example_platform_config.yml' \
     --name volttron --rm -it eclipsevolttron/volttron:v10
 ```
+
+Once executing the above command monitor the logs via ```docker logs volttron``` or through another monitoring tool such as docker desktop or podman.
+

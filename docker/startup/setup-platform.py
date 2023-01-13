@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from pprint import pprint
 from shutil import copy
 from time import sleep
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 import yaml
 
@@ -99,6 +100,20 @@ class PlatformConfig:
         return pc
 
 
+class VolttronThread(threading.Thread):
+    
+    def run(self):
+        platform = subprocess.Popen(["volttron", "-v"],
+                                    text=True,
+                                    stderr=subprocess.STDOUT,
+                                    stdout=subprocess.PIPE)
+
+        while platform.poll() is None:
+            line = platform.stdout.readline()
+            sys.stdout.write(line)
+            time.sleep(0.1)
+    
+
 
 if __name__ == "__main__":
     
@@ -154,8 +169,24 @@ if __name__ == "__main__":
     #     sys.stdout.write(line)
     #     time.sleep(0.1)
     
+    platform = VolttronThread(daemon=True)
+    platform.start()
     
-
+    while True:
+        continue_loop = True
+        try:
+            stdout = subprocess.check_output(["vctl",  "peerlist"], text=True)
+            for line in stdout.split():
+                print(line)
+                if "platform.control" in line:
+                    continue_loop = False
+                    break
+            if not continue_loop:
+                break                
+        except subprocess.CalledProcessError:
+            time.sleep(2)
+            
+            
     if platform_config_file:
 
         if not Path(platform_config_file).exists():
@@ -194,20 +225,11 @@ if __name__ == "__main__":
 
             yaml.safe_dump(service_dict, service_config_path.open('wt'))
 
-        pid_pth = Path(get_path_from_home("VOLTTRON_PID"))
-        if pid_pth.exists():
-            os.remove(pid_pth)
-
-        print("Starting volttron")
-        platform = subprocess.Popen(["volttron", "-vv"],
-                                    text=True,
-                                    stderr=subprocess.STDOUT,
-                                    stdout=subprocess.PIPE)
-
+        
         if platform_config.agents:
 
-            time.sleep(10)
-
+            print("Installing agents.")
+            
             for agent in platform_config.agents:
                 sys.stdout.write(f"Installing agent {agent.identity}\n")
                 config_pth = ""
@@ -215,7 +237,7 @@ if __name__ == "__main__":
                     config_pth = Path(f"/config/{agent.config}")
 
                 install_cmd = [
-                    "vctl", "-vv", "install", "--vip-identity", agent.identity, "--force",
+                    "vctl", "install", "--vip-identity", agent.identity, "--force",
                     "--enable", "--start"
                 ]
 
@@ -224,7 +246,8 @@ if __name__ == "__main__":
 
                 install_cmd.append(agent.source)
                 
-                exec(install_cmd)
+                subprocess.check_call(install_cmd)
+                #exec(install_cmd)
 
                 if agent.config_store:
                     for name, entry in agent.config_store.items():
@@ -239,11 +262,9 @@ if __name__ == "__main__":
                         if entry.type:
                             config_store_cmd.append(entry.type)
                             
-                        exec(config_store_cmd)
+                        subprocess.check_call(config_store_cmd)
 
             initialized_file.open("wt").write("Woot I have been initialized!")
-
-        while platform.poll() is None:
-            line = platform.stdout.readline()
-            sys.stdout.write(line)
-            time.sleep(0.1)
+    
+    # Keep running until someone shuts it down.
+    platform.join()

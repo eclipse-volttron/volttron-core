@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -eux
+set -eu
 
 if [ ! -d $VOLTTRON_HOME ]
 then
@@ -23,7 +23,8 @@ cd /home/volttron
 
 if [ ! -f "$VOLTTRON_HOME/initialized" ]
 then
-    su -m volttron -c "python /startup/setup-platform.py"
+    #su -m volttron -c "python /startup/setup-platform.py"
+    exec runuser -u volttron -- python /startup/setup-platform.py
 fi
 
 exec runuser -u volttron -- "$@"
