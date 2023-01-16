@@ -34,5 +34,4 @@ USER root
 COPY startup /startup
 RUN mv /startup/pip.conf /home/volttron/.config/pip
 RUN chown volttron:volttron /startup
-ENTRYPOINT ["/bin/sh", "/startup/entrypoint.sh"]
-CMD volttron -vv
+ENTRYPOINT ["/bin/bash", "/startup/entrypoint.sh"]

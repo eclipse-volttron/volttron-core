@@ -2,10 +2,28 @@
 
 This is the readme for the VOLTTRON docker image.  The readme gives commands for starting a minimal volttron
 environment (one without any agents) through to initializing the full environment using custom configuration and
+datavolumes.  The readme will also walk through how the docker image is meant to be run, the environmental variables
+available for changing behaviour and the assumptions that have been made in developing this image.
+
+## Prerequisites
+
+The following requires docker to be available through the command line and sudo to be available for removing
 datavolumes.
 
 Note: it is assumed the commands below are executing in the ```docker``` directory of volttron-core repository.
 
+
+## Environmental Variables
+
+The following environmental variables are available within the docker image.  One can set them using 
+```docker exec -e "ENV=VAL" -u volttron ...``` where ```ENV``` is the environmental variable name with the 
+value ```VAL```
+
+| Environmental Variable | Notes                                                                           |
+| ---------------------- | ------------------------------------------------------------------------------- |
+| PLATFORM_CONFIG        | Location of the platform configuration file to add agents during startup and    |
+|                        | setup the platform runtime.                                                     |
+|------------------------| --------------------------------------------------------------------------------|
 
 ## Minimal Execution
 
@@ -72,3 +90,60 @@ docker run -d -v $PWD/example/config:/config \
 
 Once executing the above command monitor the logs via ```docker logs volttron``` or through another monitoring tool such as docker desktop or podman.
 
+
+## Platform Config Structure
+
+The platform config structure is as follows.  One can find this in the ```volttron-core/docker/example/config/example_platform_config.yml``` file referenced
+above.  The structure is used for installation of services (server-side components such as web services) and agents (installed against an executing volttron).  
+
+
+```
+# Properties to be added to the root config file
+# the properties should be ingestible for volttron
+# the values will be presented in the config file
+# as key=value
+config:
+  vip-address: tcp://0.0.0.0:22916
+  instance-name: volttron1
+
+services:
+  volttron.services.web:
+    libraries: 
+      - volttron-lib-web
+    enabled: true
+    kwargs:
+      bind_web_address: http://127.0.0.1:8080
+      # Since http we need a web_secret_key for authentication
+      web_secret_key: "A secret hasher"
+
+# Agents dictionary to install. The key must be a valid
+# identity for the agent to be installed correctly.
+agents:
+
+  # Each agent identity.config file should be in the configs
+  # directory and will be used to install the agent.
+  listener:
+    source: volttron-listener
+    tag: listener
+
+  platform.driver:
+    source: volttron-platform-driver
+    libraries:
+      - volttron-lib-fake-driver
+      - volttron-lib-base-driver
+    # Config store entries are able to be programatically looked up
+    # by a key.  In the following there are two entries
+    # - fake.csv
+    # - devices/fake-campus/fake-building/fake-device
+    #
+    # The contents of the file will be available at the specific
+    # key during runtime.
+    config_store:
+      fake.csv:
+        file: platform.driver/fake.csv
+        type: --csv
+      devices/fake-campus/fake-building/fake-device:
+        file: platform.driver/fake.json
+        type: --json
+    tag: driver
+```

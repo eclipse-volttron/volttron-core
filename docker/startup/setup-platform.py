@@ -60,7 +60,7 @@ class PlatformConfig:
     vip_address: str
     instance_name: str
 
-    verbosity: Optional[str] = "-vv"
+    verbosity: Optional[str] = "-v"
     services: List[AgentConfig] = field(default_factory=list)
     agents: List[AgentConfig] = field(default_factory=list)
 
@@ -95,99 +95,99 @@ class PlatformConfig:
             print(identity)
             pc.agents.append(AgentConfig.build(identity, agent_config))
 
-        pprint(pc.__dict__)
-
         return pc
 
 
 class VolttronThread(threading.Thread):
-    
+
+    def __init__(self, verbosity: str = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._verbosity = verbosity
+
     def run(self):
-        platform = subprocess.Popen(["volttron", "-v"],
+        platform = subprocess.Popen(["volttron", self._verbosity],
                                     text=True,
                                     stderr=subprocess.STDOUT,
                                     stdout=subprocess.PIPE)
-
-        while platform.poll() is None:
-            line = platform.stdout.readline()
-            sys.stdout.write(line)
-            time.sleep(0.1)
-    
+        with Path(f"{os.environ['VOLTTRON_HOME']}/volttron.log").open("wt") as fp:
+            while platform.poll() is None:
+                line = platform.stdout.readline()
+                fp.write(line)
+                sys.stdout.write(line)
+                time.sleep(0.00001)
 
 
 if __name__ == "__main__":
-    
 
     platform_config_file = os.environ.get("PLATFORM_CONFIG")
     reinit_platform = os.environ.get("REINITIALIZE")
     volttron_version = os.environ.get("VOLTTRON_VERSION")
     pip_cache_dir = os.environ.get("PIP_CACHE_DIR")
     volttron_home = os.environ.get("VOLTTRON_HOME")
-    
+
     env_dir = os.environ.get("VOLTTRON_VENV")
     if not env_dir:
         raise ValueError("Invalid $VOLTTRON_VENV directory specified")
-    
-    
+
     def get_path_from_home(path: str):
         """Return a subpath from VOLTTRON_HOME"""
         return f"{volttron_home}/{path}"
-    
-    
+
     def exec(command: List[str]):
         """Execute a command using Popen and write out stdout and stderr to sys.stdout"""
-        
-        process = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+        process = subprocess.Popen(cmd,
+                                   text=True,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT)
         while process.poll() is None:
             line = process.stdout.readline()
             sys.stdout.write(line)
             time.sleep(0.1)
         if process.returncode != 0:
             sys.exit(process.returncode)
-    
+
+    def start_platform(verbosity="-vv") -> VolttronThread:
+        platform = VolttronThread(verbosity=verbosity, daemon=True)
+        platform.start()
+
+        while True:
+            continue_loop = True
+            try:
+                stdout = subprocess.check_output(["vctl", "peerlist"], text=True)
+                for line in stdout.split():
+                    print(line)
+                    if "platform.control" in line:
+                        continue_loop = False
+                        break
+                if not continue_loop:
+                    break
+            except subprocess.CalledProcessError:
+                time.sleep(2)
+        return platform
+
     # Only create a new virtual env if we need it.
     if not Path(env_dir).joinpath("bin/python").exists():
         sys.stdout.write("Building virtual environment\n")
         cmd = ["python", "-m", "venv", env_dir]
         exec(cmd)
-    
+
     # Make sure our executable is the one in the virtual environment.
     sys.executable = Path(env_dir).joinpath("bin/python")
-    
-    
+
     # Determine if we need to install volttron into the container.
     initialize_volttron = get_path_from_home("initialize_volttron")
-    
+
     if not Path(initialize_volttron).exists():
         sys.stdout.write("Installing volttron\n")
-        cmd = ["pip", "install", "volttron"]    
+        cmd = ["pip", "install", "volttron"]
         exec(cmd)
         Path(initialize_volttron).write_text("Initialized")
-    # process = subprocess.Popen(cmd, text=True, stdout=subprocess.PIPE)
-    # while process.poll() is None:
-    #     line = process.stdout.readline()
-    #     sys.stdout.write(line)
-    #     time.sleep(0.1)
-    
-    platform = VolttronThread(daemon=True)
-    platform.start()
-    
-    while True:
-        continue_loop = True
-        try:
-            stdout = subprocess.check_output(["vctl",  "peerlist"], text=True)
-            for line in stdout.split():
-                print(line)
-                if "platform.control" in line:
-                    continue_loop = False
-                    break
-            if not continue_loop:
-                break                
-        except subprocess.CalledProcessError:
-            time.sleep(2)
-            
-            
-    if platform_config_file:
+
+    if not platform_config_file:
+        platform = start_platform("-v")
+
+    else:
 
         if not Path(platform_config_file).exists():
             raise ValueError(
@@ -198,21 +198,21 @@ if __name__ == "__main__":
             sys.exit(0)
 
         platform_config = PlatformConfig.build(platform_config_file)
-
         libs_needed = set()
         for s in platform_config.services:
             libs_needed.update(s.libraries)
 
         for a in platform_config.agents:
-            libs_needed.update(s.libraries)
+            libs_needed.update(a.libraries)
+
+        platform = start_platform(platform_config.verbosity)
 
         if libs_needed:
             sys.stdout.write("Installing Libraries\n")
             sys.stdout.write("\n".join(libs_needed))
             cmd = ["pip", "install"]
-            cmd.extend(libs_needed)            
+            cmd.extend(libs_needed)
             exec(cmd)
-            
 
         if platform_config.services:
             service_config_path = Path(f"{os.environ['VOLTTRON_HOME']}/service_config.yml")
@@ -225,11 +225,10 @@ if __name__ == "__main__":
 
             yaml.safe_dump(service_dict, service_config_path.open('wt'))
 
-        
         if platform_config.agents:
 
             print("Installing agents.")
-            
+
             for agent in platform_config.agents:
                 sys.stdout.write(f"Installing agent {agent.identity}\n")
                 config_pth = ""
@@ -237,15 +236,15 @@ if __name__ == "__main__":
                     config_pth = Path(f"/config/{agent.config}")
 
                 install_cmd = [
-                    "vctl", "install", "--vip-identity", agent.identity, "--force",
-                    "--enable", "--start"
+                    "vctl", "install", "--vip-identity", agent.identity, "--force", "--enable",
+                    "--start"
                 ]
 
                 if not isinstance(config_pth, str) and config_pth.exists():
                     install_cmd.extend(["--agent-config", str(config_pth)])
 
                 install_cmd.append(agent.source)
-                
+
                 subprocess.check_call(install_cmd)
                 #exec(install_cmd)
 
@@ -261,10 +260,10 @@ if __name__ == "__main__":
                         ]
                         if entry.type:
                             config_store_cmd.append(entry.type)
-                            
+
                         subprocess.check_call(config_store_cmd)
 
             initialized_file.open("wt").write("Woot I have been initialized!")
-    
+
     # Keep running until someone shuts it down.
     platform.join()

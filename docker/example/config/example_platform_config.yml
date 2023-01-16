@@ -30,6 +30,7 @@ agents:
     source: volttron-platform-driver
     libraries:
       - volttron-lib-fake-driver
+      - volttron-lib-base-driver
     # Config store entries are able to be programatically looked up
     # by a key.  In the following there are two entries
     # - fake.csv
@@ -45,39 +46,3 @@ agents:
         file: platform.driver/fake.json
         type: --json
     tag: driver
-
-  # # TLDR: If you want to install a Volttron Central Platform agent, you must first install the
-  # # Platform Driver before installing VCP agent
-  # # Additional: VolttronCentralPlatform requires Bacpypes, which gets installed only when Platform Driver is installed.
-  # # This is an unfortunate and not ideal setup, however, this issue will be addresed in a later PR so that VCP Agent
-  # # can be installed on its own without having to install Platform Driver first.
-  # platform.agent:
-  #   source: $VOLTTRON_ROOT/services/core/VolttronCentralPlatform
-  #   config: $CONFIG/vcp.config
-  #   tag: vcp
-
-  # platform.actuator:
-  #   source: $VOLTTRON_ROOT/services/core/ActuatorAgent
-  #   tag: actuator
-
-  # platform.historian:
-  #   source: $VOLTTRON_ROOT/services/core/SQLHistorian
-  #   config: $CONFIG/historian.config
-  #   tag: historian
-
-  # volttron.central:
-  #   source: $VOLTTRON_ROOT/services/core/VolttronCentral
-  #   config: $CONFIG/vc.config
-  #   tag: vc
-
-#  weather:
-#    source: $VOLTTRON_ROOT/examples/DataPublisher
-#    config: $CONFIG/weather.config
-
-#  price:
-#    source: $VOLTTRON_ROOT/examples/DataPublisher
-#    config: $CONFIG/price.config
-
-#  platform.bacnet_proxy:
-#    source: $VOLTTRON_ROOT/services/core/BACnetProxy
-#    config: $CONFIG/bacnet-proxy.json

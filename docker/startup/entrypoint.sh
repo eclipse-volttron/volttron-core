@@ -27,4 +27,10 @@ then
     exec runuser -u volttron -- python /startup/setup-platform.py
 fi
 
-exec runuser -u volttron -- "$@"
+
+if [ ! $@ ] 
+then
+    exec runuser -u volttron -- volttron -v
+else
+    exec runuser -u volttron -- "$@"
+fi
