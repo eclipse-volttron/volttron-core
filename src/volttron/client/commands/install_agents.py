@@ -554,7 +554,7 @@ def add_install_agent_parser(add_parser_fn):
         help="the amount of time to wait and verify that the agent has started up.",
     )
     install.add_argument(
-        "--pre-release",
+        "--pre-release", "--pre", "--allow-prereleases",
         action="store_true",
         help="enables installation of pre-releases and development releases",
     )
