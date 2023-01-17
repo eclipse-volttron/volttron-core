@@ -133,7 +133,7 @@ if __name__ == "__main__":
         """Return a subpath from VOLTTRON_HOME"""
         return f"{volttron_home}/{path}"
 
-    def exec(command: List[str]):
+    def exec(cmd: List[str]):
         """Execute a command using Popen and write out stdout and stderr to sys.stdout"""
 
         process = subprocess.Popen(cmd,
@@ -148,6 +148,7 @@ if __name__ == "__main__":
             sys.exit(process.returncode)
 
     def start_platform(verbosity="-vv") -> VolttronThread:
+        """start the platform within a thread and return the thread."""
         platform = VolttronThread(verbosity=verbosity, daemon=True)
         platform.start()
 
@@ -177,6 +178,13 @@ if __name__ == "__main__":
 
     # Determine if we need to install volttron into the container.
     initialize_volttron = get_path_from_home("initialize_volttron")
+    initialized_file = get_path_from_home('initialized')
+
+    if reinit_platform:
+        if os.path.exists(initialized_file):
+            os.remove(initialized_file)
+        if os.path.exists(initialize_volttron):
+            os.remove(initialize_volttron)
 
     if not Path(initialize_volttron).exists():
         sys.stdout.write("Installing volttron\n")
@@ -193,7 +201,7 @@ if __name__ == "__main__":
             raise ValueError(
                 f"PLATFORM_CONFIG file not found {platform_config_file} did you mount properly.")
 
-        initialized_file = Path(get_path_from_home('initialized'))
+        
         if initialized_file.exists() and not reinit_platform:
             sys.exit(0)
 
