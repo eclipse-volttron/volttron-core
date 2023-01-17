@@ -142,7 +142,8 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
         publickey,
         secretkey,
         opts.force,
-        config_dict,
+        opts.pre_release,
+        config_dict
     )
 
     if not agent_uuid:
@@ -235,7 +236,8 @@ def send_agent(
     publickey: str,
     secretkey: str,
     force: bool,
-    agent_config: dict,
+    pre_release: bool,
+    agent_config: dict
 ):
     """
     Send an agent wheel from the client to the server.
@@ -432,12 +434,13 @@ def send_agent(
             "install_agent_rmq",
             agent_package,
             rmq_send_topic,
+            rmq_response_topic,
             vip_identity,
             publickey,
             secretkey,
             force,
-            agent_config,
-            rmq_response_topic,
+            pre_release,
+            agent_config
         )
     elif server.core.messagebus == "zmq":
         if wheel_install:
@@ -457,7 +460,8 @@ def send_agent(
             publickey,
             secretkey,
             force,
-            agent_config,
+            pre_release,
+            agent_config
         )
     else:
         raise ValueError("Unknown messagebus detected!")
@@ -548,6 +552,11 @@ def add_install_agent_parser(add_parser_fn):
         default=5,
         type=int,
         help="the amount of time to wait and verify that the agent has started up.",
+    )
+    install.add_argument(
+        "--pre-release", "--pre", "--allow-prereleases",
+        action="store_true",
+        help="enables installation of pre-releases and development releases",
     )
 
     install.set_defaults(func=install_agent_vctl, verify_agents=True)
