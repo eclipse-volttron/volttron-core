@@ -225,6 +225,8 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         if opts.connection is not None:
             opts.connection.kill()
     else:
+        if install_path.endswith(".whl") and not os.path.isfile(install_path):
+            raise InstallRuntimeError(f"Invalid wheel file {install_path}")
         opts.package = opts.install_path
         _send_and_intialize_agent(opts, publickey, secretkey)
 
