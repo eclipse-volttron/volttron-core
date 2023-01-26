@@ -515,7 +515,8 @@ class AIPplatform(object):
                       publickey=None,
                       secretkey=None,
                       agent_config=None,
-                      force=False):
+                      force=False,
+                      pre_release=False):
         """
         Installs the agent into the current environment, set up the agent data directory and
         agent data structure.
@@ -523,7 +524,7 @@ class AIPplatform(object):
         if agent_config is None:
             agent_config = dict()
 
-        agent_name = self.install_agent_source(agent, force)
+        agent_name = self.install_agent_source(agent, force, pre_release)
 
         # get default vip_identity if vip_identity is not passed
         # default value will be in "agent_name-default-vip-id" file in site-packages dir
@@ -625,14 +626,19 @@ class AIPplatform(object):
             raise ValueError("Identity already exists, but not forced!")
         return agent_uuid
 
-    def install_agent_source(self, agent, force):
+    def install_agent_source(self, agent, force, pre_release):
         _log.info(f"AGENT_WHEEL: {agent}")
 
         if force:
-            cmd = ["pip", "install", "--force-reinstall", agent]
+            cmd = ["pip", "install", "--force-reinstall"]
         else:
-            cmd = ["pip", "install", agent]
+            cmd = ["pip", "install"]
 
+        if pre_release:
+            cmd.append("--pre")
+
+        cmd.append(agent)
+        _log.debug(f"Executing agent install command : {cmd}")
         response = execute_command(cmd)
         agent_name = None
         last_line = response.strip().split("\n")[-1]
