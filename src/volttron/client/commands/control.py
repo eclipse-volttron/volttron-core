@@ -149,6 +149,7 @@ def filter_agents(agents: List[AgentMeta], patterns: List[str], opts: argparse.N
     Filters a given list of agent details based on the provided pattern and user options. User options specify
     what attributes of the agent metadata needs to match the pattern passed. For example should the pattern be applied
     to the agent's tag or agent's name
+
     :param agents: List of AgentMeta object that contains agents name, tag, uuid, vip_id, and agent_user
     :param patterns: List of patterns to match
     :param opts: command line options that specify what attribute of the agent should be matched against the pattern
@@ -733,6 +734,7 @@ def restart_agent(opts):
 def act_on_agent(action: str, opts: argparse.Namespace):
     """
     Starts or stops agents that match the given criteria
+
     :param action: "start_agent" or "stop_agent"
     :param opts: contains the patterns to match and the agent attribute/metadata that should be matched against the
                  given pattern
@@ -759,6 +761,7 @@ def act_on_agent(action: str, opts: argparse.Namespace):
 def _call_action_on_agent(agent: AgentMeta, pid, status, call, action):
     """
     Calls server side method to start or stop agent and writes the corresponding message to stdout
+
     :param agent: Agent metadata data containing uuid, name, vip_id, agent priority
     :param pid: pid of Agent process
     :param status: Status of the start or stop process
