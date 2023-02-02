@@ -2145,13 +2145,13 @@ def main():
         "--name",
         dest="by_name",
         action="store_true",
-        help="filter/search by agent name",
+        help="filter/search by agent name. value passed should be quoted if it contains a regular expression",
     )
     filterable.add_argument(
         "--tag",
         dest="by_tag",
         action="store_true",
-        help="filter/search by tag name",
+        help="filter/search by tag name. value passed should be quoted if it contains a regular expression",
     )
     filterable.add_argument(
         "--all-tagged", dest="by_all_tagged", action="store_true",
@@ -2161,7 +2161,7 @@ def main():
         "--uuid",
         dest="by_uuid",
         action="store_true",
-        help="filter/search by UUID (default)",
+        help="filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
     )
     filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
     parser = config.ArgumentParser(
