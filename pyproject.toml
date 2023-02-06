@@ -24,6 +24,7 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
+poetry = "^1.2.2"
 python = "^3.8"
 pyzmq = "^22.3.0"
 gevent = "^21.12.0"
