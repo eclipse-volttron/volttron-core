@@ -604,25 +604,26 @@ def update_health_cache(opts):
 
 
 def status_agents(opts):
-    agents = {agent.uuid: agent for agent in _list_agents(opts)}
+    all_agents = {agent.uuid: agent for agent in _list_agents(opts)}
     status = {}
-    for details in opts.connection.call("status_agents", get_agent_user=True):
+    agents_with_status = opts.connection.call("status_agents", get_agent_user=True)
+    for details in agents_with_status:
         if cc.is_secure_mode():
             (uuid, name, agent_user, stat, identity) = details
         else:
             (uuid, name, stat, identity) = details
             agent_user = ""
         try:
-            agent = agents[uuid]
-            agents[uuid] = agent._replace(agent_user=agent_user)
+            agent = all_agents[uuid]
+            all_agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = AgentMeta(name,
+            all_agents[uuid] = agent = AgentMeta(name,
                                              None,
                                              uuid,
                                              vip_identity=identity,
                                              agent_user=agent_user)
         status[uuid] = stat
-    agents = list(agents.values())
+    all_agents = list(all_agents.values())
 
     def get_status(agent):
         try:
@@ -652,7 +653,10 @@ def status_agents(opts):
         except (VIPError, gevent.Timeout):
             return ""
 
-    _show_filtered_agents_status(opts, get_status, get_health, agents)
+    def get_priority(agent):
+        return opts.connection.call("agent_priority", agent.uuid)
+
+    _show_filtered_agents_status(opts, get_status, get_health, get_priority, all_agents)
 
 
 def agent_health(opts):
@@ -684,7 +688,9 @@ def clear_status(opts):
 
 def enable_agent(opts):
     agents = _list_agents(opts.aip)
+    print("In enable agent")
     for pattern, match in filter_agents(agents, opts.pattern, opts):
+        print(f" pattern:{pattern}, match: {match}")
         if not match:
             _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
         for agent in match:
@@ -1310,7 +1316,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
-def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
+def _show_filtered_agents_status(opts, status_callback, health_callback, priority_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1357,7 +1363,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
         if cc.is_secure_mode():
             user_width = max(3, max(len(agent.agent_user or "") for agent in agents))
-            fmt = "{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
             _stderr.write(
                 fmt.format(
                     "UUID",
@@ -1369,10 +1375,11 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                     tag_width,
                     "AGENT_USER",
                     user_width,
+                    "PRIORITY",
                     "STATUS",
                     "HEALTH",
                 ))
-            fmt = "{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {:<8} {:<15} {:<}\n"
             for agent in agents:
                 status_str = status_callback(agent)
                 agent_health_dict = health_callback(agent)
@@ -1387,24 +1394,26 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                         tag_width,
                         agent.agent_user if status_str.startswith("running") else "",
                         user_width,
+                        priority_callback(agent) or "",
                         status_str,
                         health_callback(agent),
                     ))
         else:
-            fmt = "{} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
             _stderr.write(
                 fmt.format(
-                    "UUID",
+                    "UUID1",
                     "AGENT",
                     name_width,
                     "IDENTITY",
                     identity_width,
                     "TAG",
                     tag_width,
+                    "PRIORITY",
                     "STATUS",
                     "HEALTH",
                 ))
-            fmt = "{} {:{}} {:{}} {:{}} {:<15} {:<}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:<8} {:<15} {:<}\n"
             for agent in agents:
                 _stdout.write(
                     fmt.format(
@@ -1415,6 +1424,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                         identity_width,
                         agent.tag or "",
                         tag_width,
+                        priority_callback(agent) or "",
                         status_callback(agent),
                         health_callback(agent),
                     ))
@@ -2208,18 +2218,7 @@ def main():
     peers = add_parser("peerlist", help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
 
-    list_ = add_parser("list", parents=[filterable], help="list installed agent")
-    list_.add_argument("pattern", nargs="*", help="UUID or name of agent")
-    list_.add_argument(
-        "-n",
-        dest="min_uuid_len",
-        type=int,
-        metavar="N",
-        help="show at least N characters of UUID (0 to show all)",
-    )
-    list_.set_defaults(func=list_agents, min_uuid_len=1)
-
-    status = add_parser("status", parents=[filterable], help="show status of agents")
+    status = add_parser("status", aliases=("list",), parents=[filterable], help="show status of agents")
     status.add_argument("pattern", nargs="*", help="UUID or name of agent")
     status.add_argument(
         "-n",

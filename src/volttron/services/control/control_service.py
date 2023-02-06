@@ -247,6 +247,10 @@ class ControlService(ServiceInterface):
         return self._aip.agent_version(uuid)
 
     @RPC.export
+    def agent_priority(self, uuid):
+        return self._aip.agent_priority(uuid) or ""
+
+    @RPC.export
     def agent_versions(self):
         return self._aip.agent_versions()
 
