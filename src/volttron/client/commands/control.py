@@ -687,28 +687,26 @@ def clear_status(opts):
 
 
 def enable_agent(opts):
-    agents = _list_agents(opts.aip)
-    print("In enable agent")
+    agents = _list_agents(opts)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
-        print(f" pattern:{pattern}, match: {match}")
         if not match:
             _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
         for agent in match:
             _stdout.write("Enabling {} {} with priority {}\n".format(agent.uuid, agent.name,
                                                                      opts.priority))
-            opts.aip.prioritize_agent(agent.uuid, opts.priority)
+            opts.connection.call("prioritize_agent", agent.uuid, opts.priority)
 
 
 def disable_agent(opts):
-    agents = _list_agents(opts.aip)
+    agents = _list_agents(opts)
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
             _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
         for agent in match:
-            priority = opts.aip.agent_priority(agent.uuid)
-            if priority is not None:
+            p = opts.connection.call("agent_priority", agent.uuid)
+            if p is not None:
                 _stdout.write("Disabling {} {}\n".format(agent.uuid, agent.name))
-                opts.aip.prioritize_agent(agent.uuid, None)
+                opts.connection.call("prioritize_agent", agent.uuid, None)
 
 
 def start_agent(opts):
