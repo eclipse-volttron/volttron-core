@@ -1400,7 +1400,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, priorit
             fmt = "{:<6} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
             _stderr.write(
                 fmt.format(
-                    "UUID1",
+                    "UUID",
                     "AGENT",
                     name_width,
                     "IDENTITY",
