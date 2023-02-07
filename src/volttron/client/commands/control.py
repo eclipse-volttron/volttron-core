@@ -687,26 +687,44 @@ def clear_status(opts):
 
 
 def enable_agent(opts):
-    agents = _list_agents(opts)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
-        for agent in match:
-            _stdout.write("Enabling {} {} with priority {}\n".format(agent.uuid, agent.name,
-                                                                     opts.priority))
-            opts.connection.call("prioritize_agent", agent.uuid, opts.priority)
+    result_dict = {"enabled": True, "priority": opts.priority}
+    enable_disable_agent(opts, result_dict, "Enabling")
 
 
 def disable_agent(opts):
+    result_dict = {"disabled": True}
+    enable_disable_agent(opts, result_dict, "Disabling")
+
+
+def enable_disable_agent(opts, dict_result_info, str_result_info):
+    """
+    Enable or disable agent based on command set in opts.command and pattern set in opts
+    :param opts: options that include the enable/disable command, any optional pattern and the agent attribute that
+     should be matched against the given pattern
+    :param dict_result_info: additional info to be added to result if result is in json format
+    :param str_result_info: prefix to result string.
+    """
     agents = _list_agents(opts)
+    results = []
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
+            if opts.json:
+                results.append({"command": opts.command, "error": f"agent not found {pattern}"})
+            else:
+                _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
         for agent in match:
-            p = opts.connection.call("agent_priority", agent.uuid)
-            if p is not None:
-                _stdout.write("Disabling {} {}\n".format(agent.uuid, agent.name))
-                opts.connection.call("prioritize_agent", agent.uuid, None)
+            if opts.json:
+                result = {"uuid": agent.uuid, "name": agent.name}
+                result.update(dict_result_info)
+                results.append(result)
+            else:
+                _stdout.write("{} {} {}\n".format(str_result_info, agent.uuid, agent.name))
+            opts.connection.call("prioritize_agent", agent.uuid, None)
+    if opts.json:
+        if len(results) == 1:
+            _stdout.write(f"{jsonapi.dumps(results[0], indent=2)}\n")
+        else:
+            _stdout.write(f"{jsonapi.dumps(results, indent=2)}\n")
 
 
 def start_agent(opts):
