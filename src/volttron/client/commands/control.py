@@ -687,22 +687,29 @@ def clear_status(opts):
 
 
 def enable_agent(opts):
-    result_dict = {"enabled": True, "priority": opts.priority}
-    enable_disable_agent(opts, result_dict, "Enabling")
+    if opts.json:
+        result_dict = {"enabled": True, "priority": opts.priority}
+    else:
+        result_dict = {"str_prefix": "Enabling", "str_suffix": f"with priority {opts.priority}"}
+
+    enable_disable_agent(opts, result_dict)
 
 
 def disable_agent(opts):
-    result_dict = {"disabled": True}
-    enable_disable_agent(opts, result_dict, "Disabling")
+    if opts.json:
+        result_dict = {"disabled": True}
+    else:
+        result_dict = {"str_prefix": "Disabling"}
+
+    enable_disable_agent(opts, result_dict)
 
 
-def enable_disable_agent(opts, dict_result_info, str_result_info):
+def enable_disable_agent(opts, result_info):
     """
     Enable or disable agent based on command set in opts.command and pattern set in opts
     :param opts: options that include the enable/disable command, any optional pattern and the agent attribute that
      should be matched against the given pattern
-    :param dict_result_info: additional info to be added to result if result is in json format
-    :param str_result_info: prefix to result string.
+    :param result_info: dictionary of additional information to be added to result
     """
     agents = _list_agents(opts)
     results = []
@@ -711,14 +718,15 @@ def enable_disable_agent(opts, dict_result_info, str_result_info):
             if opts.json:
                 results.append({"command": opts.command, "error": f"agent not found {pattern}"})
             else:
-                _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
+                _stderr.write(f"{opts.command}: error: agent not found: {pattern}\n")
         for agent in match:
             if opts.json:
                 result = {"uuid": agent.uuid, "name": agent.name}
-                result.update(dict_result_info)
+                result.update(result_info)
                 results.append(result)
             else:
-                _stdout.write("{} {} {}\n".format(str_result_info, agent.uuid, agent.name))
+                _stdout.write(f"{result_info.get('str_prefix', '')} {agent.uuid} {agent.name} "
+                              f"{result_info.get('str_suffix', '')}\n")
             opts.connection.call("prioritize_agent", agent.uuid, None)
     if opts.json:
         if len(results) == 1:
