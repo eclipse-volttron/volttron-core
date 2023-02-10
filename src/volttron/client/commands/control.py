@@ -144,14 +144,24 @@ def escape(pattern):
     )
 
 
-def filter_agents(agents, patterns, opts):
-    by_name, by_tag, by_uuid = opts.by_name, opts.by_tag, opts.by_uuid
+def filter_agents(agents: List[AgentMeta], patterns: List[str], opts: argparse.Namespace):
+    """
+    Filters a given list of agent details based on the provided pattern and user options. User options specify
+    what attributes of the agent metadata needs to match the pattern passed. For example should the pattern be applied
+    to the agent's tag or agent's name
+
+    :param agents: List of AgentMeta object that contains agents name, tag, uuid, vip_id, and agent_user
+    :param patterns: List of patterns to match
+    :param opts: command line options that specify what attribute of the agent should be matched against the pattern
+    :return: yields the pattern and the List of AgentMeta that matched the pattern
+    """
+    by_name, by_tag, by_uuid, by_all_tagged = opts.by_name, opts.by_tag, opts.by_uuid, opts.by_all_tagged
     for pattern in patterns:
         regex, _ = escape(pattern)
         result = set()
 
         # if no option is selected, try matching based on uuid
-        if not (by_uuid or by_name or by_tag):
+        if not (by_uuid or by_name or by_tag or by_all_tagged):
             reobj = re.compile(regex)
             matches = [agent for agent in agents if reobj.match(agent.uuid)]
             if len(matches) == 1:
@@ -169,6 +179,9 @@ def filter_agents(agents, patterns, opts):
                 result.update(agent for agent in agents if reobj.match(agent.name))
             if by_tag:
                 result.update(agent for agent in agents if reobj.match(agent.tag or ""))
+            if by_all_tagged:
+                result.update(
+                    agent for agent in agents if reobj.match(agent.tag))
         yield pattern, result
 
 
@@ -604,25 +617,26 @@ def update_health_cache(opts):
 
 
 def status_agents(opts):
-    agents = {agent.uuid: agent for agent in _list_agents(opts)}
+    all_agents = {agent.uuid: agent for agent in _list_agents(opts)}
     status = {}
-    for details in opts.connection.call("status_agents", get_agent_user=True):
+    agents_with_status = opts.connection.call("status_agents", get_agent_user=True)
+    for details in agents_with_status:
         if cc.is_secure_mode():
             (uuid, name, agent_user, stat, identity) = details
         else:
             (uuid, name, stat, identity) = details
             agent_user = ""
         try:
-            agent = agents[uuid]
-            agents[uuid] = agent._replace(agent_user=agent_user)
+            agent = all_agents[uuid]
+            all_agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = AgentMeta(name,
+            all_agents[uuid] = agent = AgentMeta(name,
                                              None,
                                              uuid,
                                              vip_identity=identity,
                                              agent_user=agent_user)
         status[uuid] = stat
-    agents = list(agents.values())
+    all_agents = list(all_agents.values())
 
     def get_status(agent):
         try:
@@ -652,7 +666,10 @@ def status_agents(opts):
         except (VIPError, gevent.Timeout):
             return ""
 
-    _show_filtered_agents_status(opts, get_status, get_health, agents)
+    def get_priority(agent):
+        return opts.connection.call("agent_priority", agent.uuid)
+
+    _show_filtered_agents_status(opts, get_status, get_health, get_priority, all_agents)
 
 
 def agent_health(opts):
@@ -683,57 +700,115 @@ def clear_status(opts):
 
 
 def enable_agent(opts):
-    agents = _list_agents(opts.aip)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
-        for agent in match:
-            _stdout.write("Enabling {} {} with priority {}\n".format(agent.uuid, agent.name,
-                                                                     opts.priority))
-            opts.aip.prioritize_agent(agent.uuid, opts.priority)
+    if opts.json:
+        result_dict = {"enabled": True, "priority": opts.priority}
+    else:
+        result_dict = {"str_prefix": "Enabling", "str_suffix": f"with priority {opts.priority}"}
+
+    enable_disable_agent(opts, result_dict)
 
 
 def disable_agent(opts):
-    agents = _list_agents(opts.aip)
+    if opts.json:
+        result_dict = {"disabled": True}
+    else:
+        result_dict = {"str_prefix": "Disabling"}
+
+    enable_disable_agent(opts, result_dict)
+
+
+def enable_disable_agent(opts, result_info):
+    """
+    Enable or disable agent based on command set in opts.command and pattern set in opts
+    :param opts: options that include the enable/disable command, any optional pattern and the agent attribute that
+     should be matched against the given pattern
+    :param result_info: dictionary of additional information to be added to result
+    """
+    agents = _list_agents(opts)
+    results = []
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
+            if opts.json:
+                results.append({"command": opts.command, "error": f"agent not found {pattern}"})
+            else:
+                _stderr.write(f"{opts.command}: error: agent not found: {pattern}\n")
         for agent in match:
-            priority = opts.aip.agent_priority(agent.uuid)
-            if priority is not None:
-                _stdout.write("Disabling {} {}\n".format(agent.uuid, agent.name))
-                opts.aip.prioritize_agent(agent.uuid, None)
+            if opts.json:
+                result = {"uuid": agent.uuid, "name": agent.name}
+                result.update(result_info)
+                results.append(result)
+            else:
+                _stdout.write(f"{result_info.get('str_prefix', '')} {agent.uuid} {agent.name} "
+                              f"{result_info.get('str_suffix', '')}\n")
+            opts.connection.call("prioritize_agent", agent.uuid, None)
+    if opts.json:
+        if len(results) == 1:
+            _stdout.write(f"{jsonapi.dumps(results[0], indent=2)}\n")
+        else:
+            _stdout.write(f"{jsonapi.dumps(results, indent=2)}\n")
 
 
 def start_agent(opts):
-    call = opts.connection.call
-    agents = _list_agents(opts)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
-        for agent in match:
-            pid, status = call("agent_status", agent.uuid)
-            if pid is None or status is not None:
-                _stdout.write("Starting {} {}\n".format(agent.uuid, agent.name))
-                call("start_agent", agent.uuid)
+    act_on_agent("start_agent", opts)
 
 
 def stop_agent(opts):
-    call = opts.connection.call
-    agents = _list_agents(opts)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
-        for agent in match:
-            pid, status = call("agent_status", agent.uuid)
-            if pid and status is None:
-                _stdout.write("Stopping {} {}\n".format(agent.uuid, agent.name))
-                call("stop_agent", agent.uuid)
+    act_on_agent("stop_agent", opts)
 
 
 def restart_agent(opts):
     stop_agent(opts)
     start_agent(opts)
+
+
+def act_on_agent(action: str, opts: argparse.Namespace):
+    """
+    Starts or stops agents that match the given criteria
+
+    :param action: "start_agent" or "stop_agent"
+    :param opts: contains the patterns to match and the agent attribute/metadata that should be matched against the
+                 given pattern
+    """
+    call = opts.connection.call
+    agents = _list_agents(opts)
+    pattern_to_use = opts.pattern
+
+    if not opts.by_all_tagged and not opts.pattern:
+        raise ValueError("Missing argument. Command requires at least one argument.")
+
+    # prefilter all agents and update regex pattern for only tagged agents
+    if opts.by_all_tagged and not opts.pattern:
+        agents, pattern_to_use = [a for a in agents if a.tag is not None], '*'
+
+    for pattern, match in filter_agents(agents, pattern_to_use, opts):
+        if not match:
+            _stderr.write(f"{opts.command}: error: agent not found: {pattern}\n")
+        for agent in match:
+            pid, status = call("agent_status", agent.uuid)
+            _call_action_on_agent(agent, pid, status, call,  action)
+
+
+def _call_action_on_agent(agent: AgentMeta, pid, status, call, action):
+    """
+    Calls server side method to start or stop agent and writes the corresponding message to stdout
+
+    :param agent: Agent metadata data containing uuid, name, vip_id, agent priority
+    :param pid: pid of Agent process
+    :param status: Status of the start or stop process
+    :param call: method that makes the rpc call to corresponding server side method
+    :param action: start_agent or stop_agent
+    """
+    if action == "start_agent":
+        if pid is None or status is not None:
+            _stdout.write(f"Starting {agent.uuid} {agent.name}\n")
+            call(action, agent.uuid)
+            return
+
+    if action == "stop_agent":
+        if pid and status is None:
+            _stdout.write(f"Stopping {agent.uuid} {agent.name}\n")
+            call(action, agent.uuid)
+            return
 
 
 def run_agent(opts):
@@ -1310,7 +1385,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
-def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
+def _show_filtered_agents_status(opts, status_callback, health_callback, priority_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1357,7 +1432,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
         if cc.is_secure_mode():
             user_width = max(3, max(len(agent.agent_user or "") for agent in agents))
-            fmt = "{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
             _stderr.write(
                 fmt.format(
                     "UUID",
@@ -1369,10 +1444,11 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                     tag_width,
                     "AGENT_USER",
                     user_width,
+                    "PRIORITY",
                     "STATUS",
                     "HEALTH",
                 ))
-            fmt = "{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {:<8} {:<15} {:<}\n"
             for agent in agents:
                 status_str = status_callback(agent)
                 agent_health_dict = health_callback(agent)
@@ -1387,11 +1463,12 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                         tag_width,
                         agent.agent_user if status_str.startswith("running") else "",
                         user_width,
+                        priority_callback(agent) or "",
                         status_str,
                         health_callback(agent),
                     ))
         else:
-            fmt = "{} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
             _stderr.write(
                 fmt.format(
                     "UUID",
@@ -1401,10 +1478,11 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                     identity_width,
                     "TAG",
                     tag_width,
+                    "PRIORITY",
                     "STATUS",
                     "HEALTH",
                 ))
-            fmt = "{} {:{}} {:{}} {:{}} {:<15} {:<}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:<8} {:<15} {:<}\n"
             for agent in agents:
                 _stdout.write(
                     fmt.format(
@@ -1415,6 +1493,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                         identity_width,
                         agent.tag or "",
                         tag_width,
+                        priority_callback(agent) or "",
                         status_callback(agent),
                         health_callback(agent),
                     ))
@@ -2103,22 +2182,25 @@ def main():
         "--name",
         dest="by_name",
         action="store_true",
-        help="filter/search by agent name",
+        help="filter/search by agent name. value passed should be quoted if it contains a regular expression",
     )
     filterable.add_argument(
         "--tag",
         dest="by_tag",
         action="store_true",
-        help="filter/search by tag name",
+        help="filter/search by tag name. value passed should be quoted if it contains a regular expression",
+    )
+    filterable.add_argument(
+        "--all-tagged", dest="by_all_tagged", action="store_true",
+        help="filter/search by all tagged agents"
     )
     filterable.add_argument(
         "--uuid",
         dest="by_uuid",
         action="store_true",
-        help="filter/search by UUID (default)",
+        help="filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
     )
-    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
-
+    filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
     parser = config.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
         add_help=False,
@@ -2208,18 +2290,7 @@ def main():
     peers = add_parser("peerlist", help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
 
-    list_ = add_parser("list", parents=[filterable], help="list installed agent")
-    list_.add_argument("pattern", nargs="*", help="UUID or name of agent")
-    list_.add_argument(
-        "-n",
-        dest="min_uuid_len",
-        type=int,
-        metavar="N",
-        help="show at least N characters of UUID (0 to show all)",
-    )
-    list_.set_defaults(func=list_agents, min_uuid_len=1)
-
-    status = add_parser("status", parents=[filterable], help="show status of agents")
+    status = add_parser("status", aliases=("list",), parents=[filterable], help="show status of agents")
     status.add_argument("pattern", nargs="*", help="UUID or name of agent")
     status.add_argument(
         "-n",
@@ -2266,16 +2337,16 @@ def main():
     disable.add_argument("pattern", nargs="+", help="UUID or name of agent")
     disable.set_defaults(func=disable_agent)
 
-    start = add_parser("start", parents=[filterable], help="start installed agent")
-    start.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    start = add_parser("start", parents=[filterable], help="start installed agent.")
+    start.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     start.set_defaults(func=start_agent)
 
     stop = add_parser("stop", parents=[filterable], help="stop agent")
-    stop.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    stop.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     stop.set_defaults(func=stop_agent)
 
     restart = add_parser("restart", parents=[filterable], help="restart agent")
-    restart.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    restart.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     restart.set_defaults(func=restart_agent)
 
     run = add_parser("run", help="start any agent by path")

@@ -524,6 +524,11 @@ class AIPplatform(object):
         if agent_config is None:
             agent_config = dict()
 
+        agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
+        # This should happen before install of source. if force=True then below line will remove agent source when
+        # removing last/only instance of an agent
+        backup_agent_file, publickey, secretkey = self.backup_agent_data(agent_uuid, publickey, secretkey, vip_identity)
+
         agent_name = self.install_agent_source(agent, force, pre_release)
 
         # get default vip_identity if vip_identity is not passed
@@ -541,10 +546,6 @@ class AIPplatform(object):
             if os.path.isfile(default_vip_id_file):
                 with open(str(default_vip_id_file)) as fin:
                     vip_identity = fin.read().strip()
-
-        agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
-
-        backup_agent_file, publickey, secretkey = self.backup_agent_data(agent_uuid, publickey, secretkey, vip_identity)
 
         final_identity = self._setup_agent_vip_id(agent_name, vip_identity=vip_identity)
 
