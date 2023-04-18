@@ -73,6 +73,7 @@ import volttron.types.server_config as server_config
 # from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 
 _log = logging.getLogger(__name__)
+_log.setLevel(logging.WARN)
 
 _dump_re = re.compile(r"([,\\])")
 _load_re = re.compile(r"\\(.)|,")
