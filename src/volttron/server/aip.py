@@ -1241,6 +1241,7 @@ class AIPplatform(object):
         execenv.execute(
             argv,
             env=environ,
+            cwd=os.path.join(self.install_dir, vip_identity),
             close_fds=True,
             stdin=open(os.devnull),
             stdout=PIPE,
