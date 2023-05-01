@@ -21,7 +21,7 @@ defaults:
 env:
   LANG: en_US.utf-8
   LC_ALL: en_US.utf-8
-  PYTHON_VERSION: '3.8'
+  PYTHON_VERSION: '3.10'
   PROJECT_NAME: volttron-core
 
 jobs:
@@ -29,8 +29,8 @@ jobs:
   run-tests:
     strategy:
       matrix:
-        os: ["ubuntu-20.04", "ubuntu-22.04"]
-        python: ["3.8", "3.9", "3.10"]
+        os: ["ubuntu-22.04"]
+        python: ["3.10", "3.11"]
 
     runs-on: ${{ matrix.os }}
 
