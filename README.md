@@ -1,5 +1,8 @@
-VOLTTRON™ is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data.
+Eclipse VOLTTRON™ (VOLTTRON/volttron) is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data.
 
+![Eclipse VOLTTRON 10.0.3](https://img.shields.io/badge/Eclipse%20VOLTTRON-10.0.3-green)
+![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
 [![Pytests](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml/badge.svg)](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml)
 [![pypi version](https://img.shields.io/pypi/v/volttron.svg)](https://pypi.org/project/volttron/)
 
@@ -22,22 +25,22 @@ pip install volttron
  
  2. Start the platform
     ```bash
-    > volttron -vv -l volttron.log &>/dev/null &
+    volttron -vv -l volttron.log &>/dev/null &
     ```
 
  3. Install listener agent
     ```bash
-    > vctl install volttron-listener --start
+    vctl install volttron-listener --start
     ```
 
  4. View status of platform
     ```bash
-    > vctl status
+    vctl status
     ```
 
  5. Shutdown the platform
     ```bash
-    > vctl shutdown --platform
+    vctl shutdown --platform
     ```
 
 Full VOLTTRON documentation available at [VOLTTRON Readthedocs](https://volttron.readthedocs.io)
