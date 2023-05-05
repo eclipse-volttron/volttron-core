@@ -1,19 +1,18 @@
-# Developing on Modular Volttron
-
+# Developing on Modular Eclipse VOLTTRON™
 
 The following documentation steps through the process of setting up your environment to start
-developing on modular VOLTTRON.
+developing on modular Eclipse VOLTTRON™ (VOLTTRON/volttron).
 
 There are requirements in order to follow this README. The following requirements should be installed system-wide, 
 so they are available to be used throughout the README.
 
-* Poetry 1.2.2
+* Poetry >= 1.2.2
 
 ## Installing poetry
 
 VOLTTRON uses [Poetry](https://python-poetry.org/), a dependency management and packaging tool for Python. If you don't have Poetry installed on your machine, follow [these steps](https://python-poetry.org/docs/#installation) to install it on your machine.
 
-To check if Poetry is installed, run `poetry --version`. If you receive the error 'command not found: poetry', add the following line to your '~/.bashrc' script: ```export PATH=$PATH:$HOME/.local/bin```.
+To check if Poetry is installed, run `poetry --version`. If you receive the error 'command not found: poetry', add the following line to your '~/.bashrc' script: ```export PATH=$PATH:$HOME/.local/bin``` and restart your shell.
 
 ### Recommended configuration for poetry
 
@@ -31,7 +30,7 @@ By default, poetry creates a virtual environment in {cache-dir}/virtualenvs. To 
 
 The recommended development path is outlined below:
 
-* Fork the Agent repository on Github
+* Fork the agent repository on Github
 * Clone the repository in your local environment
 * Setup the environment using poetry
 
@@ -39,7 +38,7 @@ The recommended development path is outlined below:
 poetry install 
 ```
 
-* Create a working branch off of 'develop'
+* Create a working branch off of the 'develop' branch
 * Make a code change
 * Run tests
 
@@ -48,7 +47,7 @@ poetry run pytest tests/
 ```
 * Create a Pull Request (PR)
   * Please see the [contributing.md](CONTRIBUTING.md) document before contributing to this repository.
-  * Go on your forked Github repository and create a PR.  
+  * Go to your forked Github repository in your browser and create a pull request.  
 
 ## Building a Wheel
 
@@ -78,15 +77,16 @@ user@path$ poetry version prepatch
 
 # output
 Bumping version from 0.2.0 to 0.2.1-alpha.0
+```
 
+## Testing 
 
-## Testing
+If starting from an existing agent, when running poetry install without any arguments will install the volttron-testing package in your environment.
 
-To write tests, install [`volttron-testing`](https://github.com/eclipse-volttron/volttron-testing/tree/develop) as a 
-dev dependency. Use poetry to install `volttron-testing` into your environment:
+If a new agent, to write tests against volttron-testing, install [`volttron-testing`](https://github.com/eclipse-volttron/volttron-testing/tree/develop) as a dev dependency. Use poetry to install `volttron-testing` into your environment:
 
 ```shell
-poetry add volttron-testing
+poetry add volttron-testing --group dev
 ```
 
 ## Tests
