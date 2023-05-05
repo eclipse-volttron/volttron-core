@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "volttron"
-version = "10.0.2-rc"
+version = "10.0.3rc0"
 description = "VOLTTRON™ is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data."
 authors = ["volttron <volttron@pnnl.gov>"]
 license = "Apache-2.0"
@@ -42,6 +42,7 @@ mock = "^4.0.3"
 pre-commit = "^2.17.0"
 yapf = "^0.32.0"
 toml = "^0.10.2"
+mypy = "^1.2.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -67,3 +68,8 @@ based_on_style = "pep8"
 spaces_before_comment = 4
 column_limit = 99
 split_before_logical_operator = true
+
+[tool.mypy]
+show_error_context = true
+pretty = true
+show_column_numbers = true
