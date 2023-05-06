@@ -1,0 +1,59 @@
+name: Make full release
+
+on:
+  workflow_dispatch:
+    inputs:
+      merge-strategy:
+        description: 'Merge strategy and strategy options. Used only in case of merge conflicts'
+        required: false
+        default: ''
+        type: string
+      release-version-specified:
+        type: boolean
+        description: 'Use release version instead of bumping version from version tag'
+        default: false
+      first-release-version:
+        description: 'Version number to use if this is the first release'
+        required: false
+        default: 0.1.0rc0
+        type: string
+      bump-rule:
+        description: 'Bump rule for computing next release version number.'
+        required: false
+        default: 'prerelease'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prepatch
+          - preminor
+          - premajor
+          - prerelease
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LANG: en_US.utf-8
+  LC_ALL: en_US.utf-8
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  call-deploy-release:
+    permissions:
+      contents: write  # To push a branch
+      pull-requests: write  # To create a PR from that branch
+
+    uses: craig8/github-tooling/.github/workflows/deploy-release.yml@repurpose-first-release-version
+    with:
+      merge-strategy: ${{ inputs.merge-strategy }}
+      first-release-version: ${{ inputs.first-release-version }}
+      bump-rule: ${{ inputs.bump-rule }}
+      release-version-specified: ${{ inputs.release-version-specified }}
+      run-tests-wait: 600
+      publish-to-test-pypi: false
+    secrets:
+      git-token: ${{ secrets.AUTO_PROJECT_PAT }}
+      pypi-token: ${{ secrets.PYPI_TOKEN }}
