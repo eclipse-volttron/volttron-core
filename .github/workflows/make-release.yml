@@ -55,5 +55,5 @@ jobs:
       run-tests-wait: 600
       publish-to-test-pypi: false
     secrets:
-      git-token: ${{ secrets.GH_PAT }}
+      git-token: ${{ secrets.AUTO_PROJECT_PAT }}
       pypi-token: ${{ secrets.PYPI_TOKEN }}
