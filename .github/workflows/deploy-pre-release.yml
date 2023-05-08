@@ -1,125 +1,125 @@
 ---
-name: Deploy Pre-Release Artifacts
-
-on:
-  push:
-    branches:
-      - develop
-
-defaults:
-  run:
-    shell: bash
-
-env:
-  LANG: en_US.utf-8
-  LC_ALL: en_US.utf-8
-  PYTHON_VERSION: '3.10'
-
-jobs:
-
-  bump_version:
-    environment: test_env
-    runs-on: ubuntu-22.04
-    steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-
-      #----------------------------------------------
-      #       check-out repo and set-up python
-      #----------------------------------------------
-      - name: Checkout code
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python ${{ env.PYTHON_VERSION }}
-        id: setup-python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      #----------------------------------------------
-      #  -----  install & configure poetry  -----
-      #----------------------------------------------
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
-
-      #----------------------------------------------
-      #       load cached venv if cache exists
-      #----------------------------------------------
-      - name: Load cached venv
-        id: cached-poetry-dependencies
-        uses: actions/cache@v2.1.7
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
-
-      #----------------------------------------------
-      # install dependencies if cache does not exist
-      #----------------------------------------------
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction --no-root
-
-      #----------------------------------------------
-      # install your root project, if required
-      #----------------------------------------------
-      - name: Install library
-        run: |
-          poetry install --no-interaction
-
-      - name: Bump Version
-        run: |
-          # current_tag is the last tagged release in the repository.   From there
-          # we need to remove the v from the beginning of the tag.
-          echo "Bump rule is prerelease"
-          if ! $(git tag -l "v*" = ''); then
-            # uses -V which is version sort to keep it monotonically increasing.
-            current_tag=$(git tag -l "v*" | grep --invert-match '-' | sort --reverse -V  | sed -n 1p)
-            echo "current git tag is ${current_tag}"
-            current_tag=${current_tag#?}  
-            # current_tag is now the version we want to set our poetry version so
-            # that we can bump the version
-            poetry version ${current_tag}
-            poetry version prerelease --no-interaction
-            
-          else
-            # very first release. start with inputs.first-release-version
-            echo "First release. Setting tag as v0.0.1rc0"
-            current_tag=v0.0.1rc0
-            poetry version ${current_tag}
-          fi
-          
-          NEW_TAG=v$(poetry version --short)
-
-          # Finally because we want to be able to use the variable in later
-          # steps we set a NEW_TAG environmental variable
-          echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
-
-      #---------------------------------------------------------------
-      # create build artifacts to be included as part of release
-      #---------------------------------------------------------------
-      - name: Create build artifacts
-        run: |
-          poetry build -vvv
-
-      - uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*.gz,dist/*.whl"
-          artifactErrorsFailBuild: true
-          generateReleaseNotes: true
-          commit: ${{ github.ref }}
-          prerelease: true
-          tag: ${{ env.NEW_TAG }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish pre-release to pypi
-        if: github.repository == 'eclipse-volttron/volttron-core'
-        run: |
-          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-          poetry publish
+    name: Deploy Pre-Release Artifacts
+    
+    on:
+      push:
+        branches:
+          - develop
+    
+    defaults:
+      run:
+        shell: bash
+    
+    env:
+      LANG: en_US.utf-8
+      LC_ALL: en_US.utf-8
+      PYTHON_VERSION: '3.10'
+    
+    jobs:
+    
+      bump_version:
+        environment: test_env
+        runs-on: ubuntu-22.04
+        steps:
+          - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+          - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+          - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+    
+          #----------------------------------------------
+          #       check-out repo and set-up python
+          #----------------------------------------------
+          - name: Checkout code
+            uses: actions/checkout@v3.5.2
+            with:
+              fetch-depth: 0
+    
+          - name: Set up Python ${{ env.PYTHON_VERSION }}
+            id: setup-python
+            uses: actions/setup-python@v2
+            with:
+              python-version: ${{ env.PYTHON_VERSION }}
+    
+          #----------------------------------------------
+          #  -----  install & configure poetry  -----
+          #----------------------------------------------
+          - name: Install Poetry
+            uses: snok/install-poetry@v1.3.3
+            with:
+              virtualenvs-create: true
+              virtualenvs-in-project: true
+              installer-parallel: true
+    
+          #----------------------------------------------
+          #       load cached venv if cache exists
+          #----------------------------------------------
+          - name: Load cached venv
+            id: cached-poetry-dependencies
+            uses: actions/cache@v2.1.7
+            with:
+              path: .venv
+              key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+    
+          #----------------------------------------------
+          # install dependencies if cache does not exist
+          #----------------------------------------------
+          - name: Install dependencies
+            if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+            run: poetry install --no-interaction --no-root
+    
+          #----------------------------------------------
+          # install your root project, if required
+          #----------------------------------------------
+          - name: Install library
+            run: |
+              poetry install --no-interaction
+    
+          - name: Bump Version
+            run: |
+              # current_tag is the last tagged release in the repository.   From there
+              # we need to remove the v from the beginning of the tag.
+              echo "Bump rule is prerelease"
+              if ! $(git tag -l "v*" = ''); then
+                # uses -V which is version sort to keep it monotonically increasing.
+                current_tag=$(git tag -l "v*" | grep --invert-match '-' | sort --reverse -V  | sed -n 1p)
+                echo "current git tag is ${current_tag}"
+                current_tag=${current_tag#?}  
+                # current_tag is now the version we want to set our poetry version so
+                # that we can bump the version
+                poetry version ${current_tag}
+                poetry version prerelease --no-interaction
+                
+              else
+                # very first release. start with inputs.first-release-version
+                echo "First release. Setting tag as v0.0.1rc0"
+                current_tag=v0.0.1rc0
+                poetry version ${current_tag}
+              fi
+              
+              NEW_TAG=v$(poetry version --short)
+    
+              # Finally because we want to be able to use the variable in later
+              # steps we set a NEW_TAG environmental variable
+              echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
+    
+          #---------------------------------------------------------------
+          # create build artifacts to be included as part of release
+          #---------------------------------------------------------------
+          - name: Create build artifacts
+            run: |
+              poetry build -vvv
+    
+          - uses: ncipollo/release-action@v1.12.0
+            with:
+              artifacts: "dist/*.gz,dist/*.whl"
+              artifactErrorsFailBuild: true
+              generateReleaseNotes: true
+              commit: ${{ github.ref }}
+              prerelease: true
+              tag: ${{ env.NEW_TAG }}
+              token: ${{ secrets.GITHUB_TOKEN }}
+    
+          - name: Publish pre-release to pypi
+            if: github.repository_owner == 'eclipse-volttron'
+            run: |
+              poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+              poetry publish
