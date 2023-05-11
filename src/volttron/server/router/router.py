@@ -1,3 +1,27 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Installable Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
+
 import logging
 import os
 import sys
@@ -15,13 +39,12 @@ from volttron.utils.keystore import KeyStore
 
 from .base_router import BaseRouter, UNROUTABLE, ERROR, INCOMING
 
-from volttron.services.external import ExternalRPCService
-from volttron.services.peer import ServicePeerNotifier
-from volttron.services.routing import RoutingService
-from volttron.services.pubsub import PubSubService
-from volttron.server.monitor import Monitor
+from volttron.services.routing import ExternalRPCService, PubSubService
 
-# from ..server import __version__
+from volttron.types.peer import ServicePeerNotifier
+from volttron.services.routing import RoutingService
+from volttron.server.monitor import Monitor
+from ...client.known_identities import CONTROL
 
 _log = logging.getLogger(__name__)
 
@@ -62,7 +85,7 @@ class Router(BaseRouter):
         self._publickey = publickey
         self.logger = logging.getLogger("vip.router")
         if self.logger.level == logging.NOTSET:
-            self.logger.setLevel(logging.WARNING)
+            self.logger.setLevel(logging.DEBUG) # .WARNING)
         self._monitor = monitor
         self._tracker = tracker
         self._volttron_central_address = volttron_central_address
@@ -147,11 +170,11 @@ class Router(BaseRouter):
         elif topic == UNROUTABLE:
             log("unroutable: %s: %s", extra, formatter)
         else:
-            log(
-                "%s: %s",
-                ("incoming" if topic == INCOMING else "outgoing"),
-                formatter,
-            )
+            direction = "incoming" if topic == INCOMING else "outgoing"
+            if direction == "outgoing":
+                log(f"{direction}: {deserialize_frames(frames)}")
+            else:
+                log(f"{direction}: {frames}")
         if self._tracker:
             self._tracker.hit(topic, frames, extra)
         if self._msgdebug:
@@ -191,7 +214,7 @@ class Router(BaseRouter):
             # was if sender == 'control' and user_id == self.default_user_id:
             # now we serialize frames and if user_id is always the sender and not
             # recipents.get('User-Id') or default user name
-            if sender == "control":
+            if sender == CONTROL:
                 if self._ext_routing:
                     self._ext_routing.close_external_connections()
                 self.stop()

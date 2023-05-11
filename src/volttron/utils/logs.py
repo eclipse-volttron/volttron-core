@@ -1,3 +1,27 @@
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Installable Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
+
 import logging
 import os
 import stat
@@ -68,9 +92,6 @@ class AgentFormatter(logging.Formatter):
     def format(self, record):
         if "composite_name" not in record.__dict__:
             record.__dict__["composite_name"] = self.composite_name(record)
-        if (len(record.args) > 0 and "tornado.access" in record.__dict__["composite_name"]):
-            record.__dict__["msg"] = ",".join([str(b) for b in record.args])
-            record.__dict__["args"] = []
         return super(AgentFormatter, self).format(record)
 
 
@@ -80,7 +101,10 @@ class FramesFormatter(object):
         self.frames = frames
 
     def __repr__(self):
-        return str([bytes(f) for f in self.frames])
+        output = ''
+        for f in self.frames:
+            output += str(f)
+        return output
 
     __str__ = __repr__
 
