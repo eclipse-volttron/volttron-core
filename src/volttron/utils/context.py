@@ -183,3 +183,8 @@ class ClientContext:
         keystore_path = os.path.join(cls.get_volttron_home(), "agents", vip_id, "keystore.json")
         keystore = KeyStore(keystore_path)
         return keystore.public, keystore.secret
+
+    @classmethod
+    def get_tag_refresh_interval(cls):
+        tag_refresh = cls.get_config_param("tag-refresh-interval", "600")
+        return int(tag_refresh)

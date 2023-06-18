@@ -21,25 +21,23 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
-from base64 import b64encode, b64decode
+import copy
 import inspect
 import logging
-import random
 import re
 import weakref
-import gevent
+from base64 import b64encode, b64decode
+from collections import defaultdict
 
-from zmq import green as zmq
-from zmq import SNDMORE
+import gevent
+from gevent.queue import Queue
+
 from volttron.utils import jsonapi
+from volttron.utils.scheduling import periodic
 from .base import SubsystemBase
 from ..decorators import annotate, annotations, dualmethod, spawn
-from ..errors import Unreachable
-from volttron.utils import jsonrpc
 from ..results import ResultsDictionary
-from gevent.queue import Queue
-from collections import defaultdict
+from volttron.client.known_identities import PLATFORM_TAGGING
 
 __all__ = ["PubSub"]
 
@@ -67,7 +65,7 @@ class PubSub(SubsystemBase):
     Pubsub subsystem concrete class implementation for ZMQ message bus.
     """
 
-    def __init__(self, core, rpc_subsys, peerlist_subsys, owner):
+    def __init__(self, core, rpc_subsys, peerlist_subsys, owner, tag_refresh_interval=-1):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
         self.peerlist = weakref.ref(peerlist_subsys)
@@ -79,14 +77,24 @@ class PubSub(SubsystemBase):
         def subscriptions():
             return defaultdict(set)
 
+        # d[platform][bus][prefix] = set(callback)
         self._my_subscriptions = defaultdict(platform_subscriptions)
-        self.protected_topics = ProtectedPubSubTopics()
+
+        # d[platform][bus][tag_query_condition] = set(callback)
+        self._my_tag_condition_callbacks = defaultdict(platform_subscriptions)
+
+        # format: # d[platform][bus][prefix] = set(callback)
+        # same format as _peer_subscriptions but this is updated periodically by running the
+        # tag query condition and update the prefix list
+        self._my_subscriptions_by_tags = defaultdict(platform_subscriptions)
+
         core.register("pubsub", self._handle_subsystem, self._handle_error)
         self.vip_socket = None
         self._results = ResultsDictionary()
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
+        self.tag_refresh_interval = tag_refresh_interval
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
@@ -98,12 +106,20 @@ class PubSub(SubsystemBase):
                 for peer, bus, prefix, all_platforms, queue in annotations(
                         member, set, "pubsub.subscriptions"):
                     # XXX: needs updated in light of onconnected signal
-                    self._add_subscription(prefix, member, bus, all_platforms)
-                    # _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
+                    self._add_subscription("prefix", prefix, member, bus, all_platforms)
+                    _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
 
+                for peer, bus, tag_condition, all_platforms, queue in annotations(
+                        member, set, "pubsub.subscription_by_tags"):
+                    # XXX: needs updated in light of onconnected signal
+                    self.subscribe_by_tags(peer='pubsub', tag_condition=tag_condition, callback=member, bus=bus,
+                                           all_platforms=all_platforms)
             inspect.getmembers(owner, subscribe)
 
         core.onsetup.connect(setup, self)
+        if self.tag_refresh_interval > 0:
+            print(f"tag refresh interval: {tag_refresh_interval}")
+            core.schedule(periodic(self.tag_refresh_interval), self.refresh_tag_subscriptions)
 
     def _connected(self, sender, **kwargs):
         """
@@ -131,119 +147,79 @@ class PubSub(SubsystemBase):
         """
         peer = "pubsub"
 
-        handled = 0
+        handled = dict()
         for platform in self._my_subscriptions:
             # _log.debug("SYNC: process callback subscriptions: {}".format(self._my_subscriptions[platform][bus]))
             buses = self._my_subscriptions[platform]
-            if bus in buses:
+            for bus in buses:
                 subscriptions = buses[bus]
                 for prefix, callbacks in subscriptions.items():
                     if topic.startswith(prefix):
-                        handled += 1
+                        handled[prefix] = callbacks
                         for callback in callbacks:
                             callback(peer, sender, bus, topic, headers, message)
+        for platform in self._my_subscriptions_by_tags:
+            buses = self._my_subscriptions_by_tags[platform]
+            for bus in buses:
+                subscriptions = buses[bus]
+                for prefix, callbacks in subscriptions.items():
+                    if topic.startswith(prefix):
+                        for callback in callbacks:
+                            # don't call same callback function twice for the same topic
+                            handled_callbacks = handled.get(prefix, set())
+                            if callback not in handled_callbacks:
+                                callback(peer, sender, bus, topic, headers, message)
+                                handled[prefix] = callbacks
+
         if not handled:
             # No callbacks for topic; synchronize with sender
             self.synchronize()
 
-    def _viperror(self, sender, error, **kwargs):
-        if isinstance(error, Unreachable):
-            self._peer_drop(self, error.peer)
+    @spawn
+    def refresh_tag_subscriptions(self):
+        def platform_subscriptions():
+            return defaultdict(subscriptions)
 
-    def _peer_add(self, sender, peer, **kwargs):
-        # Delay sync by some random amount to prevent reply storm.
-        delay = random.random()
-        self.core().spawn_later(delay, self.synchronize, peer)
+        def subscriptions():
+            return defaultdict(set)
 
-    def _peer_drop(self, sender, peer, **kwargs):
-        self._sync(peer, {})
-
-    def _sync(self, peer, items):
-        items = {(bus, prefix) for bus, topics in items.items() for prefix in topics}
-        remove = []
-        for bus, subscriptions in self._my_subscriptions.items():
-            for prefix, subscribers in subscriptions.items():
-                item = bus, prefix
-                try:
-                    items.remove(item)
-                except KeyError:
-                    subscribers.discard(peer)
-                    if not subscribers:
-                        remove.append(item)
-                else:
-                    subscribers.add(peer)
-        for bus, prefix in remove:
-            subscriptions = self._my_subscriptions[bus]
-            assert not subscriptions.pop(prefix)
-        for bus, prefix in items:
-            self._add_peer_subscription(peer, bus, prefix)
-
-    def _add_peer_subscription(self, peer, bus, prefix):
-        try:
-            subscriptions = self._my_subscriptions[bus]
-        except KeyError:
-            self._my_subscriptions[bus] = subscriptions = dict()
-        try:
-            subscribers = subscriptions[prefix]
-        except KeyError:
-            subscriptions[prefix] = subscribers = set()
-        subscribers.add(peer)
-
-    def _distribute(self, peer, topic, headers, message=None, bus=""):
-        self._check_if_protected_topic(topic)
-        try:
-            subscriptions = self._my_subscriptions[bus]
-        except KeyError:
-            subscriptions = dict()
-        subscribers = set()
-        for prefix, subscription in subscriptions.items():
-            if subscription and topic.startswith(prefix):
-                subscribers |= subscription
-        if subscribers:
-            sender = encode_peer(peer)
-            json_msg = jsonapi.dumpb(
-                jsonrpc.json_method(None, "pubsub.push", [sender, bus, topic, headers, message],
-                                    None))
-            frames = [
-                zmq.Frame(""),
-                zmq.Frame(""),
-                zmq.Frame("RPC"),
-                zmq.Frame(json_msg),
-            ]
-            socket = self.core().socket
-            for subscriber in subscribers:
-                socket.send(subscriber, flags=SNDMORE)
-                socket.send_multipart(frames, copy=False)
-        return len(subscribers)
+        print("refreshing tags")
+        # format d[platform][bus][prefix] = set(callbacks)
+        subscriptions_by_tag = defaultdict(platform_subscriptions)
+        for platform, bus_subscriptions in self._my_tag_condition_callbacks.items():
+            for bus, tag_conditions in bus_subscriptions.items():
+                for condition, callbacks in tag_conditions.items():
+                    for prefix in self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=condition).get():
+                        subscriptions_by_tag[platform][bus][prefix] = callbacks
+        self._my_subscriptions_by_tags = subscriptions_by_tag
+        self.synchronize()
 
     def synchronize(self):
         """Synchronize local subscriptions with the PubSubService."""
         result = next(self._results)
 
-        subscriptions = {
+        subscriptions_prefix_and_tag = {
             platform: {
                 bus: list(subscriptions.keys())
             }
             for platform, bus_subscriptions in self._my_subscriptions.items()
             for bus, subscriptions in bus_subscriptions.items()
         }
-        sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions))
+
+        # extend subscriptions dict to be sent to server with the subscriptions derived from tag based subscriptions
+        for platform, bus_subscriptions in self._my_subscriptions_by_tags.items():
+            if not subscriptions_prefix_and_tag.get(platform):
+                subscriptions_prefix_and_tag[platform] = dict()
+            for bus, _subscriptions in bus_subscriptions.items():
+                if not subscriptions_prefix_and_tag[platform].get(bus):
+                    subscriptions_prefix_and_tag[platform][bus] = list()
+                for subscription in _subscriptions.keys():
+                    if subscription not in subscriptions_prefix_and_tag[platform][bus]:
+                        subscriptions_prefix_and_tag[platform][bus].append(subscription)
+
+        sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions_prefix_and_tag))
         frames = ["synchronize", "connected", sync_msg]
         self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
-
-        # 2073 - python3 dictionary keys method returns a dict_keys structure that isn't serializable.
-        #        added list(subscriptions.keys()) to make it like python2 list of strings.
-        items = [{
-            platform: {
-                bus: list(subscriptions.keys())
-            }
-            for platform, bus_subscriptions in self._my_subscriptions.items()
-            for bus, subscriptions in bus_subscriptions.items()
-        }]
-        for subscriptions in items:
-            sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions))
-            frames = ["synchronize", "connected", sync_msg]
-            self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
 
     def list(
         self,
@@ -286,18 +262,28 @@ class PubSub(SubsystemBase):
         self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
         return result
 
-    def _add_subscription(self, prefix, callback, bus="", all_platforms=False):
+    def _add_subscription(self, subscription_type, prefix, callback, bus="", all_platforms=False):
         # _log.debug(f"Adding subscription prefix: {prefix} allplatforms: {all_platforms}")
+        if subscription_type == "prefix":
+            subscription_dict = self._my_subscriptions
+        elif subscription_type == "tags":
+            subscription_dict = self._my_subscriptions_by_tags
+
         if not callable(callback):
             raise ValueError("callback %r is not callable" % (callback, ))
-        try:
-            if not all_platforms:
-                self._my_subscriptions["internal"][bus][prefix].add(callback)
-            else:
-                self._my_subscriptions["all"][bus][prefix].add(callback)
-                # _log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
-        except KeyError:
-            _log.error("PUBSUB something went wrong in add subscriptions")
+
+        if not all_platforms:
+            subscription_dict["internal"][bus][prefix].add(callback)
+        else:
+            subscription_dict["all"][bus][prefix].add(callback)
+            # _log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
+        
+    def call_server_subscribe(self, all_platforms, bus, prefix):
+        result = next(self._results)
+        sub_msg = jsonapi.dumpb(dict(prefix=prefix, bus=bus, all_platforms=all_platforms))
+        frames = ["subscribe", sub_msg]
+        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        return result
 
     @dualmethod
     @spawn
@@ -318,28 +304,81 @@ class PubSub(SubsystemBase):
         case-insensitive dictionary (mapping) of message headers, and
         message is a possibly empty list of message parts.
         :param peer
-        :type peer
+        :type peer str
         :param prefix prefix to the topic
         :type prefix str
         :param callback callback method
         :type callback method
         :param bus bus
         :type bus str
-        :param platforms
-        :type platforms
+        :param all_platforms
+        :type all_platforms boolean
         :returns: Subscribe is successful or not
         :rtype: boolean
 
         :Return Values:
         Success or Failure
         """
-        result = next(self._results)
-        self._add_subscription(prefix, callback, bus, all_platforms)
-        sub_msg = jsonapi.dumpb(dict(prefix=prefix, bus=bus, all_platforms=all_platforms))
 
-        frames = ["subscribe", sub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
-        return result
+        self._add_subscription("prefix", prefix, callback, bus, all_platforms)
+        return self.call_server_subscribe(all_platforms, bus, prefix)
+
+    @dualmethod
+    @spawn
+    def subscribe_by_tags(self,
+                          peer,
+                          tag_condition,
+                          callback,
+                          bus="",
+                          all_platforms=False):
+        """Subscribe to topic based on given tags and register callback.
+
+        Subscribes to topics that match a given combination of tags. tag_condition is a condition string using which
+        tagging service can be queried for topic prefix that match the condition.
+        For example - "campusRef=building1 and equip and ahu"
+        If callback is supplied, it should be a function taking four arguments,
+        callback(peer, sender, bus, topic, headers, message), where peer is the ZMQ identity of the bus owner sender
+        is identity of the publishing peer, topic is the full message topic, headers is a case-insensitive dictionary
+        (mapping) of message headers, and message is a possibly empty list of message parts.
+        :param peer
+        :type peer
+        :param tag_condition query string/condition containing tags that need be matched
+        :type tag_condition str
+        :param callback callback method
+        :type callback method
+        :param bus bus
+        :type bus str
+        :param all_platforms
+        :type all_platforms boolean
+        :returns: success_list, failure_list
+        :rtype: list, list
+
+        :Return Values:
+        [List of matched prefix successfully subscribed to], [list of matched prefix we couldn't subscribe to]
+        """
+        if all_platforms:
+            platform = "all"
+        else:
+            platform = "internal"
+
+        # Query tagging service to topic prefix that match the given tag search condition
+        topic_prefixes = self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=tag_condition).get()
+
+        if not topic_prefixes:
+            raise ValueError(f"Not topics match given tag condition {tag_condition}")
+        success_list = []
+        failure_list = []
+        for prefix in topic_prefixes:
+            self._add_subscription("tags", prefix, callback, bus, all_platforms)
+            if self.call_server_subscribe(all_platforms, bus, prefix):
+                success_list.append(prefix)
+            else:
+                failure_list.append(prefix)
+
+        if success_list:
+            # even if there was one successful subscription save tag_condition for periodic updates
+            self._my_tag_condition_callbacks[platform][bus][tag_condition].add(callback)
+        return success_list, failure_list
 
     @subscribe.classmethod
     def subscribe(cls, peer, prefix, bus="", all_platforms=False, persistent_queue=None):
@@ -355,7 +394,21 @@ class PubSub(SubsystemBase):
 
         return decorate
 
-    def _drop_subscription(self, prefix, callback, bus="", platform="internal"):
+    @subscribe_by_tags.classmethod
+    def subscribe_by_tags(cls, peer, tag_condition, bus="", all_platforms=False, persistent_queue=None):
+
+        def decorate(method):
+            annotate(
+                method,
+                set,
+                "pubsub.subscription_by_tags",
+                (peer, bus, tag_condition, all_platforms, persistent_queue),
+            )
+            return method
+
+        return decorate
+
+    def _drop_subscription(self, subscription_type, prefix, callback, bus="", platform="internal"):
         """
         Drop the subscription for the specified prefix, callback and bus.
         param prefix: prefix to be removed
@@ -370,19 +423,24 @@ class PubSub(SubsystemBase):
         :Return Values:
         List of prefixes
         """
+        if subscription_type == "prefix":
+            subscription_dict = self._my_subscriptions
+        elif subscription_type == "tags":
+            subscription_dict = self._my_subscriptions_by_tags
+
         topics = []
         bus_subscriptions = dict()
         if prefix is None:
             if callback is None:
-                if len(self._my_subscriptions) and platform in self._my_subscriptions:
-                    bus_subscriptions = self._my_subscriptions[platform]
+                if len(subscription_dict) and platform in subscription_dict:
+                    bus_subscriptions = subscription_dict[platform]
                     if bus in bus_subscriptions:
                         topics.extend(bus_subscriptions[bus].keys())
                 if not len(topics):
                     return []
             else:
-                if platform in self._my_subscriptions:
-                    bus_subscriptions = self._my_subscriptions[platform]
+                if platform in subscription_dict:
+                    bus_subscriptions = subscription_dict[platform]
                 if bus in bus_subscriptions:
                     subscriptions = bus_subscriptions[bus]
                     remove = []
@@ -400,13 +458,13 @@ class PubSub(SubsystemBase):
                     if not subscriptions:
                         del bus_subscriptions[bus]
                     if not bus_subscriptions:
-                        del self._my_subscriptions[platform]
+                        del subscription_dict[platform]
             if not topics:
                 raise KeyError("no such subscription")
         else:
-            _log.debug(f"BEFORE: {self._my_subscriptions}")
-            if platform in self._my_subscriptions:
-                bus_subscriptions = self._my_subscriptions[platform]
+            _log.debug(f"BEFORE: {subscription_dict}")
+            if platform in subscription_dict:
+                bus_subscriptions = subscription_dict[platform]
                 if bus in bus_subscriptions:
                     _log.debug(f"BUS: {bus}")
                     subscriptions = bus_subscriptions[bus]
@@ -437,9 +495,17 @@ class PubSub(SubsystemBase):
                     if not subscriptions:
                         del bus_subscriptions[bus]
                     if not bus_subscriptions:
-                        del self._my_subscriptions[platform]
-        _log.debug(f"AFTER: {self._my_subscriptions}")
+                        del subscription_dict[platform]
+        _log.debug(f"AFTER: {subscription_dict}")
         return topics
+
+    def call_server_unsubscribe(self, bus, platform, subscriptions, topics):
+        result = next(self._results)
+        subscriptions[platform] = dict(prefix=topics, bus=bus)
+        unsub_msg = jsonapi.dumpb(subscriptions)
+        frames = ["unsubscribe", unsub_msg]
+        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        return result
 
     def unsubscribe(self, peer, prefix, callback, bus="", all_platforms=False):
         """Unsubscribe and remove callback(s).
@@ -461,21 +527,89 @@ class PubSub(SubsystemBase):
         success or not
         """
         subscriptions = dict()
-        result = next(self._results)
+
         if not all_platforms:
             platform = "internal"
-            topics = self._drop_subscription(prefix, callback, bus, platform)
-            subscriptions[platform] = dict(prefix=topics, bus=bus)
         else:
             platform = "all"
-            topics = self._drop_subscription(prefix, callback, bus, platform)
-            subscriptions[platform] = dict(prefix=topics, bus=bus)
 
-        unsub_msg = jsonapi.dumpb(subscriptions)
-        topics = self._drop_subscription(prefix, callback, bus)
-        frames = ["unsubscribe", unsub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
-        return result
+        topics = self._drop_subscription("prefix", prefix, callback, bus, platform)
+        return self.call_server_unsubscribe(bus, platform, subscriptions, topics)
+
+
+    @spawn
+    def unsubscribe_by_tags(self,
+                            peer,
+                            tag_condition,
+                            callback,
+                            bus="",
+                            all_platforms=False):
+        """Unsubscribe to topic based on given tags and register callback.
+
+        Subscribes to topics that match a given combination of tags. tag_condition is a condition string using which
+        tagging service can be queried for topic prefix that match the condition.
+        For example - "campusRef=building1 and equip and ahu"
+        If callback is supplied, it should be a function taking four arguments,
+        callback(peer, sender, bus, topic, headers, message), where peer is the ZMQ identity of the bus owner sender
+        is identity of the publishing peer, topic is the full message topic, headers is a case-insensitive dictionary
+        (mapping) of message headers, and message is a possibly empty list of message parts.
+        :param peer
+        :type peer
+        :param tag_condition query string/condition containing tags that need be matched
+        :type tag_condition str
+        :param callback callback method
+        :type callback method
+        :param bus bus
+        :type bus str
+        :param platforms
+        :type platforms
+        :returns: success_list, failure_list
+        :rtype: list, list
+
+        :Return Values:
+        [List of matched prefix successfully unsubscribed], [list of matched prefix we couldn't unsubscribe]
+        """
+        subscriptions = dict()
+
+        if all_platforms:
+            platform = "all"
+        else:
+            platform = "internal"
+
+        if not tag_condition:
+            raise KeyError("tag_condition is mandatory")
+
+        topic_prefixes = []
+        # Query tagging service to topic prefix that match the given tag search condition
+        topic_prefixes = self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=tag_condition).get()
+
+        if not topic_prefixes:
+            raise KeyError(f"Not topics match given tag condition {tag_condition}")
+        success_list = []
+        failure_list = []
+        for prefix in topic_prefixes:
+            topics = self._drop_subscription("tags", prefix, callback, bus, platform)
+            if self.call_server_unsubscribe(bus, platform, subscriptions, topics):
+                success_list.extend(topics)
+            else:
+                failure_list.extend(topics)
+
+        if not failure_list:
+            # if we couldn't unsubscribe all, leave tag_condition in place so user could call again with same condition
+            for platform, bus_subscriptions in self._my_tag_condition_callbacks.items():
+                for bus, tag_subscriptions in bus_subscriptions.items():
+                    for t, callbacks in tag_subscriptions.items():
+                        if t == tag_condition:
+                            if callback:
+                                try:
+                                    callbacks.remove(callback)
+                                except KeyError:
+                                    pass
+                            # if passed callback is none or if no callbacks left after last callbacks.remove()
+                            if not callback or not callbacks:
+                                del tag_subscriptions[tag_condition]
+
+        return success_list, failure_list
 
     def publish(self, peer: str, topic: str, headers=None, message=None, bus=""):
         """Publish a message to a given topic via a peer.
@@ -513,16 +647,49 @@ class PubSub(SubsystemBase):
         self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
         return result
 
-    def _check_if_protected_topic(self, topic):
-        required_caps = self.protected_topics.get(topic)
-        if required_caps:
-            user = str(self.rpc().context.vip_message.user)
-            caps = self._owner.vip.auth.get_capabilities(user)
-            if not set(required_caps) <= set(caps):
-                msg = ('to publish to topic "{}" requires capabilities {},'
-                       " but capability list {} was"
-                       " provided").format(topic, required_caps, caps)
-                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
+    def publish_by_tags(self, peer: str, tag_condition: str, headers=None, message=None, bus="",
+                        publish_multiple=False):
+        """Publish a message to a topic that matches the give tag_condition via a peer. If tag_condition resolves to
+        more than one topic then throw an error if publish_multiple is False. Publish to multiple matching topics if
+        publish_multiple parameter is True
+
+        Publish headers and message to all subscribers of topic on bus.
+        If peer is None, use self. Adds volttron platform version
+        compatibility information to header as variables
+        min_compatible_version and max_compatible version
+        param peer: peer
+        type peer: str
+        param tag_condition: tag_condition to find topic for the publish message
+        type topic: str
+        param headers: header info for the message
+        type headers: None or dict
+        param message: actual message
+        type message: None or any
+        param bus: bus
+        type bus: str
+        param publish_multiple: Boolean value if publish can be done to multiple topics if tag_condition matches multiple topics
+        type publish_multiple: boolean
+        return: Number of subscribers the message was sent to.
+        :rtype: int
+
+        :Return Values:
+        Number of subscribers
+        """
+        if not tag_condition:
+            raise KeyError("tag_condition is mandatory")
+        number_of_subscribers = 0
+
+        topic_prefixes = []
+        # Query tagging service to topic prefix that match the given tag search condition
+        topic_prefixes = self.rpc.call(PLATFORM_TAGGING, "get_topics_by_tags", condition=tag_condition).get()
+        if not topic_prefixes:
+            raise ValueError(f"Not topics match given tag condition {tag_condition}")
+        if len(topic_prefixes) > 1 and publish_multiple is False:
+            raise ValueError(f"tag condition {tag_condition} matched multiple topics ({topic_prefixes}) "
+                             f"but publish_multiple is set to false")
+        for topic in topic_prefixes:
+            number_of_subscribers = number_of_subscribers + self.publish(peer, topic, headers, message, bus)
+        return number_of_subscribers
 
     def _handle_subsystem(self, message):
         """Handler for incoming messages

@@ -35,8 +35,8 @@ PLATFORM_HEALTH = "platform.health"
 # The PLATFORM_ALERTER known name is now deprecated
 PLATFORM_ALERTER = PLATFORM_TOPIC_WATCHER
 PLATFORM_HISTORIAN = "platform.historian"
-
 PLATFORM_MARKET_SERVICE = "platform.market"
+PLATFORM_TAGGING = "platform.tagging"
 
 ROUTER = ""
 CONTROL = "platform.control"
