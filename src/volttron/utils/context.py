@@ -186,5 +186,5 @@ class ClientContext:
 
     @classmethod
     def get_tag_refresh_interval(cls):
-        tag_refresh = cls.get_config_param("tag-refresh-interval", "600")
+        tag_refresh = cls.get_config_param("tag-refresh-interval", "-1")
         return int(tag_refresh)

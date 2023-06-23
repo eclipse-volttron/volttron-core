@@ -118,7 +118,6 @@ class PubSub(SubsystemBase):
 
         core.onsetup.connect(setup, self)
         if self.tag_refresh_interval > 0:
-            print(f"tag refresh interval: {tag_refresh_interval}")
             core.schedule(periodic(self.tag_refresh_interval), self.refresh_tag_subscriptions)
 
     def _connected(self, sender, **kwargs):
@@ -175,6 +174,12 @@ class PubSub(SubsystemBase):
             # No callbacks for topic; synchronize with sender
             self.synchronize()
 
+    @staticmethod
+    def get_topics_by_tag(condition):
+        # return self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=condition).get()
+        print("IN GET TOPICS BY TAG> RETURNING empty")
+        return []
+
     @spawn
     def refresh_tag_subscriptions(self):
         def platform_subscriptions():
@@ -189,7 +194,7 @@ class PubSub(SubsystemBase):
         for platform, bus_subscriptions in self._my_tag_condition_callbacks.items():
             for bus, tag_conditions in bus_subscriptions.items():
                 for condition, callbacks in tag_conditions.items():
-                    for prefix in self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=condition).get():
+                    for prefix in self.get_topics_by_tag(condition):
                         subscriptions_by_tag[platform][bus][prefix] = callbacks
         self._my_subscriptions_by_tags = subscriptions_by_tag
         self.synchronize()
@@ -362,10 +367,9 @@ class PubSub(SubsystemBase):
             platform = "internal"
 
         # Query tagging service to topic prefix that match the given tag search condition
-        topic_prefixes = self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=tag_condition).get()
-
+        topic_prefixes = self.get_topics_by_tag(tag_condition)
         if not topic_prefixes:
-            raise ValueError(f"Not topics match given tag condition {tag_condition}")
+            raise ValueError(f"No topics match given tag condition {tag_condition}")
         success_list = []
         failure_list = []
         for prefix in topic_prefixes:
@@ -581,7 +585,7 @@ class PubSub(SubsystemBase):
 
         topic_prefixes = []
         # Query tagging service to topic prefix that match the given tag search condition
-        topic_prefixes = self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=tag_condition).get()
+        topic_prefixes = self.get_topics_by_tag(tag_condition)
 
         if not topic_prefixes:
             raise KeyError(f"Not topics match given tag condition {tag_condition}")
