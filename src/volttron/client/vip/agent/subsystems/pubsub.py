@@ -540,7 +540,6 @@ class PubSub(SubsystemBase):
         topics = self._drop_subscription("prefix", prefix, callback, bus, platform)
         return self.call_server_unsubscribe(bus, platform, subscriptions, topics)
 
-
     @spawn
     def unsubscribe_by_tags(self,
                             peer,
@@ -561,12 +560,12 @@ class PubSub(SubsystemBase):
         :type peer
         :param tag_condition query string/condition containing tags that need be matched
         :type tag_condition str
-        :param callback callback method
+        :param callback method to callback
         :type callback method
-        :param bus bus
+        :param bus message bus
         :type bus str
-        :param platforms
-        :type platforms
+        :param all_platforms
+        :type all_platforms boolean
         :returns: success_list, failure_list
         :rtype: list, list
 
@@ -599,7 +598,9 @@ class PubSub(SubsystemBase):
                 failure_list.extend(topics)
 
         if not failure_list:
-            # if we couldn't unsubscribe all, leave tag_condition in place so user could call again with same condition
+            # remove tag_condition only if there were no failures. if there are failures leave tag condition in place
+            # so that user could call unsubscribe again
+            remove = []
             for platform, bus_subscriptions in self._my_tag_condition_callbacks.items():
                 for bus, tag_subscriptions in bus_subscriptions.items():
                     for t, callbacks in tag_subscriptions.items():
@@ -611,8 +612,11 @@ class PubSub(SubsystemBase):
                                     pass
                             # if passed callback is none or if no callbacks left after last callbacks.remove()
                             if not callback or not callbacks:
-                                del tag_subscriptions[tag_condition]
+                                remove.append((platform, bus, tag_condition))
 
+            for platform, bus, condition in remove:
+                subscriptions = self._my_tag_condition_callbacks[platform][bus]
+                subscriptions.pop(condition)
         return success_list, failure_list
 
     def publish(self, peer: str, topic: str, headers=None, message=None, bus=""):
@@ -632,11 +636,8 @@ class PubSub(SubsystemBase):
         type message: None or any
         param bus: bus
         type bus: str
-        return: Number of subscribers the message was sent to.
-        :rtype: int
-
-        :Return Values:
-        Number of subscribers
+        return: async result - contains Number of subscribers the message was sent to.
+        :rtype: AsyncResult
         """
         if headers is None:
             headers = {}
@@ -673,11 +674,7 @@ class PubSub(SubsystemBase):
         type bus: str
         param publish_multiple: Boolean value if publish can be done to multiple topics if tag_condition matches multiple topics
         type publish_multiple: boolean
-        return: Number of subscribers the message was sent to.
-        :rtype: int
 
-        :Return Values:
-        Number of subscribers
         """
         if not tag_condition:
             raise KeyError("tag_condition is mandatory")
@@ -685,15 +682,14 @@ class PubSub(SubsystemBase):
 
         topic_prefixes = []
         # Query tagging service to topic prefix that match the given tag search condition
-        topic_prefixes = self.rpc.call(PLATFORM_TAGGING, "get_topics_by_tags", condition=tag_condition).get()
+        topic_prefixes = self.get_topics_by_tag(tag_condition)
         if not topic_prefixes:
             raise ValueError(f"Not topics match given tag condition {tag_condition}")
         if len(topic_prefixes) > 1 and publish_multiple is False:
             raise ValueError(f"tag condition {tag_condition} matched multiple topics ({topic_prefixes}) "
                              f"but publish_multiple is set to false")
         for topic in topic_prefixes:
-            number_of_subscribers = number_of_subscribers + self.publish(peer, topic, headers, message, bus)
-        return number_of_subscribers
+            self.publish(peer, topic, headers, message, bus)
 
     def _handle_subsystem(self, message):
         """Handler for incoming messages
