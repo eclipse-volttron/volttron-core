@@ -79,7 +79,7 @@ class PubSub(SubsystemBase):
         # d[platform][bus][prefix] = set(callback)
         self._my_subscriptions = defaultdict(platform_subscriptions)
 
-        # d[platform][bus][tag_query_condition] = set(callback)
+        # d[platform][bus][(topic_source,tag_query_condition)] = set(callback)
         self._my_tag_condition_callbacks = defaultdict(platform_subscriptions)
 
         # format: # d[platform][bus][prefix] = set(callback)
@@ -109,11 +109,11 @@ class PubSub(SubsystemBase):
                     self._add_subscription("prefix", prefix, member, bus, all_platforms)
                     _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
 
-                for peer, bus, tag_condition, all_platforms, queue in annotations(
+                for peer, bus, tag_condition, topic_source, all_platforms, queue in annotations(
                         member, set, "pubsub.subscription_by_tags"):
                     # XXX: needs updated in light of onconnected signal
-                    self.subscribe_by_tags(peer='pubsub', tag_condition=tag_condition, callback=member, bus=bus,
-                                           all_platforms=all_platforms)
+                    self.subscribe_by_tags(peer='pubsub', tag_condition=tag_condition, callback=member,
+                                           topic_source=topic_source, bus=bus, all_platforms=all_platforms)
             inspect.getmembers(owner, subscribe)
 
         core.onsetup.connect(setup, self)
@@ -191,8 +191,10 @@ class PubSub(SubsystemBase):
         subscriptions_by_tag = defaultdict(platform_subscriptions)
         for platform, bus_subscriptions in self._my_tag_condition_callbacks.items():
             for bus, tag_conditions in bus_subscriptions.items():
-                for condition, callbacks in tag_conditions.items():
+                for (source, condition), callbacks in tag_conditions.items():
                     for prefix in self.get_topics_by_tag(condition):
+                        if source:
+                            prefix = source + "/" + prefix
                         subscriptions_by_tag[platform][bus][prefix] = callbacks
         self._my_subscriptions_by_tags = subscriptions_by_tag
         self.synchronize()
@@ -247,7 +249,6 @@ class PubSub(SubsystemBase):
         :returns: List of subscriptions, i.e, list of tuples of bus, topic and
         flag to indicate if peer is a subscriber or not
         :rtype: list of tuples
-
         :Return Values:
         List of tuples [(topic, bus, flag to indicate if peer is a subscriber or not)]
         """
@@ -271,6 +272,8 @@ class PubSub(SubsystemBase):
             subscription_dict = self._my_subscriptions
         elif subscription_type == "tags":
             subscription_dict = self._my_subscriptions_by_tags
+        else:
+            raise ValueError(f"Invalid subscription type {subscription_type}")
 
         if not callable(callback):
             raise ValueError("callback %r is not callable" % (callback, ))
@@ -305,20 +308,19 @@ class PubSub(SubsystemBase):
         is the ZMQ identity of the bus owner sender is identity of the
         publishing peer, topic is the full message topic, headers is a
         case-insensitive dictionary (mapping) of message headers, and
-        message is a possibly empty list of message parts.
+        message is a possibly empty list of message parts
         :param peer
         :type peer str
-        :param prefix prefix to the topic
+        :param prefix topic prefix
         :type prefix str
-        :param callback callback method
+        :param callback method to callback
         :type callback method
-        :param bus bus
+        :param bus message bus
         :type bus str
         :param all_platforms
         :type all_platforms boolean
         :returns: Subscribe is successful or not
         :rtype: boolean
-
         :Return Values:
         Success or Failure
         """
@@ -332,6 +334,7 @@ class PubSub(SubsystemBase):
                           peer,
                           tag_condition,
                           callback,
+                          topic_source="devices",
                           bus="",
                           all_platforms=False):
         """Subscribe to topic based on given tags and register callback.
@@ -342,14 +345,17 @@ class PubSub(SubsystemBase):
         If callback is supplied, it should be a function taking four arguments,
         callback(peer, sender, bus, topic, headers, message), where peer is the ZMQ identity of the bus owner sender
         is identity of the publishing peer, topic is the full message topic, headers is a case-insensitive dictionary
-        (mapping) of message headers, and message is a possibly empty list of message parts.
+        (mapping) of message headers, and message is a possibly empty list of message parts
         :param peer
         :type peer
         :param tag_condition query string/condition containing tags that need be matched
         :type tag_condition str
-        :param callback callback method
+        :param callback method to callback
         :type callback method
-        :param bus bus
+        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
+         given tag condition. defaults to "devices"
+        :type topic_source str
+        :param bus message bus
         :type bus str
         :param all_platforms
         :type all_platforms boolean
@@ -371,6 +377,8 @@ class PubSub(SubsystemBase):
         success_list = []
         failure_list = []
         for prefix in topic_prefixes:
+            if topic_source:
+                prefix = topic_source + "/" + prefix
             self._add_subscription("tags", prefix, callback, bus, all_platforms)
             if self.call_server_subscribe(all_platforms, bus, prefix):
                 success_list.append(prefix)
@@ -379,7 +387,7 @@ class PubSub(SubsystemBase):
 
         if success_list:
             # even if there was one successful subscription save tag_condition for periodic updates
-            self._my_tag_condition_callbacks[platform][bus][tag_condition].add(callback)
+            self._my_tag_condition_callbacks[platform][bus][(topic_source, tag_condition)].add(callback)
         return success_list, failure_list
 
     @subscribe.classmethod
@@ -397,14 +405,15 @@ class PubSub(SubsystemBase):
         return decorate
 
     @subscribe_by_tags.classmethod
-    def subscribe_by_tags(cls, peer, tag_condition, bus="", all_platforms=False, persistent_queue=None):
+    def subscribe_by_tags(cls, peer, tag_condition, topic_source="devices", bus="", all_platforms=False,
+                          persistent_queue=None):
 
         def decorate(method):
             annotate(
                 method,
                 set,
                 "pubsub.subscription_by_tags",
-                (peer, bus, tag_condition, all_platforms, persistent_queue),
+                (peer, bus, tag_condition, topic_source, all_platforms, persistent_queue),
             )
             return method
 
@@ -421,7 +430,6 @@ class PubSub(SubsystemBase):
         type bus: bus
         return: list of topics/prefixes
         :rtype: list
-
         :Return Values:
         List of prefixes
         """
@@ -429,6 +437,8 @@ class PubSub(SubsystemBase):
             subscription_dict = self._my_subscriptions
         elif subscription_type == "tags":
             subscription_dict = self._my_subscriptions_by_tags
+        else:
+            raise ValueError(f"Invalid subscription type {subscription_type}")
 
         topics = []
         bus_subscriptions = dict()
@@ -524,7 +534,6 @@ class PubSub(SubsystemBase):
         type bus: bus
         return: success or not
         :rtype: boolean
-
         :Return Values:
         success or not
         """
@@ -543,6 +552,7 @@ class PubSub(SubsystemBase):
                             peer,
                             tag_condition,
                             callback,
+                            topic_source="devices",
                             bus="",
                             all_platforms=False):
         """Unsubscribe to topic based on given tags and register callback.
@@ -553,13 +563,16 @@ class PubSub(SubsystemBase):
         If callback is supplied, it should be a function taking four arguments,
         callback(peer, sender, bus, topic, headers, message), where peer is the ZMQ identity of the bus owner sender
         is identity of the publishing peer, topic is the full message topic, headers is a case-insensitive dictionary
-        (mapping) of message headers, and message is a possibly empty list of message parts.
+        (mapping) of message headers, and message is a possibly empty list of message parts
         :param peer
         :type peer
         :param tag_condition query string/condition containing tags that need be matched
         :type tag_condition str
         :param callback method to callback
         :type callback method
+        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
+         given tag condition. defaults to "devices"
+        :type topic_source str
         :param bus message bus
         :type bus str
         :param all_platforms
@@ -580,7 +593,6 @@ class PubSub(SubsystemBase):
         if not tag_condition:
             raise KeyError("tag_condition is mandatory")
 
-        topic_prefixes = []
         # Query tagging service to topic prefix that match the given tag search condition
         topic_prefixes = self.get_topics_by_tag(tag_condition)
 
@@ -589,6 +601,8 @@ class PubSub(SubsystemBase):
         success_list = []
         failure_list = []
         for prefix in topic_prefixes:
+            if topic_source:
+                prefix = topic_source + "/" + prefix
             topics = self._drop_subscription("tags", prefix, callback, bus, platform)
             if self.call_server_unsubscribe(bus, platform, subscriptions, topics):
                 success_list.extend(topics)
@@ -602,7 +616,7 @@ class PubSub(SubsystemBase):
             for platform, bus_subscriptions in self._my_tag_condition_callbacks.items():
                 for bus, tag_subscriptions in bus_subscriptions.items():
                     for t, callbacks in tag_subscriptions.items():
-                        if t == tag_condition:
+                        if t == (topic_source, tag_condition):
                             if callback:
                                 try:
                                     callbacks.remove(callback)
@@ -610,7 +624,7 @@ class PubSub(SubsystemBase):
                                     pass
                             # if passed callback is none or if no callbacks left after last callbacks.remove()
                             if not callback or not callbacks:
-                                remove.append((platform, bus, tag_condition))
+                                remove.append((platform, bus, (topic_source, tag_condition)))
 
             for platform, bus, condition in remove:
                 subscriptions = self._my_tag_condition_callbacks[platform][bus]
@@ -626,7 +640,7 @@ class PubSub(SubsystemBase):
         min_compatible_version and max_compatible version
         param peer: peer
         type peer: str
-        param topic: topic for the publish message
+        param topic: topic to publish to
         type topic: str
         param headers: header info for the message
         type headers: None or dict
@@ -650,7 +664,7 @@ class PubSub(SubsystemBase):
         self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
         return result
 
-    def publish_by_tags(self, peer: str, tag_condition: str, headers=None, message=None, bus="",
+    def publish_by_tags(self, peer: str, tag_condition: str, topic_source="devices", headers=None, message=None, bus="",
                         publish_multiple=False):
         """Publish a message to a topic that matches the give tag_condition via a peer. If tag_condition resolves to
         more than one topic then throw an error if publish_multiple is False. Publish to multiple matching topics if
@@ -660,18 +674,21 @@ class PubSub(SubsystemBase):
         If peer is None, use self. Adds volttron platform version
         compatibility information to header as variables
         min_compatible_version and max_compatible version
-        param peer: peer
-        type peer: str
-        param tag_condition: tag_condition to find topic for the publish message
-        type topic: str
-        param headers: header info for the message
-        type headers: None or dict
-        param message: actual message
-        type message: None or any
-        param bus: bus
-        type bus: str
-        param publish_multiple: Boolean value if publish can be done to multiple topics if tag_condition matches multiple topics
-        type publish_multiple: boolean
+        :param peer: peer
+        :type peer: str
+        :param tag_condition: tag_condition to find topics to publish to
+        :type tag_condition: str
+        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
+         given tag condition. defaults to "devices"
+        :type topic_source str
+        :param headers: header info for the message
+        :type headers: None or dict
+        :param message: actual message
+        :type message: None or any
+        :param bus: bus
+        :type bus: str
+        :param publish_multiple: Boolean value if publish can be done to multiple topics if tag_condition matches multiple topics
+        :type publish_multiple: boolean
 
         """
         if not tag_condition:
@@ -687,6 +704,8 @@ class PubSub(SubsystemBase):
             raise ValueError(f"tag condition {tag_condition} matched multiple topics ({topic_prefixes}) "
                              f"but publish_multiple is set to false")
         for topic in topic_prefixes:
+            if topic_source:
+                topic = topic_source + "/" + topic
             self.publish(peer, topic, headers, message, bus)
 
     def _handle_subsystem(self, message):
@@ -760,12 +779,12 @@ class PubSub(SubsystemBase):
     def _handle_error(self, sender, message, error, **kwargs):
         """Error handler. If UnknownSubsystem error is received, it implies that agent is connected to platform that has
         OLD pubsub implementation. So messages are resent using RPC method.
-        param message: Error message
-        type message: dict
-        param error: indicates error type
-        type error: error class
-        param **kwargs: variable arguments
-        type **kwargs: dict
+        :param message: Error message
+        :type message: dict
+        :param error: indicates error type
+        :type error: error class
+        :param **kwargs: variable arguments
+        :type **kwargs: dict
         """
         try:
             result = self._results.pop(message.id)
