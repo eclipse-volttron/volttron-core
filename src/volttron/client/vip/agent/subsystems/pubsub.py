@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-import copy
 import inspect
 import logging
 import re
@@ -65,7 +64,7 @@ class PubSub(SubsystemBase):
     Pubsub subsystem concrete class implementation for ZMQ message bus.
     """
 
-    def __init__(self, core, rpc_subsys, peerlist_subsys, owner, tag_refresh_interval=-1):
+    def __init__(self, core, rpc_subsys, peerlist_subsys, owner, tag_vip_id=PLATFORM_TAGGING, tag_refresh_interval=-1):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
         self.peerlist = weakref.ref(peerlist_subsys)
@@ -95,6 +94,7 @@ class PubSub(SubsystemBase):
         self._retry_period = 300.0
         self._processgreenlet = None
         self.tag_refresh_interval = tag_refresh_interval
+        self.tag_vip_id = tag_vip_id
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
@@ -174,11 +174,9 @@ class PubSub(SubsystemBase):
             # No callbacks for topic; synchronize with sender
             self.synchronize()
 
-    @staticmethod
-    def get_topics_by_tag(condition):
-        # return self.rpc().call(PLATFORM_TAGGING, "get_topics_by_tags", condition=condition).get()
-        print("IN GET TOPICS BY TAG> RETURNING empty")
-        return []
+    def get_topics_by_tag(self, condition):
+        topics = self.rpc().call(self.tag_vip_id, "get_topics_by_tags", condition=condition).get(timeout=10)
+        return topics
 
     @spawn
     def refresh_tag_subscriptions(self):
