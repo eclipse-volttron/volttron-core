@@ -665,7 +665,7 @@ class PubSub(SubsystemBase):
         return result
 
     def publish_by_tags(self, peer: str, tag_condition: str, topic_source="devices", headers=None, message=None, bus="",
-                        publish_multiple=False):
+                        max_publish_count=1):
         """Publish a message to a topic that matches the give tag_condition via a peer. If tag_condition resolves to
         more than one topic then throw an error if publish_multiple is False. Publish to multiple matching topics if
         publish_multiple parameter is True
@@ -687,8 +687,9 @@ class PubSub(SubsystemBase):
         :type message: None or any
         :param bus: bus
         :type bus: str
-        :param publish_multiple: Boolean value if publish can be done to multiple topics if tag_condition matches multiple topics
-        :type publish_multiple: boolean
+        :param max_publish_count: maximum number of publish that can be done. By default expects the tag_condition
+         to match a single topic.
+        :type max_publish_count: int
 
         """
         if not tag_condition:
@@ -700,9 +701,10 @@ class PubSub(SubsystemBase):
         topic_prefixes = self.get_topics_by_tag(tag_condition)
         if not topic_prefixes:
             raise ValueError(f"Not topics match given tag condition {tag_condition}")
-        if len(topic_prefixes) > 1 and publish_multiple is False:
-            raise ValueError(f"tag condition {tag_condition} matched multiple topics ({topic_prefixes}) "
-                             f"but publish_multiple is set to false")
+        count = len(topic_prefixes)
+        if count > max_publish_count:
+            raise ValueError(f"tag condition {tag_condition} matched {count} topics "
+                             f"but max_publish_count is set to {max_publish_count}")
         for topic in topic_prefixes:
             if topic_source:
                 topic = topic_source + "/" + topic
