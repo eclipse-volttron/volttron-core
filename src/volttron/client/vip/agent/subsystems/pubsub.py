@@ -334,9 +334,9 @@ class PubSub(SubsystemBase):
                           peer,
                           tag_condition,
                           callback,
-                          topic_source="devices",
                           bus="",
-                          all_platforms=False):
+                          all_platforms=False,
+                          topic_source="devices"):
         """Subscribe to topic based on given tags and register callback.
 
         Subscribes to topics that match a given combination of tags. tag_condition is a condition string using which
@@ -352,13 +352,13 @@ class PubSub(SubsystemBase):
         :type tag_condition str
         :param callback method to callback
         :type callback method
-        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
-         given tag condition. defaults to "devices"
-        :type topic_source str
         :param bus message bus
         :type bus str
         :param all_platforms
         :type all_platforms boolean
+        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
+         given tag condition. defaults to "devices"
+        :type topic_source str
         :returns: success_list, failure_list
         :rtype: list, list
 
@@ -405,8 +405,8 @@ class PubSub(SubsystemBase):
         return decorate
 
     @subscribe_by_tags.classmethod
-    def subscribe_by_tags(cls, peer, tag_condition, topic_source="devices", bus="", all_platforms=False,
-                          persistent_queue=None):
+    def subscribe_by_tags(cls, peer, tag_condition, bus="", all_platforms=False,
+                          persistent_queue=None, topic_source="devices"):
 
         def decorate(method):
             annotate(
@@ -552,9 +552,9 @@ class PubSub(SubsystemBase):
                             peer,
                             tag_condition,
                             callback,
-                            topic_source="devices",
                             bus="",
-                            all_platforms=False):
+                            all_platforms=False,
+                            topic_source="devices"):
         """Unsubscribe to topic based on given tags and register callback.
 
         Subscribes to topics that match a given combination of tags. tag_condition is a condition string using which
@@ -570,13 +570,13 @@ class PubSub(SubsystemBase):
         :type tag_condition str
         :param callback method to callback
         :type callback method
-        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
-         given tag condition. defaults to "devices"
-        :type topic_source str
         :param bus message bus
         :type bus str
         :param all_platforms
         :type all_platforms boolean
+        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
+         given tag condition. defaults to "devices"
+        :type topic_source str
         :returns: success_list, failure_list
         :rtype: list, list
 
@@ -664,8 +664,8 @@ class PubSub(SubsystemBase):
         self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
         return result
 
-    def publish_by_tags(self, peer: str, tag_condition: str, topic_source="devices", headers=None, message=None, bus="",
-                        max_publish_count=1):
+    def publish_by_tags(self, peer: str, tag_condition: str, headers=None, message=None, bus="",
+                        max_publish_count=1, topic_source="devices"):
         """Publish a message to a topic that matches the give tag_condition via a peer. If tag_condition resolves to
         more than one topic then throw an error if publish_multiple is False. Publish to multiple matching topics if
         publish_multiple parameter is True
@@ -678,9 +678,6 @@ class PubSub(SubsystemBase):
         :type peer: str
         :param tag_condition: tag_condition to find topics to publish to
         :type tag_condition: str
-        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
-         given tag condition. defaults to "devices"
-        :type topic_source str
         :param headers: header info for the message
         :type headers: None or dict
         :param message: actual message
@@ -690,6 +687,9 @@ class PubSub(SubsystemBase):
         :param max_publish_count: maximum number of publish that can be done. By default expects the tag_condition
          to match a single topic.
         :type max_publish_count: int
+        :param topic_source message bus topic source. Will get added to beginning of each of the topics that matches the
+         given tag condition. defaults to "devices"
+        :type topic_source str
 
         """
         if not tag_condition:
