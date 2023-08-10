@@ -186,6 +186,7 @@ class PubSub(SubsystemBase):
         def subscriptions():
             return defaultdict(set)
 
+        # format d[platform][bus][prefix] = set(callbacks)
         subscriptions_by_tag = defaultdict(platform_subscriptions)
         for platform, bus_subscriptions in self._my_tag_condition_callbacks.items():
             for bus, tag_conditions in bus_subscriptions.items():
