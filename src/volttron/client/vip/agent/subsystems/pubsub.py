@@ -299,7 +299,7 @@ class PubSub(SubsystemBase):
                   callback,
                   bus="",
                   all_platforms=False,
-                  persistent_queue=None):
+                  **kwargs):
         """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -336,7 +336,8 @@ class PubSub(SubsystemBase):
                           callback,
                           bus="",
                           all_platforms=False,
-                          topic_source="devices"):
+                          topic_source="devices",
+                          **kwargs):
         """Subscribe to topic based on given tags and register callback.
 
         Subscribes to topics that match a given combination of tags. tag_condition is a condition string using which
@@ -519,7 +520,7 @@ class PubSub(SubsystemBase):
         self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
         return result
 
-    def unsubscribe(self, peer, prefix, callback, bus="", all_platforms=False):
+    def unsubscribe(self, peer, prefix, callback, bus="", all_platforms=False, **kwargs):
         """Unsubscribe and remove callback(s).
 
         Remove all handlers matching the given info - peer, callback and bus, which was used earlier to subscribe as
@@ -554,7 +555,8 @@ class PubSub(SubsystemBase):
                             callback,
                             bus="",
                             all_platforms=False,
-                            topic_source="devices"):
+                            topic_source="devices",
+                            **kwargs):
         """Unsubscribe to topic based on given tags and register callback.
 
         Subscribes to topics that match a given combination of tags. tag_condition is a condition string using which
@@ -631,7 +633,7 @@ class PubSub(SubsystemBase):
                 subscriptions.pop(condition)
         return success_list, failure_list
 
-    def publish(self, peer: str, topic: str, headers=None, message=None, bus=""):
+    def publish(self, peer: str, topic: str, headers=None, message=None, bus="", **kwargs):
         """Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus.
@@ -665,7 +667,7 @@ class PubSub(SubsystemBase):
         return result
 
     def publish_by_tags(self, peer: str, tag_condition: str, headers=None, message=None, bus="",
-                        max_publish_count=1, topic_source="devices"):
+                        max_publish_count=1, topic_source="devices", **kwargs):
         """Publish a message to a topic that matches the give tag_condition via a peer. If tag_condition resolves to
         more than one topic then throw an error if publish_multiple is False. Publish to multiple matching topics if
         publish_multiple parameter is True
