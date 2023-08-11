@@ -49,6 +49,8 @@ class Agent(object):
             enable_web,
             enable_channel,
             message_bus,
+            tag_vip_id,
+            tag_refresh_interval
         ):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
@@ -57,7 +59,7 @@ class Agent(object):
             if message_bus == "rmq":
                 self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)
             else:
-                self.pubsub = PubSub(core, self.rpc, self.peerlist, owner)
+                self.pubsub = PubSub(core, self.rpc, self.peerlist, owner, tag_vip_id, tag_refresh_interval)
                 # Available only for ZMQ agents
                 if enable_channel:
                     self.channel = Channel(core)
@@ -99,6 +101,8 @@ class Agent(object):
         message_bus=None,
         volttron_central_address=None,
         volttron_central_instance_name=None,
+        tag_vip_id=None,
+        tag_refresh_interval=-1
     ):
 
         if volttron_home is None:
@@ -111,7 +115,12 @@ class Agent(object):
                 _log.warning("Deprecation warning")
                 _log.warning("All characters in {identity} are not in the valid set.".format(
                     identity=identity))
-
+            if not tag_vip_id:
+                # no value was sent, use what is configured in server config or default returned by cc
+                tag_vip_id = cc.get_tag_vip_id()
+            if tag_refresh_interval == -1:
+                # no value was sent, use what is configured in server config or default returned by cc
+                tag_refresh_interval = cc.get_tag_refresh_interval()
             if message_bus is not None and message_bus.lower() == "rmq":
                 _log.debug("Creating RMQ Core {}".format(identity))
                 self.core = RMQCore(
@@ -155,6 +164,8 @@ class Agent(object):
                 enable_web,
                 enable_channel,
                 message_bus,
+                tag_vip_id,
+                tag_refresh_interval
             )
             self.core.setup()
             self.vip.rpc.export(self.core.version, "agent.version")

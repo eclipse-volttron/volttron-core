@@ -64,6 +64,7 @@ class PubSubService:
         def subscriptions():
             return defaultdict(set)
 
+        # format: subscriptions[platform][bus][prefix] = set(peer1, peer2)
         self._peer_subscriptions = defaultdict(platform_subscriptions)
         self._vip_sock = socket
         self._user_capabilities = {}

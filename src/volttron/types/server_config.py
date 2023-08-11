@@ -82,8 +82,8 @@ class ServiceConfigs:
                 self._plugin_map[mod_name] = cls
                 self._config_map[mod_name] = self._loaded.get(mod_name, {})
 
-            except ValueError:
-                _log.warning(f"Couldn't load {mod_name}")
+            except ValueError as e:
+                _log.warning(f"Couldn't load {mod_name}. Exception {e}")
                 continue
 
         # self.__auth_file__: Optional[PathLike] = None
