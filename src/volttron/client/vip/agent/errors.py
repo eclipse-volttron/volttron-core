@@ -44,7 +44,10 @@ class VIPError(Exception):
 
     @classmethod
     def from_errno(cls, errnum, msg, *args):
-        errnum = int(errnum)
+        try:
+            errnum = getattr(errno, errnum.split('.')[-1])
+        except ValueError:
+            return cls(999, msg, *args)
         return {
             errno.EHOSTUNREACH: Unreachable,
             errno.EAGAIN: Again,
