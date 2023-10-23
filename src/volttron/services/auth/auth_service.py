@@ -1154,7 +1154,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {"major": 1, "minor": 2}
+        return {"major": 1, "minor": 3}
 
     def _check_for_upgrade(self):
         allow_list, deny_list, groups, roles, version = self._read()
@@ -1290,6 +1290,10 @@ class AuthFile(object):
             version["minor"] = 1
         if version["major"] == 1 and version["minor"] == 1:
             allow_list = upgrade_1_1_to_1_2(allow_list)
+        if version["major"] == 1 and version["minor"] == 2:
+            # on start a new entry for config.store should have got created automatically
+            # so just update version
+            version["minor"] = 3
 
         allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
         self._write(allow_entries, deny_entries, groups, roles)

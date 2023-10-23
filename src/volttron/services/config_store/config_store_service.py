@@ -47,6 +47,7 @@ from volttron.utils.persistance import PersistentDict
 from volttron.utils.jsonrpc import RemoteError, MethodNotFound
 from volttron.utils.storeutils import check_for_recursion, strip_config_name, store_ext
 from volttron.client.vip.agent import Agent, Core, RPC, Unreachable, VIPError
+from volttron.services.auth.auth_service import AuthFile, AuthEntry
 
 _log = logging.getLogger(__name__)
 
@@ -68,8 +69,7 @@ def process_store(identity, store):
                 raise ValueError("Recursive configuration references")
             results[config_name] = processed_config
         except ValueError as e:
-            _log.error("Error processing Agent {} config {}: {}".format(
-                identity, config_name, str(e)))
+            _log.error("Error processing Agent {} config {}: {}".format(identity, config_name, str(e)))
             sync_store = True
             del store[config_name]
 
@@ -115,6 +115,14 @@ class ConfigStoreService(ServiceInterface):
 
         self.store = {}
         self.store_path = os.path.join(os.environ["VOLTTRON_HOME"], "configuration_store")
+        entry = AuthEntry(
+            credentials=self.core.publickey,
+            user_id=self.core.identity,
+            capabilities="sync_agent_config",
+            comments="Automatically added by config store service"
+        )
+        AuthFile().add(entry, overwrite=True)
+
 
     @Core.receiver("onsetup")
     def _setup(self, sender, **kwargs):
@@ -149,25 +157,50 @@ class ConfigStoreService(ServiceInterface):
 
     @RPC.export
     @RPC.allow("edit_config_store")
-    def manage_store(self, identity, config_name, raw_contents, config_type="raw"):
+    @deprecated(reason="Use set_config")
+    def manage_store(self, identity, config_name, raw_contents, config_type="raw", trigger_callback=True,
+                     send_update=True):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use set_config instead
+        """
         contents = process_raw_config(raw_contents, config_type)
-        self._add_config_to_store(
-            identity,
-            config_name,
-            raw_contents,
-            contents,
-            config_type,
-            trigger_callback=True,
-        )
+        self._add_config_to_store(identity, config_name, raw_contents, contents, config_type,
+                                  trigger_callback=trigger_callback, send_update=send_update)
 
     @RPC.export
-    @RPC.allow("edit_config_store")
-    def manage_delete_config(self, identity, config_name):
-        self.delete(identity, config_name, trigger_callback=True)
+    @RPC.allow('edit_config_store')
+    def set_config(self, identity, config_name, raw_contents, config_type="raw", trigger_callback=True,
+                   send_update=True):
+        contents = process_raw_config(raw_contents, config_type)
+        self._add_config_to_store(identity, config_name, raw_contents, contents, config_type,
+                                  trigger_callback=trigger_callback, send_update=send_update)
 
     @RPC.export
-    @RPC.allow("edit_config_store")
+    @RPC.allow('edit_config_store')
+    @deprecated(reason="Use delete_config")
+    def manage_delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use delete_config instead
+        """
+        self.delete(identity, config_name, trigger_callback=trigger_callback, send_update=send_update)
+
+    @RPC.export
+    @RPC.allow('edit_config_store')
+    def delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
+        self.delete(identity, config_name, trigger_callback=trigger_callback, send_update=send_update)
+
+    @RPC.export
+    @RPC.allow('edit_config_store')
+    @deprecated(reason="Use delete_store")
     def manage_delete_store(self, identity):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use delete_store instead
+        """
+        self.delete_store(identity)
+
+    @RPC.export
+    @RPC.allow('edit_config_store')
+    def delete_store(self, identity):
         agent_store = self.store.get(identity)
         if agent_store is None:
             return
@@ -184,21 +217,20 @@ class ConfigStoreService(ServiceInterface):
         # Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
 
-        with agent_store_lock:
-            try:
-                self.vip.rpc.call(identity,
-                                  "config.update",
-                                  "DELETE_ALL",
-                                  None,
-                                  trigger_callback=True).get(timeout=UPDATE_TIMEOUT)
-            except Unreachable:
-                _log.debug("Agent {} not currently running. Configuration update not sent.".format(
-                    identity))
-            except RemoteError as e:
-                _log.error("Agent {} failure when all configurations: {}".format(identity, e))
-            except MethodNotFound as e:
-                _log.error("Agent {} failure when deleting configuration store: {}".format(
-                    identity, e))
+        if identity in self.vip.peerlist.peers_list:
+            with agent_store_lock:
+                try:
+                    self.vip.rpc.call(identity,
+                                      "config.update",
+                                      "DELETE_ALL",
+                                      None,
+                                      trigger_callback=True).get(timeout=UPDATE_TIMEOUT)
+                except Unreachable:
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+                except RemoteError as e:
+                    _log.error("Agent {} failure when all configurations: {}".format(identity, e))
+                except MethodNotFound as e:
+                    _log.error("Agent {} failure when deleting configuration store: {}".format(identity, e))
 
         # If the store is still empty (nothing jumped in and added to it while
         # we were informing the agent) then remove it from the global store.
@@ -206,23 +238,46 @@ class ConfigStoreService(ServiceInterface):
             self.store.pop(identity, None)
 
     @RPC.export
+    @deprecated(reason="Use list_configs")
     def manage_list_configs(self, identity):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Use list_configs instead
+        """
+        return self.list_configs(identity)
+
+    @RPC.export
+    def list_configs(self, identity):
         result = list(self.store.get(identity, {}).get("store", {}).keys())
         result.sort()
         return result
 
     @RPC.export
+    @deprecated(reason="Use list_stores")
     def manage_list_stores(self):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Use list_stores instead
+        """
+        return self.list_stores()
+
+    @RPC.export
+    def list_stores(self):
         result = list(self.store.keys())
         result.sort()
         return result
 
     @RPC.export
+    @deprecated(reason="Use get_config")
     def manage_get(self, identity, config_name, raw=True):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Use get_config instead
+        """
+        return self.get_config(identity, config_name, raw)
+
+    @RPC.export
+    def get_config(self, identity, config_name, raw=True):
         agent_store = self.store.get(identity)
         if agent_store is None:
-            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(
-                config_name, identity))
+            raise KeyError('No configuration file "{}" for VIP IDENTITY {}'.format(config_name, identity))
 
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
@@ -232,8 +287,7 @@ class ConfigStoreService(ServiceInterface):
         config_name_lower = config_name.lower()
 
         if config_name_lower not in agent_name_map:
-            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(
-                config_name, identity))
+            raise KeyError('No configuration file "{}" for VIP IDENTITY {}'.format(config_name, identity))
 
         real_config_name = agent_name_map[config_name_lower]
 
@@ -243,11 +297,18 @@ class ConfigStoreService(ServiceInterface):
         return agent_configs[real_config_name]
 
     @RPC.export
+    @deprecated(reason="Use get_metadata")
     def manage_get_metadata(self, identity, config_name):
+        """
+        This method is deprecated and will be removed in VOLTTRON 10. Please use get_metadata instead
+        """
+        return self.get_metadata(identity, config_name)
+
+    @RPC.export
+    def get_metadata(self, identity, config_name):
         agent_store = self.store.get(identity)
         if agent_store is None:
-            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(
-                config_name, identity))
+            raise KeyError('No configuration file "{}" for VIP IDENTITY {}'.format(config_name, identity))
 
         agent_disk_store = agent_store["store"]
         agent_name_map = agent_store["name_map"]
@@ -256,8 +317,7 @@ class ConfigStoreService(ServiceInterface):
         config_name_lower = config_name.lower()
 
         if config_name_lower not in agent_name_map:
-            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(
-                config_name, identity))
+            raise KeyError('No configuration file "{}" for VIP IDENTITY {}'.format(config_name, identity))
 
         real_config_name = agent_name_map[config_name_lower]
 
@@ -269,24 +329,13 @@ class ConfigStoreService(ServiceInterface):
 
         return real_config
 
+    @RPC.allow('edit_config_store')
     @RPC.export
-    def set_config(self, config_name, contents, trigger_callback=False, send_update=True):
-        identity = self.vip.rpc.context.vip_message.peer
-        self.store_config(
-            identity,
-            config_name,
-            contents,
-            trigger_callback=trigger_callback,
-            send_update=send_update,
-        )
-
-    @RPC.export
-    def get_configs(self):
+    def initialize_configs(self, identity):
         """
         Called by an Agent at startup to trigger initial configuration state
         push.
         """
-        identity = self.vip.rpc.context.vip_message.peer
 
         # We need to create store and lock if it doesn't exist in case someone
         # tries to add a configuration while we are sending the initial state.
@@ -307,46 +356,31 @@ class ConfigStoreService(ServiceInterface):
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
         agent_store_lock = agent_store["lock"]
-
-        with agent_store_lock:
-            try:
-                self.vip.rpc.call(identity, "config.initial_update",
-                                  agent_configs).get(timeout=UPDATE_TIMEOUT)
-            except Unreachable:
-                _log.debug("Agent {} not currently running. Configuration update not sent.".format(
-                    identity))
-            except RemoteError as e:
-                _log.error("Agent {} failure when performing initial update: {}".format(
-                    identity, e))
-            except MethodNotFound as e:
-                _log.error("Agent {} failure when performing initial update: {}".format(
-                    identity, e))
-            except VIPError as e:
-                _log.error("VIP Error sending initial agent configuration: {}".format(e))
+        if identity in self.vip.peerlist.peers_list:
+            with agent_store_lock:
+                try:
+                    self.vip.rpc.call(identity, "config.initial_update",
+                                      agent_configs).get(timeout=UPDATE_TIMEOUT)
+                except Unreachable:
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
+                except RemoteError as e:
+                    _log.error("Agent {} failure when performing initial update: {}".format(identity, e))
+                except MethodNotFound as e:
+                    _log.error("Agent {} failure when performing initial update: {}".format(identity, e))
+                except VIPError as e:
+                    _log.error("VIP Error sending initial agent configuration: {}".format(e))
 
         # If the store is empty (and nothing jumped in and added to it while we
         # were informing the agent) then remove it from the global store.
         if not agent_disk_store:
             self.store.pop(identity, None)
 
-    @RPC.export
-    def delete_config(self, config_name, trigger_callback=False, send_update=True):
-        """Called by an Agent to delete a configuration."""
-        identity = self.vip.rpc.context.vip_message.peer
-        self.delete(
-            identity,
-            config_name,
-            trigger_callback=trigger_callback,
-            send_update=send_update,
-        )
-
     # Helper method to allow the local services to delete configs before message
     # bus in online.
     def delete(self, identity, config_name, trigger_callback=False, send_update=True):
         agent_store = self.store.get(identity)
         if agent_store is None:
-            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(
-                config_name, identity))
+            raise KeyError('No configuration file "{}" for VIP IDENTITY {}'.format(config_name, identity))
 
         agent_configs = agent_store["configs"]
         agent_disk_store = agent_store["store"]
@@ -357,8 +391,7 @@ class ConfigStoreService(ServiceInterface):
         config_name_lower = config_name.lower()
 
         if config_name_lower not in agent_name_map:
-            raise KeyError('No configuration file "{}" for VIP IDENTIY {}'.format(
-                config_name, identity))
+            raise KeyError('No configuration file "{}" for VIP IDENTITY {}'.format(config_name, identity))
 
         real_config_name = agent_name_map[config_name_lower]
 
@@ -369,7 +402,7 @@ class ConfigStoreService(ServiceInterface):
         # Sync will delete the file if the store is empty.
         agent_disk_store.async_sync()
 
-        if send_update:
+        if send_update and identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
                 try:
                     self.vip.rpc.call(
@@ -380,15 +413,12 @@ class ConfigStoreService(ServiceInterface):
                         trigger_callback=trigger_callback,
                     ).get(timeout=UPDATE_TIMEOUT)
                 except Unreachable:
-                    _log.debug(
-                        "Agent {} not currently running. Configuration update not sent.".format(
-                            identity))
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
                 except RemoteError as e:
-                    _log.error("Agent {} failure when deleting configuration {}: {}".format(
-                        identity, config_name, e))
+                    _log.error("Agent {} failure when deleting configuration {}: {}".format(identity, config_name, e))
                 except MethodNotFound as e:
-                    _log.error("Agent {} failure when adding/updating configuration {}: {}".format(
-                        identity, config_name, e))
+                    _log.error(
+                        "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
 
         # If the store is empty (and nothing jumped in and added to it while we
         # were informing the agent) then remove it from the global store.
@@ -397,12 +427,7 @@ class ConfigStoreService(ServiceInterface):
 
     # Helper method to allow the local services to store configs before message
     # bus is online.
-    def store_config(self,
-                     identity,
-                     config_name,
-                     contents,
-                     trigger_callback=False,
-                     send_update=True):
+    def store_config(self, identity, config_name, contents, trigger_callback=False, send_update=True):
         config_type = None
         raw_data = None
         if isinstance(contents, (dict, list)):
@@ -412,34 +437,15 @@ class ConfigStoreService(ServiceInterface):
             config_type = "raw"
             raw_data = contents
         else:
-            raise ValueError("Unsupported configuration content type: {}".format(
-                str(type(contents))))
+            raise ValueError("Unsupported configuration content type: {}".format(str(type(contents))))
 
-        self._add_config_to_store(
-            identity,
-            config_name,
-            raw_data,
-            contents,
-            config_type,
-            trigger_callback=trigger_callback,
-            send_update=send_update,
-        )
+        self._add_config_to_store(identity, config_name, raw_data, contents, config_type,
+                                  trigger_callback=trigger_callback, send_update=send_update)
 
-    def _add_config_to_store(
-        self,
-        identity,
-        config_name,
-        raw,
-        parsed,
-        config_type,
-        trigger_callback=False,
-        send_update=True,
-    ):
+    def _add_config_to_store(self, identity, config_name, raw, parsed, config_type, trigger_callback=False,
+                             send_update=True):
         """Adds a processed configuration to the store."""
         agent_store = self.store.get(identity)
-        # Make sure that the agent is alive before sending update.
-        if send_update:
-            send_update = identity in self.vip.peerlist().get()
 
         action = "UPDATE"
 
@@ -486,7 +492,7 @@ class ConfigStoreService(ServiceInterface):
 
         _log.debug("Agent {} config {} stored.".format(identity, config_name))
 
-        if send_update:
+        if send_update and identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
                 try:
                     self.vip.rpc.call(
@@ -498,18 +504,14 @@ class ConfigStoreService(ServiceInterface):
                         trigger_callback=trigger_callback,
                     ).get(timeout=UPDATE_TIMEOUT)
                 except Unreachable:
-                    _log.debug(
-                        "Agent {} not currently running. Configuration update not sent.".format(
-                            identity))
+                    _log.debug("Agent {} not currently running. Configuration update not sent.".format(identity))
                 except RemoteError as e:
-                    _log.error("Agent {} failure when adding/updating configuration {}: {}".format(
-                        identity, config_name, e))
+                    _log.error(
+                        "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
                 except MethodNotFound as e:
-                    _log.error("Agent {} failure when adding/updating configuration {}: {}".format(
-                        identity, config_name, e))
+                    _log.error(
+                        "Agent {} failure when adding/updating configuration {}: {}".format(identity, config_name, e))
                 except gevent.timeout.Timeout:
-                    _log.error("Config update to agent {} timed out after {} seconds".format(
-                        identity, UPDATE_TIMEOUT))
+                    _log.error("Config update to agent {} timed out after {} seconds".format(identity, UPDATE_TIMEOUT))
                 except Exception as e:
-                    _log.error("Unknown error sending update to agent identity {}.: {}".format(
-                        identity, e))
+                    _log.error("Unknown error sending update to agent identity {}.: {}".format(identity, e))
