@@ -29,7 +29,7 @@ import os.path
 import errno
 from csv import DictReader
 from io import StringIO
-
+from deprecated import deprecated
 import gevent
 
 from gevent.lock import Semaphore
@@ -107,6 +107,7 @@ def process_raw_config(config_string, config_type="raw"):
 class ConfigStoreService(ServiceInterface):
 
     def __init__(self, **kwargs):
+        kwargs["enable_store"] = False
         super(ConfigStoreService, self).__init__(**kwargs)
 
         # This agent is started before the router so we need
