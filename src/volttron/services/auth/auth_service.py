@@ -135,6 +135,17 @@ class AuthService(ServiceInterface):
             return defaultdict(set)
 
         self._user_to_permissions = topics()
+        entry = AuthEntry(
+            credentials=self.core.publickey,
+            user_id=self.core.identity,
+            capabilities=[{
+                "edit_config_store": {
+                    "identity": self.core.identity
+                }
+            }],
+            comments="Automatically added by init of auth service"
+        )
+        AuthFile().add(entry, overwrite=True)
 
     @Core.receiver("onsetup")
     def setup_zap(self, sender, **kwargs):
