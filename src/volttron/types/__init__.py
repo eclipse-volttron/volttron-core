@@ -22,12 +22,13 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-from typing import Dict, Any
+from typing import Any, Dict
 
 import gevent
 from gevent import Greenlet
 
 from volttron.client.vip.agent import Agent
+from volttron.types.bases import Service
 from volttron.types.server_config import ServerConfig
 
 
@@ -54,3 +55,6 @@ class ServiceInterface(Agent):
         event.wait()
         del event
         return task
+
+
+__all__: list[str] = ['ServiceInterface', 'Service']

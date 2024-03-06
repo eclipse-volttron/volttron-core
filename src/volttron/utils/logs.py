@@ -22,6 +22,7 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import inspect
 import logging
 import os
 import stat
@@ -59,6 +60,37 @@ if HAS_SYSLOG:
 def isapipe(fd):
     fd = getattr(fd, "fileno", lambda: fd)()
     return stat.S_ISFIFO(os.fstat(fd).st_mode)
+
+
+def logtrace(func: callable, *args, **kwargs):
+    """
+    Decorator that logs the function call and return value.
+
+    Example:
+        @logtrace
+        def add(a, b):
+            return a + b
+
+        add(2, 3)
+        # Output in debug log:
+        # add(a, b) called with (2, 3), {}
+        # add returned: 5
+
+    @param func: The function to be decorated.
+    @type func: callable
+    @return: The decorated function.
+    @rtype: callable
+    """
+    logger = logging.getLogger(func.__name__)
+    sig = inspect.signature(func)
+
+    def do_logging(*args, **kwargs):
+        logger.debug(f"{func.__name__}{sig} called with {args}, {kwargs}")
+        ret = func(*args, **kwargs)
+        logger.debug(f"{func.__name__} returned: {ret}")
+        return ret
+
+    return do_logging
 
 
 class JsonFormatter(logging.Formatter):
