@@ -72,7 +72,7 @@ from volttron.utils import store_message_bus_config
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.utils.persistance import load_create_store
 #from volttron.zmq.router import Router
-from volttron.zmq import zmq_router
+from volttron.zmq import ZmqMessageBus
 
 # TODO rmq
 # from .vip.rmq_router import RMQRouter
@@ -337,6 +337,8 @@ def start_volttron_process(opts):
         # dies or the platform has been shutdown.
         spawned_greenlets = []
 
+        mb = None
+
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
         if opts.message_bus == "zmq":
@@ -367,24 +369,30 @@ def start_volttron_process(opts):
             # Allows registration agents to callbacks for peers
             notifier = ServicePeerNotifier()
 
-            # Start ZMQ router in separate thread to remain responsive
-            thread = threading.Thread(target=zmq_router,
-                                      args=(
-                                          opts,
-                                          notifier,
-                                          secretkey,
-                                          publickey,
-                                          tracker,
-                                          protected_topics,
-                                          external_address_file,
-                                          config_store.core.stop,
-                                      ))
-            thread.daemon = True
-            thread.start()
+            mb = ZmqMessageBus(opts, notifier, secretkey, publickey, tracker, protected_topics,
+                               external_address_file, config_store.core.stop)
 
-            gevent.sleep(0.1)
-            if not thread.is_alive():
-                sys.exit()
+            mb.start()
+
+            assert mb.is_running()
+            # Start ZMQ router in separate thread to remain responsive
+            # thread = threading.Thread(target=zmq_router,
+            #                           args=(
+            #                               opts,
+            #                               notifier,
+            #                               secretkey,
+            #                               publickey,
+            #                               tracker,
+            #                               protected_topics,
+            #                               external_address_file,
+            #                               config_store.core.stop,
+            #                           ))
+            # thread.daemon = True
+            # thread.start()
+
+            # gevent.sleep(0.1)
+            # if not thread.is_alive():
+            #     sys.exit()
 
         # TODO Better make this so that it removes instances from this file or it will just be an
         #  ever increasing file depending on the number of instances it could get quite large.
