@@ -32,32 +32,29 @@ monkey.patch_ssl()
 
 import argparse
 import logging
-from logging import handlers
 import logging.config
-from urllib.parse import urlparse
-
 import os
-from pathlib import Path
 import resource
 import stat
 import sys
 import threading
+from logging import handlers
+from pathlib import Path
+from urllib.parse import urlparse
 
 import gevent
-
-# import gevent.monkey
-# import gevent.threading as threading
-#
-from volttron.utils import ClientContext as cc
-from volttron.utils.keystore import get_random_key
-
 # gevent.monkey.patch_socket()
 # gevent.monkey.patch_ssl()
 import zmq
 from zmq import green
 
 # Link to the volttron-client library
+# import gevent.monkey
+# import gevent.threading as threading
+#
+from volttron.utils import ClientContext as cc
 from volttron.utils import decode_key, encode_key, get_version
+from volttron.utils.keystore import get_random_key
 
 # Create a context common to the green and non-green zmq modules.
 green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
@@ -66,26 +63,22 @@ green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying
 # from .vip.socket import decode_key, encode_key, Address
 # from .vip.tracking import Tracker
 
-from volttron.client.known_identities import (
-    PLATFORM_WEB,
-    CONTROL,
-    CONTROL_CONNECTION,
-)
+from volttron.client.known_identities import (CONTROL, CONTROL_CONNECTION, PLATFORM_WEB)
+from volttron.server.tracking import Tracker
+from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileUserIdAlreadyExists)
+from volttron.types.peer import ServicePeerNotifier
+from volttron.types.server_config import ServerConfig, ServiceConfigs
 from volttron.utils import store_message_bus_config
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.utils.persistance import load_create_store
+#from volttron.zmq.router import Router
+from volttron.zmq import zmq_router
 
-from volttron.server.tracking import Tracker
-from volttron.types.server_config import ServiceConfigs, ServerConfig
 # TODO rmq
 # from .vip.rmq_router import RMQRouter
 
 # from volttron.utils.rmq_setup import start_rabbit
 # from volttron.utils.rmq_config_params import RMQConfig
-
-from volttron.server.router import Router
-from volttron.types.peer import ServicePeerNotifier
-from volttron.services.auth.auth_service import AuthFile, AuthEntry, AuthFileUserIdAlreadyExists
 
 # TODO Key Discovery RPC
 # from ..services.external import ExternalRPCService, KeyDiscoveryAgent
@@ -98,26 +91,18 @@ try:
 except ImportError:
     HAS_WEB = False
 
-from volttron.server.log_actions import log_to_file, configure_logging, LogLevelAction
-from volttron.server import server_argparser as config, aip
+from volttron.server import aip
+from volttron.server import server_argparser as config
+from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
 
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
 # Only show debug on the platform when really necessary!
-log_level_info = (
-    'volttron.platform.main',
-    'volttron.platform.vip.zmq_connection',
-    'urllib3.connectionpool',
-    'watchdog.observers.inotify_buffer',
-    'volttron.platform.auth',
-    'volttron.platform.store',
-    'volttron.platform.control',
-    'volttron.platform.vip.agent.core',
-    'volttron.utils',
-    'volttron.platform.vip.router',
-    'vip.router',
-    'volttron.server.router.router'
-)
+log_level_info = ('volttron.platform.main', 'volttron.platform.vip.zmq_connection',
+                  'urllib3.connectionpool', 'watchdog.observers.inotify_buffer',
+                  'volttron.platform.auth', 'volttron.platform.store', 'volttron.platform.control',
+                  'volttron.platform.vip.agent.core', 'volttron.utils',
+                  'volttron.platform.vip.router', 'vip.router', 'volttron.server.router.router')
 
 for log_name in log_level_info:
     logging.getLogger(log_name).setLevel(logging.INFO)
@@ -321,39 +306,6 @@ def start_volttron_process(opts):
                              "often the platform checks for any crashed agent "
                              "and attempts to restart. {}".format(e))
 
-    # Allows registration agents to callbacks for peers
-    notifier = ServicePeerNotifier()
-
-    # Main loops
-    def zmq_router(stop):
-        try:
-            _log.debug("Running zmq router")
-            Router(
-                opts.vip_local_address,
-                opts.vip_address,
-                secretkey=secretkey,
-                publickey=publickey,
-                default_user_id="vip.service",
-                monitor=opts.monitor,
-                tracker=tracker,
-                volttron_central_address=opts.volttron_central_address,
-                volttron_central_serverkey=opts.volttron_central_serverkey,
-                instance_name=opts.instance_name,
-                bind_web_address=opts.bind_web_address,
-                protected_topics=protected_topics,
-                external_address_file=external_address_file,
-                msgdebug=opts.msgdebug,
-                service_notifier=notifier,
-            ).run()
-        except Exception:
-            _log.exception("Unhandled exception in router loop")
-            raise
-        except KeyboardInterrupt:
-            pass
-        finally:
-            _log.debug("In finally")
-            stop(platform_shutdown=True)
-
     address = "inproc://vip"
     pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
     try:
@@ -412,8 +364,21 @@ def start_volttron_process(opts):
                 del event
                 spawned_greenlets.append(task)
 
+            # Allows registration agents to callbacks for peers
+            notifier = ServicePeerNotifier()
+
             # Start ZMQ router in separate thread to remain responsive
-            thread = threading.Thread(target=zmq_router, args=(config_store.core.stop, ))
+            thread = threading.Thread(target=zmq_router,
+                                      args=(
+                                          opts,
+                                          notifier,
+                                          secretkey,
+                                          publickey,
+                                          tracker,
+                                          protected_topics,
+                                          external_address_file,
+                                          config_store.core.stop,
+                                      ))
             thread.daemon = True
             thread.start()
 

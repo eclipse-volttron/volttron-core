@@ -29,6 +29,7 @@ from gevent import Greenlet
 
 from volttron.client.vip.agent import Agent
 from volttron.types.bases import Service
+from volttron.types.message import Message
 from volttron.types.server_config import ServerConfig
 
 
@@ -57,4 +58,4 @@ class ServiceInterface(Agent):
         return task
 
 
-__all__: list[str] = ['ServiceInterface', 'Service']
+__all__: list[str] = ['ServiceInterface', 'Service', 'Message']
