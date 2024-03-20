@@ -483,11 +483,40 @@ def start_volttron_process(opts):
 
 
 def main(argv=sys.argv):
+    from volttron.utils.logs import setup_logging
+
     # Refuse to run as root
     if not getattr(os, "getuid", lambda: -1)():
         sys.stderr.write("%s: error: refusing to run as root to prevent "
                          "potential damage.\n" % os.path.basename(argv[0]))
         sys.exit(77)
+
+    # TODO: Pre-parse for logging level.
+    total_count = 0
+    for arg in sys.argv:
+        vcount = 0
+
+        if arg.startswith("-v"):
+            vcount = arg.count("v")
+        elif arg == "--verbose":
+            vcount = 1
+        total_count += vcount
+
+    import coloredlogs
+
+    total_count = logging.WARNING - 10 * total_count
+
+    setup_logging(total_count)
+    coloredlogs.install(level=total_count)
+
+    default_levels_for_modules = {
+        "volttron.server.decorators": logging.WARNING,
+        "volttron.server.containers": logging.INFO,
+        "volttron.loader": logging.WARNING,
+        "volttron.server.run_server": logging.INFO,
+        "volttron.client.decorators": logging.INFO
+    }
+    [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 
     volttron_home = os.path.normpath(
         config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
