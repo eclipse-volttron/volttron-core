@@ -31,6 +31,7 @@ monkey.patch_socket()
 monkey.patch_ssl()
 
 import argparse
+import importlib
 import logging
 import logging.config
 import os
@@ -45,6 +46,7 @@ from urllib.parse import urlparse
 import gevent
 
 from volttron.client.known_identities import (CONTROL, CONTROL_CONNECTION, PLATFORM_WEB)
+from volttron.messagebus.zmq import ZmqMessageBus
 from volttron.server import aip
 from volttron.server import server_argparser as config
 from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
@@ -56,7 +58,6 @@ from volttron.utils import ClientContext as cc
 from volttron.utils import (decode_key, encode_key, get_version, store_message_bus_config)
 from volttron.utils.keystore import KeyStore, KnownHostsStore, get_random_key
 from volttron.utils.persistance import load_create_store
-from volttron.zmq import ZmqMessageBus
 
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
@@ -70,23 +71,12 @@ log_level_info = ('volttron.platform.main', 'volttron.platform.vip.zmq_connectio
 for log_name in log_level_info:
     logging.getLogger(log_name).setLevel(logging.INFO)
 
-
-def load_volttron_packages():
-    from volttron.loader import load_dir
-
-    volttron_path = Path(__file__).parent.parent
-    # This doesn't reload it, because it's already been loaded.  This allows us
-    # access to the paths associated with the other modules.
-    volttron_pkg = importlib.import_module("volttron")
-
-    # Loop over paths that aren't in this package
-    for pth in filter(lambda p: p != volttron_path.parent.as_posix, volttron_pkg.__path__):
-        _log.debug(f"Loading: {pth}")
-        load_dir('volttron', Path(pth))
-
-
 # No need for str after python 3.8
 VOLTTRON_INSTANCES = Path("~/.volttron_instances").expanduser().resolve()
+
+
+def load_messagebus_module(slug: str):
+    importlib.import_module(f"volttron.messagebus.{slug}")
 
 
 def start_volttron_process(opts):
@@ -483,6 +473,8 @@ def start_volttron_process(opts):
 
 
 def main(argv=sys.argv):
+    import coloredlogs
+
     from volttron.utils.logs import setup_logging
 
     # Refuse to run as root
@@ -502,8 +494,6 @@ def main(argv=sys.argv):
             vcount = 1
         total_count += vcount
 
-    import coloredlogs
-
     total_count = logging.WARNING - 10 * total_count
 
     setup_logging(total_count)
@@ -521,6 +511,7 @@ def main(argv=sys.argv):
     volttron_home = os.path.normpath(
         config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
     os.environ["VOLTTRON_HOME"] = volttron_home
+    #load_volttron_packages()
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]),
@@ -774,6 +765,8 @@ def main(argv=sys.argv):
         args = args + ["--config", conf]
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
+
+    load_messagebus_module(opts.message_bus)
 
     start_volttron_process(opts)
 
