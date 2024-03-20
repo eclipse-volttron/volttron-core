@@ -43,57 +43,20 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 import gevent
-# gevent.monkey.patch_socket()
-# gevent.monkey.patch_ssl()
-import zmq
-from zmq import green
-
-# Link to the volttron-client library
-# import gevent.monkey
-# import gevent.threading as threading
-#
-from volttron.utils import ClientContext as cc
-from volttron.utils import decode_key, encode_key, get_version
-from volttron.utils.keystore import get_random_key
-
-# Create a context common to the green and non-green zmq modules.
-green.Context._instance = green.Context.shadow(zmq.Context.instance().underlying)
-
-# from .vip.router import *
-# from .vip.socket import decode_key, encode_key, Address
-# from .vip.tracking import Tracker
 
 from volttron.client.known_identities import (CONTROL, CONTROL_CONNECTION, PLATFORM_WEB)
+from volttron.server import aip
+from volttron.server import server_argparser as config
+from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
 from volttron.server.tracking import Tracker
 from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileUserIdAlreadyExists)
 from volttron.types.peer import ServicePeerNotifier
 from volttron.types.server_config import ServerConfig, ServiceConfigs
-from volttron.utils import store_message_bus_config
-from volttron.utils.keystore import KeyStore, KnownHostsStore
+from volttron.utils import ClientContext as cc
+from volttron.utils import (decode_key, encode_key, get_version, store_message_bus_config)
+from volttron.utils.keystore import KeyStore, KnownHostsStore, get_random_key
 from volttron.utils.persistance import load_create_store
-#from volttron.zmq.router import Router
 from volttron.zmq import ZmqMessageBus
-
-# TODO rmq
-# from .vip.rmq_router import RMQRouter
-
-# from volttron.utils.rmq_setup import start_rabbit
-# from volttron.utils.rmq_config_params import RMQConfig
-
-# TODO Key Discovery RPC
-# from ..services.external import ExternalRPCService, KeyDiscoveryAgent
-# from ..services.routing import ZMQProxyRouter
-
-try:
-    from services.web import PlatformWebService
-
-    HAS_WEB = True
-except ImportError:
-    HAS_WEB = False
-
-from volttron.server import aip
-from volttron.server import server_argparser as config
-from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
 
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
@@ -182,9 +145,6 @@ def start_volttron_process(opts):
     if opts.web_ca_cert:
         assert os.path.isfile(opts.web_ca_cert), "web_ca_cert does not exist!"
         os.environ["REQUESTS_CA_BUNDLE"] = opts.web_ca_cert
-
-    # Removed the check for opts.web_ca_cert to be the same cert that was used to create web_ssl_key
-    # and opts.web_ssl_cert
 
     os.environ["MESSAGEBUS"] = opts.message_bus
     os.environ["SECURE_AGENT_USERS"] = opts.secure_agent_users
@@ -285,11 +245,6 @@ def start_volttron_process(opts):
         AuthFile().add(entry)
     except AuthFileUserIdAlreadyExists:
         pass
-
-    # The following line doesn't appear to do anything, but it creates
-    # a context common to the green and non-green zmq modules.
-    zmq.Context.instance()    # DO NOT REMOVE LINE!!
-    # zmq.Context.instance().set(zmq.MAX_SOCKETS, 2046)
 
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, "protected_topics.json")
