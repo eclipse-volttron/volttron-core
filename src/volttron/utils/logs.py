@@ -33,6 +33,26 @@ import warnings
 
 from volttron.utils import jsonapi
 
+default_levels_for_modules = {
+    "volttron.server.decorators": logging.WARNING,
+    "volttron.server.containers": logging.INFO,
+    "volttron.loader": logging.WARNING,
+    "volttron.server.run_server": logging.INFO,
+    "volttron.client.decorators": logging.INFO,
+    "volttron.messagebus.zmq.socket": logging.INFO
+}
+[logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
+
+# Only show debug on the platform when really necessary!
+log_level_info = ('volttron.platform.main', 'volttron.platform.vip.zmq_connection',
+                  'urllib3.connectionpool', 'watchdog.observers.inotify_buffer',
+                  'volttron.platform.auth', 'volttron.platform.store', 'volttron.platform.control',
+                  'volttron.platform.vip.agent.core', 'volttron.utils',
+                  'volttron.platform.vip.router', 'vip.router', 'volttron.server.router.router')
+
+for log_name in log_level_info:
+    logging.getLogger(log_name).setLevel(logging.INFO)
+
 try:
     HAS_SYSLOG = True
     import syslog
@@ -62,6 +82,19 @@ def isapipe(fd):
     return stat.S_ISFIFO(os.fstat(fd).st_mode)
 
 
+__enable_trace__ = False
+
+
+def enable_trace():
+    global __enable_trace__
+    __enable_trace__ = True
+
+
+def disable_trace():
+    global __enable_trace__
+    __enable_trace__ = False
+
+
 def logtrace(func: callable, *args, **kwargs):
     """
     Decorator that logs the function call and return value.
@@ -81,13 +114,16 @@ def logtrace(func: callable, *args, **kwargs):
     @return: The decorated function.
     @rtype: callable
     """
-    logger = logging.getLogger(func.__name__)
+    enabled = kwargs.pop('enabled', False)
+    logger = logging.getLogger(func.__module__)
     sig = inspect.signature(func)
 
     def do_logging(*args, **kwargs):
-        logger.debug(f"{func.__name__}{sig} called with {args}, {kwargs}")
+        if __enable_trace__:
+            logger.debug(f"-->{func.__name__}{sig} called with {args}, {kwargs}")
         ret = func(*args, **kwargs)
-        logger.debug(f"{func.__name__} returned: {ret}")
+        if __enable_trace__:
+            logger.debug(f"<--{func.__name__} returned: {ret}")
         return ret
 
     return do_logging
