@@ -25,22 +25,21 @@
 import inspect
 import logging
 import os
+import re
 import sys
 import traceback
 import weakref
-import re
 
 import gevent.local
 from gevent.event import AsyncResult
-from volttron.utils import jsonapi
-
-from .base import SubsystemBase
-from ..results import counter, ResultsDictionary
-from ..decorators import annotate, annotations, dualmethod, spawn
-from volttron.utils import jsonrpc
-
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
+
+from volttron.utils import jsonapi, jsonrpc
+
+from ..decorators import annotate, annotations, dualmethod, spawn
+from ..results import ResultsDictionary, counter
+from .base import SubsystemBase
 
 __all__ = ["RPC"]
 

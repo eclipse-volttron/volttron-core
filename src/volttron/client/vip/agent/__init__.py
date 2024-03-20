@@ -26,32 +26,23 @@ import logging as _log
 
 import gevent
 
-from .core import *
-from .errors import *
-from .decorators import *
-from .subsystems import *
-
-from volttron.utils import is_valid_identity, get_address, ClientContext as cc
+from volttron.types.bases import AbstractAgent
+from volttron.utils import ClientContext as cc
+from volttron.utils import get_address, is_valid_identity
 from volttron.utils.keystore import get_server_keys
 
+from .core import *
+from .decorators import *
+from .errors import *
+from .subsystems import *
 
-class Agent(object):
+
+class Agent(AbstractAgent):
 
     class Subsystems(object):
 
-        def __init__(
-            self,
-            owner,
-            core,
-            heartbeat_autostart,
-            heartbeat_period,
-            enable_store,
-            enable_web,
-            enable_channel,
-            message_bus,
-            tag_vip_id,
-            tag_refresh_interval
-        ):
+        def __init__(self, owner, core, heartbeat_autostart, heartbeat_period, enable_store,
+                     enable_web, enable_channel, message_bus, tag_vip_id, tag_refresh_interval):
             self.peerlist = PeerList(core)
             self.ping = Ping(core)
             self.rpc = RPC(core, owner, self.peerlist)
@@ -59,7 +50,8 @@ class Agent(object):
             if message_bus == "rmq":
                 self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)
             else:
-                self.pubsub = PubSub(core, self.rpc, self.peerlist, owner, tag_vip_id, tag_refresh_interval)
+                self.pubsub = PubSub(core, self.rpc, self.peerlist, owner, tag_vip_id,
+                                     tag_refresh_interval)
                 # Available only for ZMQ agents
                 if enable_channel:
                     self.channel = Channel(core)
@@ -79,32 +71,32 @@ class Agent(object):
             self.auth = Auth(owner, core, self.rpc)
 
     def __init__(
-        self,
-        identity=None,
-        address=None,
-        context=None,
-        publickey=None,
-        secretkey=None,
-        serverkey=None,
+            self,
+            identity=None,
+            address=None,
+            context=None,
+            publickey=None,
+            secretkey=None,
+            serverkey=None,
     # Since heartbeat is now 100% tied to status on the vctl change the defaults
     # to auto start the heartbeat.
-        heartbeat_autostart=True,
-        heartbeat_period=60,
-        volttron_home=None,
-        agent_uuid=None,
-        enable_store=True,
-        enable_web=False,
-        enable_channel=False,
-        reconnect_interval=None,
-        version="0.1",
-        instance_name=None,
-        message_bus=None,
-        volttron_central_address=None,
-        volttron_central_instance_name=None,
-        tag_vip_id=None,
-        tag_refresh_interval=-1
-    ):
+            heartbeat_autostart=True,
+            heartbeat_period=60,
+            volttron_home=None,
+            agent_uuid=None,
+            enable_store=True,
+            enable_web=False,
+            enable_channel=False,
+            reconnect_interval=None,
+            version="0.1",
+            instance_name=None,
+            message_bus=None,
+            volttron_central_address=None,
+            volttron_central_instance_name=None,
+            tag_vip_id=None,
+            tag_refresh_interval=-1):
 
+        from volttron.messagebus.zmq import ZmqConnection, ZmqCore
         if volttron_home is None:
             volttron_home = cc.get_volttron_home()
 
@@ -140,8 +132,32 @@ class Agent(object):
                     volttron_central_instance_name=volttron_central_instance_name,
                 )
             else:
+                #from volttron.types.agent_context import AgentOptions, AgentContext
+                import os
+                from pathlib import Path
+
+                from volttron.client.decorators import get_server_credentials
+                from volttron.types.auth import (PKICredentials, PublicCredentials)
+                from volttron.utils import jsonapi
+
+                keystore_path = Path(
+                    os.environ["VOLTTRON_HOME"]) / f"keystores/{identity}/keystore.json"
+                real_auth = jsonapi.loads(keystore_path.open().read())
+
+                agent_creds = PKICredentials(identity=identity,
+                                             secretkey=real_auth["secret"],
+                                             publickey=real_auth["public"])
+                #server_creds = get_server_credentials()
+
                 _log.debug("Creating ZMQ Core {}".format(identity))
-                self.core = ZMQCore(
+
+                # self.core = ZmqCore(self,
+                #                     address=address,
+                #                     credentials=agent_creds,
+                #                     identity=identity,
+                #                     reconnect_interval=reconnect_interval)
+
+                self.core = ZmqCore(
                     self,
                     identity=identity,
                     address=address,
@@ -155,18 +171,9 @@ class Agent(object):
                     reconnect_interval=reconnect_interval,
                     version=version,
                 )
-            self.vip = Agent.Subsystems(
-                self,
-                self.core,
-                heartbeat_autostart,
-                heartbeat_period,
-                enable_store,
-                enable_web,
-                enable_channel,
-                message_bus,
-                tag_vip_id,
-                tag_refresh_interval
-            )
+            self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart, heartbeat_period,
+                                        enable_store, enable_web, enable_channel, message_bus,
+                                        tag_vip_id, tag_refresh_interval)
             self.core.setup()
             self.vip.rpc.export(self.core.version, "agent.version")
         except Exception as e:

@@ -25,18 +25,19 @@ import inspect
 import logging
 import re
 import weakref
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from collections import defaultdict
 
 import gevent
 from gevent.queue import Queue
 
+from volttron.client.known_identities import PLATFORM_TAGGING
 from volttron.utils import jsonapi
 from volttron.utils.scheduling import periodic
-from .base import SubsystemBase
+
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..results import ResultsDictionary
-from volttron.client.known_identities import PLATFORM_TAGGING
+from .base import SubsystemBase
 
 __all__ = ["PubSub"]
 
@@ -64,7 +65,13 @@ class PubSub(SubsystemBase):
     Pubsub subsystem concrete class implementation for ZMQ message bus.
     """
 
-    def __init__(self, core, rpc_subsys, peerlist_subsys, owner, tag_vip_id=PLATFORM_TAGGING, tag_refresh_interval=-1):
+    def __init__(self,
+                 core,
+                 rpc_subsys,
+                 peerlist_subsys,
+                 owner,
+                 tag_vip_id=PLATFORM_TAGGING,
+                 tag_refresh_interval=-1):
         self.core = weakref.ref(core)
         self.rpc = weakref.ref(rpc_subsys)
         self.peerlist = weakref.ref(peerlist_subsys)
@@ -107,13 +114,19 @@ class PubSub(SubsystemBase):
                         member, set, "pubsub.subscriptions"):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription("prefix", prefix, member, bus, all_platforms)
-                    _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
+                    _log.debug("SYNC ZMQ: all_platforms {}".format(
+                        self._my_subscriptions['internal'][bus][prefix]))
 
                 for peer, bus, tag_condition, topic_source, all_platforms, queue in annotations(
                         member, set, "pubsub.subscription_by_tags"):
                     # XXX: needs updated in light of onconnected signal
-                    self.subscribe_by_tags(peer='pubsub', tag_condition=tag_condition, callback=member,
-                                           topic_source=topic_source, bus=bus, all_platforms=all_platforms)
+                    self.subscribe_by_tags(peer='pubsub',
+                                           tag_condition=tag_condition,
+                                           callback=member,
+                                           topic_source=topic_source,
+                                           bus=bus,
+                                           all_platforms=all_platforms)
+
             inspect.getmembers(owner, subscribe)
 
         core.onsetup.connect(setup, self)
@@ -175,11 +188,13 @@ class PubSub(SubsystemBase):
             self.synchronize()
 
     def get_topics_by_tag(self, condition):
-        topics = self.rpc().call(self.tag_vip_id, "get_topics_by_tags", condition=condition).get(timeout=10)
+        topics = self.rpc().call(self.tag_vip_id, "get_topics_by_tags",
+                                 condition=condition).get(timeout=10)
         return topics
 
     @spawn
     def refresh_tag_subscriptions(self):
+
         def platform_subscriptions():
             return defaultdict(subscriptions)
 
@@ -282,7 +297,7 @@ class PubSub(SubsystemBase):
         else:
             subscription_dict["all"][bus][prefix].add(callback)
             # _log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
-        
+
     def call_server_subscribe(self, all_platforms, bus, prefix):
         result = next(self._results)
         sub_msg = jsonapi.dumpb(dict(prefix=prefix, bus=bus, all_platforms=all_platforms))
@@ -292,13 +307,7 @@ class PubSub(SubsystemBase):
 
     @dualmethod
     @spawn
-    def subscribe(self,
-                  peer,
-                  prefix,
-                  callback,
-                  bus="",
-                  all_platforms=False,
-                  **kwargs):
+    def subscribe(self, peer, prefix, callback, bus="", all_platforms=False, **kwargs):
         """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -387,7 +396,8 @@ class PubSub(SubsystemBase):
 
         if success_list:
             # even if there was one successful subscription save tag_condition for periodic updates
-            self._my_tag_condition_callbacks[platform][bus][(topic_source, tag_condition)].add(callback)
+            self._my_tag_condition_callbacks[platform][bus][(topic_source,
+                                                             tag_condition)].add(callback)
         return success_list, failure_list
 
     @subscribe.classmethod
@@ -405,8 +415,13 @@ class PubSub(SubsystemBase):
         return decorate
 
     @subscribe_by_tags.classmethod
-    def subscribe_by_tags(cls, peer, tag_condition, bus="", all_platforms=False,
-                          persistent_queue=None, topic_source="devices"):
+    def subscribe_by_tags(cls,
+                          peer,
+                          tag_condition,
+                          bus="",
+                          all_platforms=False,
+                          persistent_queue=None,
+                          topic_source="devices"):
 
         def decorate(method):
             annotate(
@@ -662,11 +677,20 @@ class PubSub(SubsystemBase):
 
         result = next(self._results)
         args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
-        self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
+        # TODO: Refactor to allow core to send vip messages.
+        self.core().socket.send_vip("", "pubsub", args, result.ident, copy=False)
+        #self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
         return result
 
-    def publish_by_tags(self, peer: str, tag_condition: str, headers=None, message=None, bus="",
-                        max_publish_count=1, topic_source="devices", **kwargs):
+    def publish_by_tags(self,
+                        peer: str,
+                        tag_condition: str,
+                        headers=None,
+                        message=None,
+                        bus="",
+                        max_publish_count=1,
+                        topic_source="devices",
+                        **kwargs):
         """Publish a message to a topic that matches the give tag_condition via a peer. If tag_condition resolves to
         more than one topic then throw an error if publish_multiple is False. Publish to multiple matching topics if
         publish_multiple parameter is True

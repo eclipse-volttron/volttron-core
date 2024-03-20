@@ -25,12 +25,14 @@
 import logging
 import weakref
 
-from .base import SubsystemBase
-from ..dispatch import Signal
-from ..results import ResultsDictionary
-from volttron.utils import jsonapi
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
+
+from volttron.utils import jsonapi
+
+from ..dispatch import Signal
+from ..results import ResultsDictionary
+from .base import SubsystemBase
 
 __all__ = ["PeerList"]
 
