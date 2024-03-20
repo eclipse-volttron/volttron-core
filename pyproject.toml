@@ -42,6 +42,7 @@ deprecated = "^1.2.14"
 volttron-lib-zmq = { path="../volttron-lib-zmq", develop = true}
 volttron-lib-auth = { path="../volttron-lib-auth", develop = true}
 coloredlogs = "^15.0.1"
+blinker = "^1.7.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^6.2.5"
