@@ -25,7 +25,7 @@
 
 import gevent
 
-from volttron.zmq.router import ERROR, INCOMING, UNROUTABLE
+from volttron.messagebus.zmq.router import ERROR, INCOMING, UNROUTABLE
 
 __all__ = ["Tracker"]
 
