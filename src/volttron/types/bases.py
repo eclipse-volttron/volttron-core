@@ -1,13 +1,33 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod, abstractproperty
 from typing import TYPE_CHECKING
 
 from gevent.subprocess import Popen
 
 #if TYPE_CHECKING:
-from volttron.client.vip.agent import Agent
 from volttron.types.agent_context import AgentContext
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.message import Message
+
+
+class AbstractAgent(ABC):
+    ...
+
+
+class AbstractCore(ABC):
+
+    @abstractmethod
+    def setup(self):
+        ...
+
+    @abstractmethod
+    def loop(self, running_event):
+        ...
+
+    @abstractmethod
+    def send_vip(self, message: Message):
+        ...
 
 
 class CoreLoop(ABC):
@@ -20,40 +40,40 @@ class CoreLoop(ABC):
 class AgentBuilder(ABC):
 
     @abstractmethod
-    def build_agent(**kwargs):
+    def build_agent(self, **kwargs):
         ...
 
 
 class AgentInstaller(ABC):
 
     @abstractmethod
-    def install_agent(**kwargs):
+    def install_agent(self, **kwargs):
         ...
 
     @abstractmethod
-    def uninstall_agent(**kwargs):
+    def uninstall_agent(self, **kwargs):
         ...
 
 
 class AgentExecutor(ABC):
 
     @abstractmethod
-    def execute(identity: str) -> Popen:
+    def execute(self, identity: str) -> Popen:
         ...
 
     @abstractmethod
-    def stop():
+    def stop(self):
         ...
 
 
 class AgentStarter(ABC):
 
     @abstractmethod
-    def start(agent: Agent):
+    def start(self, agent: AbstractAgent):
         ...
 
     @abstractmethod
-    def stop():
+    def stop(self):
         ...
 
 
@@ -64,23 +84,23 @@ class Connection(ABC):
         ...
 
     @abstractmethod
-    def connect():
+    def connect(self):
         ...
 
     @abstractmethod
-    def disconnect():
+    def disconnect(self):
         ...
 
     @abstractmethod
-    def is_connected() -> bool:
+    def is_connected(self) -> bool:
         ...
 
     @abstractmethod
-    def send_vip_message(message: Message):
+    def send_vip_message(self, message: Message):
         ...
 
     @abstractmethod
-    def recieve_vip_message() -> Message:
+    def recieve_vip_message(self) -> Message:
         ...
 
 
