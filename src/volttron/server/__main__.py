@@ -46,7 +46,6 @@ from urllib.parse import urlparse
 import gevent
 
 from volttron.client.known_identities import (CONTROL, CONTROL_CONNECTION, PLATFORM_WEB)
-from volttron.messagebus.zmq import ZmqMessageBus
 from volttron.server import aip
 from volttron.server import server_argparser as config
 from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
@@ -328,6 +327,8 @@ def start_volttron_process(opts):
 
             # Allows registration agents to callbacks for peers
             notifier = ServicePeerNotifier()
+            from volttron.server.decorators import get_messagebus_class
+            ZmqMessageBus = get_messagebus_class()
 
             mb = ZmqMessageBus(opts, notifier, secretkey, publickey, tracker, protected_topics,
                                external_address_file, config_store.core.stop)

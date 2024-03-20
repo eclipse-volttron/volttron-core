@@ -105,21 +105,21 @@ class Service(ABC):
 class MessageBus(ABC):
 
     @abstractmethod
-    def start(options: any):    #  ServerOptions):
+    def start(self, options: any):    #  ServerOptions):
         ...
 
     @abstractmethod
-    def stop():
+    def stop(self):
         ...
 
     @abstractmethod
-    def is_running() -> bool:
+    def is_running(self) -> bool:
         ...
 
     @abstractmethod
-    def send_vip_message(message: Message):
+    def send_vip_message(self, message: Message):
         ...
 
     @abstractmethod
-    def receive_vip_message():
+    def receive_vip_message(self) -> Message:
         ...
