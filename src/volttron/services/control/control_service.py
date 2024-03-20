@@ -27,26 +27,20 @@ import hashlib
 import logging.config
 import os
 import shutil
+import sys
 import tempfile
 from datetime import timedelta
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import gevent
 import gevent.event
-import sys
 
-from volttron.client.messaging.health import Status, STATUS_BAD
-from volttron.client.vip.agent import (
-    Core,
-    RPC,
-)
+from volttron.client.messaging.health import STATUS_BAD, Status
+from volttron.client.vip.agent import RPC, Core
 from volttron.client.vip.agent.subsystems.query import Query
-from volttron.types import ServiceInterface
-from volttron.utils import (
-    ClientContext as cc,
-    get_aware_utc_now,
-)
-from volttron.utils import jsonapi
+from volttron.types.service_interface import ServiceInterface
+from volttron.utils import ClientContext as cc
+from volttron.utils import get_aware_utc_now, jsonapi
 from volttron.utils.scheduling import periodic
 
 # noinspection PyUnresolvedReferences
@@ -377,7 +371,6 @@ class ControlService(ServiceInterface):
                           force: bool = False,
                           pre_release: bool = False,
                           agent_config: str = None):
-
         """
         Install the agent through the rmq message bus.
         """
@@ -398,7 +391,8 @@ class ControlService(ServiceInterface):
         self._raise_error_if_identity_exists_without_force(vip_identity, force)
         if not agent.endswith(".whl"):
             # agent passed is package name to install from pypi.
-            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force, pre_release)
+            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config,
+                                           force, pre_release)
 
         # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
         tmpdir = None
@@ -472,8 +466,8 @@ class ControlService(ServiceInterface):
                 self.vip.pubsub.unsubscribe("pubsub", response_topic, protocol_subscription)
                 _log.debug("Unsubscribing on server")
 
-            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force,
-                                                 pre_release)
+            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey,
+                                                 agent_config, force, pre_release)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -549,7 +543,8 @@ class ControlService(ServiceInterface):
 
         if not agent.endswith(".whl"):
             # agent passed is package name to install from pypi.
-            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force, pre_release)
+            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config,
+                                           force, pre_release)
 
         # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
         peer = self.vip.rpc.context.vip_message.peer
@@ -599,8 +594,8 @@ class ControlService(ServiceInterface):
                 del channel
 
             _log.debug("After transferring wheel to us now to do stuff.")
-            agent_uuid = self._aip.install_agent(path, vip_identity, publickey, secretkey, agent_config, force,
-                                                 pre_release)
+            agent_uuid = self._aip.install_agent(path, vip_identity, publickey, secretkey,
+                                                 agent_config, force, pre_release)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)

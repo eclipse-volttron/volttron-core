@@ -35,35 +35,27 @@ import os
 import random
 import re
 import shutil
-from typing import Optional
 import uuid
 from collections import defaultdict
+from typing import Optional
 
 import gevent
 import gevent.core
 from gevent.fileobject import FileObject
 from zmq import green as zmq
 
-from volttron.types import ServiceInterface
-from volttron.utils import (
-    ClientContext as cc,
-    create_file_if_missing,
-    strip_comments,
-)
-from volttron.utils import jsonapi
-from volttron.utils.filewatch import watch_file
-from volttron.utils.certs import Certs
-from volttron.utils.keystore import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
-from volttron.client.vip.agent import Agent, Core, RPC, VIPError
-from volttron.client.known_identities import (
-    VOLTTRON_CENTRAL_PLATFORM,
-    CONTROL,
-    CONTROL_CONNECTION,
-)
-
+import volttron.types.server_config as server_config
+from volttron.client.known_identities import (CONTROL, CONTROL_CONNECTION,
+                                              VOLTTRON_CENTRAL_PLATFORM)
+from volttron.client.vip.agent import RPC, Agent, Core, VIPError
 # TODO: it seems this should not be so nested of a import path.
 from volttron.client.vip.agent.subsystems.pubsub import ProtectedPubSubTopics
-import volttron.types.server_config as server_config
+from volttron.types.service_interface import ServiceInterface
+from volttron.utils import ClientContext as cc
+from volttron.utils import create_file_if_missing, jsonapi, strip_comments
+from volttron.utils.certs import Certs
+from volttron.utils.filewatch import watch_file
+from volttron.utils.keystore import BASE64_ENCODED_CURVE_KEY_LEN, encode_key
 
 # from volttron.platform.certs import Certs
 # from volttron.platform.vip.agent.errors import VIPError
@@ -135,16 +127,14 @@ class AuthService(ServiceInterface):
             return defaultdict(set)
 
         self._user_to_permissions = topics()
-        entry = AuthEntry(
-            credentials=self.core.publickey,
-            user_id=self.core.identity,
-            capabilities=[{
-                "edit_config_store": {
-                    "identity": self.core.identity
-                }
-            }],
-            comments="Automatically added by init of auth service"
-        )
+        entry = AuthEntry(credentials=self.core.publickey,
+                          user_id=self.core.identity,
+                          capabilities=[{
+                              "edit_config_store": {
+                                  "identity": self.core.identity
+                              }
+                          }],
+                          comments="Automatically added by init of auth service")
         AuthFile().add(entry, overwrite=True)
 
     @Core.receiver("onsetup")
@@ -244,7 +234,9 @@ class AuthService(ServiceInterface):
         if not peers:
             raise BaseException("No peers connected to the platform")
 
-        _log.debug("after getting peerlist to send auth updates")
+        _log.debug(
+            f"-------------------------------- after getting peerlist to send auth updates, peers are: {peers}"
+        )
 
         for peer in peers:
             if peer not in [self.core.identity, CONTROL_CONNECTION]:

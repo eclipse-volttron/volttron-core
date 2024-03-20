@@ -1,0 +1,217 @@
+import argparse
+from collections import OrderedDict
+from configparser import ConfigParser
+import configparser
+import os
+from pathlib import Path
+import socket
+from dataclasses import dataclass, field, fields
+
+
+class MultiOrderedDict(OrderedDict):
+
+    def __setitem__(self, key, value):
+        if isinstance(value, list) and key in self:
+            self[key].extend(value)
+        else:
+            super(MultiOrderedDict, self).__setitem__(key, value)
+
+
+@dataclass
+class ServerOptions:
+    """
+    A data class representing the configuration options for a Volttron platform server.
+
+    :ivar volttron_home: The path to the root directory of the Volttron instance.
+                         Default is '~/.volttron', which is expanded to the current user's home directory.
+    :vartype volttron_home: Union[pathlib.Path, str]
+
+    :ivar instance_name: The name of the Volttron instance. Default is the hostname of the machine.
+    :vartype instance_name: str
+
+    :ivar address: A list of addresses on which the platform should listen for incoming connections.
+                     Default is None.
+    :vartype address: List[str]
+
+    :ivar agent_isolation_mode: Flag indicating whether the agent isolation mode is enabled.
+                                Default is False.
+    :vartype agent_isolation_mode: bool
+
+    :ivar message_bus: The fully-qualified name of the message bus class to use. Default is
+                       'volttron.messagebus.zmq.ZmqMessageBus'.
+    :vartype message_bus: str
+
+    :ivar agent_core: The fully-qualified name of the agent core class to use. Default is
+                      'volttron.messagebus.zmq.ZmqCore'.
+    :vartype agent_core: str
+
+    :ivar auth_service: The fully-qualified name of the authentication service class to use. Default is
+                        'volttron.services.auth'.
+    :vartype auth_service: str
+
+    :ivar service_config: The Path to the service config file for loading services into the context.
+    :vartype service_service: Path
+    """
+    volttron_home: Path = None
+    instance_name: str = None
+    address: list[str] = field(default_factory=list)
+    agent_isolation_mode: bool = False
+    # Module that holds the zmq based classes, though we shorten it assumeing
+    # it's in volttron.messagebus
+    messagebus: str = "zmq"
+    auth_enabled: bool = True
+    config_file: Path = None
+    initialized: bool = False
+
+    #services: list[ServiceData] = field(default_factory=list)
+
+    def __post_init__(self):
+        """
+        Initializes the instance after it has been created.
+
+        If `volttron_home` is a string, it is converted to a `pathlib.Path` object.
+
+        If `instance_name` is None, it is set to the hostname of the machine.
+        """
+
+        if self.volttron_home is None:
+            self.volttron_home = Path(os.environ.get("VOLTTRON_HOME", "~/.volttron")).expanduser()
+
+        # Should be the only location where we create VOLTTRON_HOME
+        if not self.volttron_home.is_dir():
+            self.volttron_home.mkdir(mode=0o755, exist_ok=True, parents=True)
+
+        if self.config_file is None:
+            self.config_file = self.volttron_home / "config"
+
+        # Allow the config path to be whereever the user wants it to be.
+        if not self.config_file.exists():
+            self.config_file.parent.mkdir(mode=0o755, parents=True, exist_ok=True)
+            if self.instance_name is None:
+                self.instance_name = socket.gethostname()
+
+            if isinstance(self.address, str):
+                self.address = [self.address]
+            elif not self.address:
+                self.address = ["tcp://127.0.0.1:22916"]
+
+        else:
+            if not self.initialized:
+                options = ServerOptions.from_file(self.config_file)
+
+                for fld in ServerOptions.__dataclass_fields__:
+                    setattr(self, fld, getattr(options, fld))
+
+        namespace = "volttron.services"
+
+    def update(self, opts: argparse.Namespace | dict):
+        """Update the opts from the passed command line or a dictionary.
+
+        :param opts: Parameters passed from the command line or a dictionary form volttron testing framework.
+        :type opts: argparse.Namespace | dict
+        """
+        address = set(opts.address)
+        opts.address = list(address)
+        if isinstance(opts, dict):
+            self.__dict__.update(opts)
+        else:
+            self.__dict__.update(opts.__dict__)
+
+    def store(self, file: Path = None):
+        """
+        Stores the current configuration options to a file.
+
+        :param file: The path to the file where the configuration options should be stored.
+        :type file: Union[pathlib.Path, str]
+        """
+        parser = ConfigParser(dict_type=MultiOrderedDict, strict=False)
+
+        parser.add_section("volttron")
+
+        kwargs = {}
+
+        services_field = None
+        # Store the config options first.
+        for field in fields(ServerOptions):
+            try:
+                # Don't save volttron_home within the config file.
+                if field.name not in ('volttron_home', 'services', 'config_file', 'initialized'):
+                    # More than one address can be present so we must be careful
+                    # with it.
+                    if field.name == 'address':
+                        found = set()
+                        for v in getattr(self, field.name):
+                            if v not in found:
+                                parser.set("volttron", "address", value=v)
+                                found.add(v)
+                        # for v in getattr(self, field.name):
+                        #     parser.set("volttron", "address", v)
+                    else:
+                        parser.set("volttron", field.name.replace('_', '-'),
+                                   str(getattr(self, field.name)))
+            except configparser.NoOptionError:
+                pass
+
+        # TODO Add services back in.
+        # parser.add_section('services')
+        # for sd in self.services:
+        #     parser.set("services", sd.identity, sd.klass_path)
+
+        #     if sd.args:
+        #         parser.add_section(sd.klass_path)
+        #         for arg, value in sd.args:
+        #             parser.set(sd.klass_path, arg, value)
+
+        if file is None:
+            file = self.config_file
+        parser.write(file.open("w"))
+
+    @staticmethod
+    def from_file(file: Path | str = None):
+        """
+        Creates a `ServerOptions` instance from a file.
+
+        If `file` is None, the default file location ('$VOLTTRON_HOME/config') is used.
+
+        :param file: The path to the file containing the configuration options.
+        :type file: Optional[Union[pathlib.Path, str]]
+
+        :returns: A `_ServerOptions` instance created from the file.
+        :rtype: _ServerOptions
+        """
+        if file is None:
+            if os.environ.get('VOLTTRON_HOME'):
+                file = Path(os.environ.get('VOLTTRON_HOME')).expanduser() / "config"
+            else:
+                file = Path("~/.volttron/config").expanduser()
+
+        if isinstance(file, str):
+            file = Path(file)
+
+        if file.exists():
+            parser = ConfigParser(strict=False)
+            parser.read(file)
+
+            kwargs = {}
+
+            for field in fields(ServerOptions):
+                try:
+                    value = parser.get(section="volttron", option=field.name.replace('_', '-'))
+                    if value == 'None':
+                        value = None
+                    elif value == 'False' or value == 'True':
+                        value = eval(value)
+                    elif field.name == 'service_config' or field.name == 'volttron_home':
+                        value = Path(value)
+                    elif field.name == 'address':
+                        value = value.split('\n')
+                    kwargs[field.name] = value
+                except configparser.NoOptionError:
+                    pass
+            kwargs['initialized'] = True
+            options = ServerOptions(**kwargs)
+        else:
+            options = ServerOptions()
+            options.store(file)
+
+        return options

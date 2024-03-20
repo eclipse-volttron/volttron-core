@@ -25,18 +25,19 @@
 from __future__ import annotations
 
 import inspect
+import logging
 import os
 from dataclasses import dataclass
-import logging
 from os import PathLike
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Type
+from typing import Any, Dict, List, Optional, Type
 
 import yaml
 
-from volttron.utils.dynamic_helper import get_subclasses, get_class
+from volttron.utils.dynamic_helper import get_class, get_subclasses
 
 _log = logging.getLogger(__name__)
+
 
 def __all_ready_set__(property_name: str, value: Any):
     if value is not None:
@@ -63,8 +64,8 @@ class ServiceConfigs:
         from volttron.server.serviceloader import discover_services
         self._loaded = {}
         if self.service_config_file.exists():
-            self._loaded = yaml.safe_load(self.service_config_file.read_text().replace("$volttron_home",
-                                                                                       os.environ['VOLTTRON_HOME']))
+            self._loaded = yaml.safe_load(self.service_config_file.read_text().replace(
+                "$volttron_home", os.environ['VOLTTRON_HOME']))
 
         self._namespace = self._loaded.get('namespace', 'volttron.services')
         self._discovered_services = discover_services(self._namespace)
@@ -72,7 +73,7 @@ class ServiceConfigs:
         self._config_map = {}
         self._identity_map = {}
         self._instances = {}
-        service_interface_cls = get_class("volttron.types", "ServiceInterface")
+        service_interface_cls = get_class("volttron.types.service_interface", "ServiceInterface")
 
         for mod_name in self._discovered_services:
             try:
@@ -104,10 +105,7 @@ class ServiceConfigs:
             params = inspect.signature(service_cls.__init__).parameters
 
             config = self._config_map.get(service_name)
-            kwargs = {
-                "identity": self._identity_map[service_name],
-                "address": "inproc://vip"
-            }
+            kwargs = {"identity": self._identity_map[service_name], "address": "inproc://vip"}
             for arg_name, arg_value in params.items():
                 #arg_name, arg_value = arg
                 if arg_name in config and arg_name != 'kwargs':

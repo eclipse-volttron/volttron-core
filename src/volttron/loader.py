@@ -9,7 +9,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import List, Type
 
-from volttron.utils import logtrace
+from volttron.utils.logs import logtrace
 
 __all__: List[str] = ["get_module", "get_class", "get_subclasses", "load_dir"]
 

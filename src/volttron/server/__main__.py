@@ -51,6 +51,7 @@ from volttron.server import server_argparser as config
 from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
 from volttron.server.tracking import Tracker
 from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileUserIdAlreadyExists)
+from volttron.types.events import volttron_home_set_evnt
 from volttron.types.peer import ServicePeerNotifier
 from volttron.types.server_config import ServerConfig, ServiceConfigs
 from volttron.utils import ClientContext as cc
@@ -191,6 +192,7 @@ def start_volttron_process(opts):
                 )
         _log.debug("open file resource limit %d to %d", soft, hard)
 
+    volttron_home_set_evnt.send(main)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
@@ -476,6 +478,7 @@ def start_volttron_process(opts):
 def main(argv=sys.argv):
     import coloredlogs
 
+    from volttron.types.events import volttron_home_set_evnt
     from volttron.utils.logs import setup_logging
 
     # Refuse to run as root
@@ -505,13 +508,15 @@ def main(argv=sys.argv):
         "volttron.server.containers": logging.INFO,
         "volttron.loader": logging.WARNING,
         "volttron.server.run_server": logging.INFO,
-        "volttron.client.decorators": logging.INFO
+        "volttron.client.decorators": logging.INFO,
+        "volttron.messagebus.zmq.socket": logging.INFO
     }
     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 
     volttron_home = os.path.normpath(
         config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
     os.environ["VOLTTRON_HOME"] = volttron_home
+
     #load_volttron_packages()
     # Setup option parser
     parser = config.ArgumentParser(
