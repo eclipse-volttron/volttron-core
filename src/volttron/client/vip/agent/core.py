@@ -35,33 +35,33 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from errno import ENOENT
-from urllib.parse import urlsplit, parse_qs, urlunsplit
+from urllib.parse import parse_qs, urlsplit, urlunsplit
 
 import gevent.event
 from gevent.queue import Queue
 from zmq import green as zmq
-from zmq.green import ZMQError, EAGAIN, ENOTSOCK
+from zmq.green import EAGAIN, ENOTSOCK, ZMQError
 from zmq.utils.monitor import recv_monitor_message
 
-from volttron.utils import ClientContext as cc, get_address
-
+import volttron.client as client
 # from volttron.client.agent import utils
 # from volttron.client.agent.utils import load_platform_config, get_platform_instance_name
 # TODO add back rabbitmq
 # from volttron.client.keystore import KeyStore, KnownHostsStore
 # from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron import utils
+from volttron.utils import ClientContext as cc
+from volttron.utils import get_address
 from volttron.utils.keystore import KeyStore, KnownHostsStore
-from .decorators import annotate, annotations, dualmethod
-from .dispatch import Signal
-from .errors import VIPError
-# from .. import router
-
 # TODO add back rabbitmq
 # from ..rmq_connection import RMQConnection
 from volttron.utils.socket import Message
-from ...vip.zmq_connection import ZMQConnection
-import volttron.client as client
+
+from .decorators import annotate, annotations, dualmethod
+from .dispatch import Signal
+from .errors import VIPError
+
+# from .. import router
 
 __all__ = ["BasicCore", "Core", "ZMQCore", "killing"]
 
@@ -757,10 +757,10 @@ class ZMQCore(Core):
     def loop(self, running_event):
         # pre-setup
         # self.context.set(zmq.MAX_SOCKETS, 30690)
-        self.connection = ZMQConnection(self.address,
-                                        self.identity,
-                                        self.instance_name,
-                                        context=self.context)
+        self.connection = Zmqonnection(self.address,
+                                       self.identity,
+                                       self.instance_name,
+                                       context=self.context)
         self.connection.open_connection(zmq.DEALER)
         flags = dict(hwm=6000, reconnect_interval=self.reconnect_interval)
         self.connection.set_properties(flags)
