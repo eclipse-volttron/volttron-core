@@ -70,6 +70,21 @@ log_level_info = ('volttron.platform.main', 'volttron.platform.vip.zmq_connectio
 for log_name in log_level_info:
     logging.getLogger(log_name).setLevel(logging.INFO)
 
+
+def load_volttron_packages():
+    from volttron.loader import load_dir
+
+    volttron_path = Path(__file__).parent.parent
+    # This doesn't reload it, because it's already been loaded.  This allows us
+    # access to the paths associated with the other modules.
+    volttron_pkg = importlib.import_module("volttron")
+
+    # Loop over paths that aren't in this package
+    for pth in filter(lambda p: p != volttron_path.parent.as_posix, volttron_pkg.__path__):
+        _log.debug(f"Loading: {pth}")
+        load_dir('volttron', Path(pth))
+
+
 # No need for str after python 3.8
 VOLTTRON_INSTANCES = Path("~/.volttron_instances").expanduser().resolve()
 
