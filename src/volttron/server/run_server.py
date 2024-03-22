@@ -49,7 +49,9 @@ from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL
                                               CONTROL_CONNECTION)
 from volttron.server import aip
 from volttron.server import server_argparser as config
+from volttron.server.containers import service_repo
 from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
+from volttron.server.server_options import ServerOptions
 from volttron.server.tracking import Tracker
 from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileUserIdAlreadyExists)
 from volttron.types.events import volttron_home_set_evnt
@@ -70,7 +72,7 @@ def load_messagebus_module(slug: str):
     importlib.import_module(f"volttron.messagebus.{slug}")
 
 
-def start_volttron_process(opts):
+def run_server():
     """Start the main volttron process.
 
     Typically, this function is used from main.py and just uses the argparser's
@@ -78,9 +80,51 @@ def start_volttron_process(opts):
     that case the dictionaries keys are mapped into a value that acts like the
     args options.
     """
-    if isinstance(opts, dict):
-        opts = type("Options", (), opts)()
+    from volttron.types.blinker import volttron_home_set_evnt
 
+    os.environ['VOLTTRON_SERVER'] = "1"
+    volttron_home = Path(os.environ.get("VOLTTRON_HOME", "~/.volttron")).expanduser()
+    os.environ["VOLTTRON_HOME"] = volttron_home.as_posix()
+
+    # Raise events that the volttron_home has been set.
+    volttron_home_set_evnt.send(run_server)
+
+    if volttron_home.joinpath("config").exists():
+        service_repo.add_instance(ServerOptions,
+                                  ServerOptions(config_file=volttron_home.joinpath("config")))
+    else:
+        service_repo.add_instance(ServerOptions, ServerOptions(volttron_home=volttron_home))
+
+    server_options: ServerOptions = service_repo.resolve(ServerOptions)
+    parser = build_arg_parser(server_options)
+
+    if server_options.messagebus is None:
+        raise ValueError("Message Bus Not Found")
+
+    # Parse and expand options
+    args = sys.argv[1:]
+    conf = os.path.join(volttron_home, "config")
+    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
+        # command line args get preference over same args in config file
+        args = args + ["--config", conf]
+
+    #logging.getLogger().setLevel(logging.NOTSET)
+    opts = parser.parse_args(args)
+
+    # Handle the fact that we don't use store_true and config that requires
+    # inverse.  This is not a switch but a mode of operation so we change
+    # from the string to a boolean value here.
+    opts.agent_isolation_mode = opts.agent_isolation_mode != 'False'
+
+    # Update the server options with the command line parameter options.
+    server_options.update(opts)
+    server_options.store()
+    start_volttron_process(server_options)
+
+
+def start_volttron_process(options: ServerOptions):
+
+    opts = options
     # Change working dir
     os.chdir(opts.volttron_home)
 
@@ -168,7 +212,6 @@ def start_volttron_process(opts):
                 )
         _log.debug("open file resource limit %d to %d", soft, hard)
 
-    volttron_home_set_evnt.send(main)
     opts.aip = aip.AIPplatform(opts)
     opts.aip.setup()
 
@@ -535,18 +578,18 @@ def start_volttron_process(opts):
         _log.debug("********************************************************************")
 
 
-def main(argv=sys.argv):
+def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
+    """
+    Builds and returns an argument parser.
+
+    :return: The argument parser.
+    :rtype: argparse.ArgumentParser
+    """
     import coloredlogs
 
     from volttron.server.server_options import ServerOptions
     from volttron.types.events import volttron_home_set_evnt
     from volttron.utils.logs import setup_logging
-
-    # Refuse to run as root
-    if not getattr(os, "getuid", lambda: -1)():
-        sys.stderr.write("%s: error: refusing to run as root to prevent "
-                         "potential damage.\n" % os.path.basename(argv[0]))
-        sys.exit(77)
 
     default_levels_for_modules = {
         "volttron.server.decorators": logging.WARNING,
@@ -562,7 +605,14 @@ def main(argv=sys.argv):
         config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
     os.environ["VOLTTRON_HOME"] = volttron_home
 
-    #load_volttron_packages()
+    argv = sys.argv
+
+    # Refuse to run as root
+    if not getattr(os, "getuid", lambda: -1)():
+        sys.stderr.write("%s: error: refusing to run as root to prevent "
+                         "potential damage.\n" % os.path.basename(argv[0]))
+        sys.exit(77)
+
     # Setup option parser
     parser = config.ArgumentParser(
         prog=os.path.basename(argv[0]),
@@ -630,9 +680,31 @@ def main(argv=sys.argv):
         default=logging.WARNING,
         help="set logger verboseness",
     )
+    parser.add_argument("--messagebus",
+                        type=str,
+                        default=options.messagebus,
+                        help="The message bus to use during startup.")
+    # parser.add_argument("--auth-service",
+    #                     type=str,
+    #                     default=options.auth_service,
+    #                     help="The auth service to use for authentication of clients.")
+    # parser.add_argument("--authentication-class",
+    #                     type=str,
+    #                     default=options.authentication_class,
+    #                     help="Class used with the AuthService for authentication")
+    # parser.add_argument("--authorization-class",
+    #                     type=str,
+    #                     default=options.authorization_class,
+    #                     help="Class used with the AuthService for authorization")
     # parser.add_argument(
     #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
     #    help='VOLTTRON configuration directory')
+    parser.add_argument("--auth-enabled",
+                        action="store_true",
+                        inverse="--auth-disabled",
+                        dest="auth_enabled",
+                        help=argparse.SUPPRESS)
+    parser.add_argument("--auth-disabled", action="store_false", help=argparse.SUPPRESS)
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
     parser.add_help_argument()
     parser.add_version_argument(version="%(prog)s " + str(get_version()))
@@ -650,41 +722,36 @@ def main(argv=sys.argv):
         dest="autostart",
         help=argparse.SUPPRESS,
     )
+
     agents.add_argument(
         "--address",
-        metavar="ZMQADDR",
+        metavar="MESSAGE_BUS_ADDR",
         action="append",
         default=[],
-        help="ZeroMQ URL to bind for VIP connections",
+        help="Address for binding to the message bus.",
     )
     agents.add_argument(
         "--local-address",
         metavar="ZMQADDR",
         help="ZeroMQ URL to bind for local agent VIP connections",
     )
+
     agents.add_argument(
         "--instance-name",
-        default=None,
-        help="The name of the instance that will be reported to "
-        "VOLTTRON central.",
+        default=options.instance_name,
+        help="The name of the VOLTTRON instance this command is starting up.",
     )
-    agents.add_argument(
-        "--msgdebug",
-        action="store_true",
-        help="Route all messages to an agent while debugging.",
-    )
-    agents.add_argument(
-        "--setup-mode",
-        action="store_true",
-        help="Setup mode flag for setting up authorization of external platforms.",
-    )
-    parser.add_argument(
-        "--messagebus",
-        action="store",
-        default="zmq",
-        dest="messagebus",
-        help="set message to be used. valid values are zmq and rmq",
-    )
+    # TODO: Determine if we need this
+    # agents.add_argument(
+    #     "--msgdebug",
+    #     action="store_true",
+    #     help="Route all messages to an agent while debugging.",
+    # )
+    # agents.add_argument(
+    #     "--setup-mode",
+    #     action="store_true",
+    #     help="Setup mode flag for setting up authorization of external platforms.",
+    # )
     agents.add_argument(
         "--agent-monitor-frequency",
         default=600,
@@ -698,63 +765,245 @@ def main(argv=sys.argv):
         "running scripts/secure_user_permissions.sh as sudo)",
     )
 
-    # XXX: re-implement control options
-    # on
-    # control.add_argument(
-    #    '--allow-root', action='store_true', inverse='--no-allow-root',
-    #    help='allow root to connect to control socket')
-    # control.add_argument(
-    #    '--no-allow-root', action='store_false', dest='allow_root',
-    #    help=argparse.SUPPRESS)
-    # control.add_argument(
-    #    '--allow-users', action='store_list', metavar='LIST',
-    #    help='users allowed to connect to control socket')
-    # control.add_argument(
-    #    '--allow-groups', action='store_list', metavar='LIST',
-    #    help='user groups allowed to connect to control socket')
-
     ipc = "ipc://%s$VOLTTRON_HOME/run/" % ("@" if sys.platform.startswith("linux") else "")
 
-    parser.set_defaults(
-        log=None,
-        log_config=None,
-        monitor=False,
-        verboseness=logging.WARNING,
-        volttron_home=volttron_home,
-        autostart=True,
-        address=[],
-        local_address=ipc + "vip.socket",
-        instance_name=None,
-    # allow_root=False,
-    # allow_users=None,
-    # allow_groups=None,
-        verify_agents=True,
-        resource_monitor=True,
-    # mobility=True,
-        msgdebug=None,
-        setup_mode=False,
-    # Type of underlying message bus to use - ZeroMQ or RabbitMQ
-        messagebus="zmq",
-    )
+    parser.set_defaults(log=None,
+                        log_config=None,
+                        monitor=False,
+                        verboseness=logging.WARNING,
+                        volttron_home=options.volttron_home,
+                        autostart=True,
+                        address=options.address,
+                        local_address=ipc + "vip.socket",
+                        instance_name=options.instance_name,
+                        resource_monitor=True,
+                        msgdebug=None,
+                        setup_mode=False,
+                        agent_isolation_mode=False)
 
-    # Parse and expand options
-    args = argv[1:]
-    conf = os.path.join(volttron_home, "config")
-    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
-        # command line args get preference over same args in config file
-        args = args + ["--config", conf]
-    logging.getLogger().setLevel(logging.NOTSET)
-    opts = parser.parse_args(args)
+    return parser
 
-    load_messagebus_module(opts.messagebus)
 
-    start_volttron_process(opts)
+# def main(argv=sys.argv):
+#     import coloredlogs
+
+#     from volttron.server.server_options import ServerOptions
+#     from volttron.types.events import volttron_home_set_evnt
+#     from volttron.utils.logs import setup_logging
+
+#     # Refuse to run as root
+#     if not getattr(os, "getuid", lambda: -1)():
+#         sys.stderr.write("%s: error: refusing to run as root to prevent "
+#                          "potential damage.\n" % os.path.basename(argv[0]))
+#         sys.exit(77)
+
+#     default_levels_for_modules = {
+#         "volttron.server.decorators": logging.WARNING,
+#         "volttron.server.containers": logging.INFO,
+#         "volttron.loader": logging.WARNING,
+#         "volttron.server.run_server": logging.INFO,
+#         "volttron.client.decorators": logging.INFO,
+#         "volttron.messagebus.zmq.socket": logging.INFO
+#     }
+#     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
+
+#     volttron_home = os.path.normpath(
+#         config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
+#     os.environ["VOLTTRON_HOME"] = volttron_home
+
+#     #load_volttron_packages()
+#     # Setup option parser
+#     parser = config.ArgumentParser(
+#         prog=os.path.basename(argv[0]),
+#         add_help=False,
+#         description="VOLTTRON platform service",
+#         usage="%(prog)s [OPTION]...",
+#         argument_default=argparse.SUPPRESS,
+#         epilog="Boolean options, which take no argument, may be inversed by "
+#         "prefixing the option with no- (e.g. --autostart may be "
+#         "inversed using --no-autostart).",
+#     )
+#     parser.add_argument(
+#         "-c",
+#         "--config",
+#         metavar="FILE",
+#         action="parse_config",
+#         ignore_unknown=False,
+#         sections=[None, "volttron"],
+#         help="read configuration from FILE",
+#     )
+#     parser.add_argument(
+#         "-l",
+#         "--log",
+#         metavar="FILE",
+#         default=None,
+#         help="send log output to FILE instead of stderr",
+#     )
+#     parser.add_argument(
+#         "-L",
+#         "--log-config",
+#         metavar="FILE",
+#         help="read logging configuration from FILE",
+#     )
+#     parser.add_argument(
+#         "--log-level",
+#         metavar="LOGGER:LEVEL",
+#         action=LogLevelAction,
+#         help="override default logger logging level",
+#     )
+#     parser.add_argument(
+#         "--monitor",
+#         action="store_true",
+#         help="monitor and log connections (implies -v)",
+#     )
+#     parser.add_argument(
+#         "-q",
+#         "--quiet",
+#         action="add_const",
+#         const=10,
+#         dest="verboseness",
+#         help="decrease logger verboseness; may be used multiple times",
+#     )
+#     parser.add_argument(
+#         "-v",
+#         "--verbose",
+#         action="add_const",
+#         const=-10,
+#         dest="verboseness",
+#         help="increase logger verboseness; may be used multiple times",
+#     )
+#     parser.add_argument(
+#         "--verboseness",
+#         type=int,
+#         metavar="LEVEL",
+#         default=logging.WARNING,
+#         help="set logger verboseness",
+#     )
+#     # parser.add_argument(
+#     #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
+#     #    help='VOLTTRON configuration directory')
+#     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
+#     parser.add_help_argument()
+#     parser.add_version_argument(version="%(prog)s " + str(get_version()))
+
+#     agents = parser.add_argument_group("agent options")
+#     agents.add_argument(
+#         "--autostart",
+#         action="store_true",
+#         inverse="--no-autostart",
+#         help="automatically start enabled agents and services",
+#     )
+#     agents.add_argument(
+#         "--no-autostart",
+#         action="store_false",
+#         dest="autostart",
+#         help=argparse.SUPPRESS,
+#     )
+#     agents.add_argument(
+#         "--address",
+#         metavar="ZMQADDR",
+#         action="append",
+#         default=[],
+#         help="ZeroMQ URL to bind for VIP connections",
+#     )
+#     agents.add_argument(
+#         "--local-address",
+#         metavar="ZMQADDR",
+#         help="ZeroMQ URL to bind for local agent VIP connections",
+#     )
+#     agents.add_argument(
+#         "--instance-name",
+#         default=None,
+#         help="The name of the instance that will be reported to "
+#         "VOLTTRON central.",
+#     )
+#     agents.add_argument(
+#         "--msgdebug",
+#         action="store_true",
+#         help="Route all messages to an agent while debugging.",
+#     )
+#     agents.add_argument(
+#         "--setup-mode",
+#         action="store_true",
+#         help="Setup mode flag for setting up authorization of external platforms.",
+#     )
+#     parser.add_argument(
+#         "--messagebus",
+#         action="store",
+#         default="zmq",
+#         dest="messagebus",
+#         help="set message to be used. valid values are zmq and rmq",
+#     )
+#     agents.add_argument(
+#         "--agent-monitor-frequency",
+#         default=600,
+#         help="How often should the platform check for crashed agents and "
+#         "attempt to restart. Units=seconds. Default=600",
+#     )
+#     agents.add_argument(
+#         "--agent-isolation-mode",
+#         default=False,
+#         help="Require that agents run with their own users (this requires "
+#         "running scripts/secure_user_permissions.sh as sudo)",
+#     )
+
+#     # XXX: re-implement control options
+#     # on
+#     # control.add_argument(
+#     #    '--allow-root', action='store_true', inverse='--no-allow-root',
+#     #    help='allow root to connect to control socket')
+#     # control.add_argument(
+#     #    '--no-allow-root', action='store_false', dest='allow_root',
+#     #    help=argparse.SUPPRESS)
+#     # control.add_argument(
+#     #    '--allow-users', action='store_list', metavar='LIST',
+#     #    help='users allowed to connect to control socket')
+#     # control.add_argument(
+#     #    '--allow-groups', action='store_list', metavar='LIST',
+#     #    help='user groups allowed to connect to control socket')
+
+#     ipc = "ipc://%s$VOLTTRON_HOME/run/" % ("@" if sys.platform.startswith("linux") else "")
+
+#     parser.set_defaults(
+#         log=None,
+#         log_config=None,
+#         monitor=False,
+#         verboseness=logging.WARNING,
+#         volttron_home=volttron_home,
+#         autostart=True,
+#         address=[],
+#         local_address=ipc + "vip.socket",
+#         instance_name=None,
+#     # allow_root=False,
+#     # allow_users=None,
+#     # allow_groups=None,
+#         verify_agents=True,
+#         resource_monitor=True,
+#     # mobility=True,
+#         msgdebug=None,
+#         setup_mode=False,
+#     # Type of underlying message bus to use - ZeroMQ or RabbitMQ
+#         messagebus="zmq",
+#     )
+
+#     # Parse and expand options
+#     args = argv[1:]
+#     conf = os.path.join(volttron_home, "config")
+#     if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
+#         # command line args get preference over same args in config file
+#         args = args + ["--config", conf]
+#     logging.getLogger().setLevel(logging.NOTSET)
+#     opts = parser.parse_args(args)
+
+#     load_messagebus_module(opts.messagebus)
+
+#     start_volttron_process(opts)
 
 
 def _main():
     """Entry point for scripts."""
     try:
-        sys.exit(main())
+        sys.exit(run_server())
     except KeyboardInterrupt:
         pass
 
