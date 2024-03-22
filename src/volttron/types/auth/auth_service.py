@@ -45,7 +45,7 @@ class AuthorizationManager(ABC):
         return role in self._role_map.mapping
 
 
-class AuthService(ABC):
+class AbstractAuthService(ABC):
 
     @abstractmethod
     def is_authorized(credentials: Credentials, action: str, resource: str, **kwargs) -> bool:
