@@ -23,18 +23,15 @@
 # }}}
 from gevent import monkey
 
-from volttron.services.auth import AuthFile
-from volttron.services.auth.auth_service import AuthException, AuthEntry
+from volttron.auth.auth_file import AuthFile
+from volttron.services.auth.auth_service import AuthEntry, AuthException
 
 monkey.patch_all()
-import gevent
-import gevent.event
-
 import argparse
 import collections
 import logging
-import logging.handlers
 import logging.config
+import logging.handlers
 import os
 import os as _os
 import re
@@ -42,13 +39,13 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+from datetime import datetime, timedelta
 from typing import List
-from datetime import timedelta, datetime
 
-# TODO Requests dependency
-# import requests
-# from requests.exceptions import ConnectionError
+import gevent
+import gevent.event
 
+from volttron.client.commands.connection import ControlConnection
 # from volttron.platform import aip as aipmod
 # from volttron.platform import config
 # from volttron.platform import get_home, get_address
@@ -71,27 +68,19 @@ from datetime import timedelta, datetime
 # from volttron.utils.rmq_setup import check_rabbit_status
 # from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.client.commands.install_agents import add_install_agent_parser
-from volttron.client.commands.connection import ControlConnection
-
-from volttron.utils import ClientContext as cc, get_address
-from volttron.utils import jsonapi
+from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
+from volttron.client.vip.agent.errors import Unreachable, VIPError
+from volttron.client.vip.agent.subsystems.query import Query
+from volttron.utils import ClientContext as cc
 from volttron.utils import argparser as config
-from volttron.utils.commands import (
-    is_volttron_running,
-    wait_for_volttron_shutdown,
-)
+from volttron.utils import get_address, jsonapi, log_to_file
+from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils.keystore import KeyStore, KnownHostsStore
-from volttron.utils import log_to_file
 
-from volttron.client.known_identities import (
-    CONFIGURATION_STORE,
-    PLATFORM_HEALTH,
-    AUTH,
-)
-
-from volttron.client.vip.agent.subsystems.query import Query
-from volttron.client.vip.agent.errors import Unreachable, VIPError
+# TODO Requests dependency
+# import requests
+# from requests.exceptions import ConnectionError
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -180,8 +169,7 @@ def filter_agents(agents: List[AgentMeta], patterns: List[str], opts: argparse.N
             if by_tag:
                 result.update(agent for agent in agents if reobj.match(agent.tag or ""))
             if by_all_tagged:
-                result.update(
-                    agent for agent in agents if reobj.match(agent.tag))
+                result.update(agent for agent in agents if reobj.match(agent.tag))
         yield pattern, result
 
 
@@ -191,31 +179,31 @@ def filter_agent(agents, pattern, opts):
 
 def backup_agent_data(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
+        tar.add(source_dir, arcname=os.path.sep)    # os.path.basename(source_dir))
 
 
 def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
     with tarfile.open(source_file, mode="r:gz") as tar:
+
         def is_within_directory(directory, target):
-            
+
             abs_directory = os.path.abspath(directory)
             abs_target = os.path.abspath(target)
-        
+
             prefix = os.path.commonprefix([abs_directory, abs_target])
-            
+
             return prefix == abs_directory
-        
+
         def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-        
+
             for member in tar.getmembers():
                 member_path = os.path.join(path, member.name)
                 if not is_within_directory(path, member_path):
                     raise Exception("Attempted Path Traversal in Tar File")
-        
-            tar.extractall(path, members, numeric_owner=numeric_owner) 
-            
-        
+
+            tar.extractall(path, members, numeric_owner=numeric_owner)
+
         safe_extract(tar, output_dir)
 
 
@@ -239,7 +227,7 @@ def tag_agent(opts):
             msg = "agent not found"
         _stderr.write("{}: error: {}: {}\n".format(opts.command, msg, opts.agent))
         return 10
-    (agent,) = agents
+    (agent, ) = agents
     if opts.tag:
         _stdout.write("Tagging {} {}\n".format(agent.uuid, agent.name))
         opts.connection.call("tag_agent", agent.uuid, opts.tag)
@@ -280,6 +268,7 @@ def _calc_min_uuid_length(agents):
 
 
 def list_agents(opts):
+
     def get_priority(agent):
         return opts.aip.agent_priority(agent.uuid) or ""
 
@@ -631,10 +620,10 @@ def status_agents(opts):
             all_agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
             all_agents[uuid] = agent = AgentMeta(name,
-                                             None,
-                                             uuid,
-                                             vip_identity=identity,
-                                             agent_user=agent_user)
+                                                 None,
+                                                 uuid,
+                                                 vip_identity=identity,
+                                                 agent_user=agent_user)
         status[uuid] = stat
     all_agents = list(all_agents.values())
 
@@ -785,7 +774,7 @@ def act_on_agent(action: str, opts: argparse.Namespace):
             _stderr.write(f"{opts.command}: error: agent not found: {pattern}\n")
         for agent in match:
             pid, status = call("agent_status", agent.uuid)
-            _call_action_on_agent(agent, pid, status, call,  action)
+            _call_action_on_agent(agent, pid, status, call, action)
 
 
 def _call_action_on_agent(agent: AgentMeta, pid, status, call, action):
@@ -968,18 +957,19 @@ def list_auth(opts, indices=None):
 
 
 def _ask_for_auth_fields(
-        domain=None,
-        address=None,
-        user_id=None,
-        capabilities=None,
-        roles=None,
-        groups=None,
-        mechanism="CURVE",
-        credentials=None,
-        comments=None,
-        enabled=True,
-        **kwargs,
+    domain=None,
+    address=None,
+    user_id=None,
+    capabilities=None,
+    roles=None,
+    groups=None,
+    mechanism="CURVE",
+    credentials=None,
+    comments=None,
+    enabled=True,
+    **kwargs,
 ):
+
     class Asker(object):
 
         def __init__(self):
@@ -1385,7 +1375,11 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
-def _show_filtered_agents_status(opts, status_callback, health_callback, priority_callback, agents=None):
+def _show_filtered_agents_status(opts,
+                                 status_callback,
+                                 health_callback,
+                                 priority_callback,
+                                 agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1516,6 +1510,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, priorit
 
 
 def get_agent_publickey(opts):
+
     def get_key(agent):
         return opts.aip.get_agent_keystore(agent.uuid).public
 
@@ -2182,23 +2177,26 @@ def main():
         "--name",
         dest="by_name",
         action="store_true",
-        help="filter/search by agent name. value passed should be quoted if it contains a regular expression",
+        help=
+        "filter/search by agent name. value passed should be quoted if it contains a regular expression",
     )
     filterable.add_argument(
         "--tag",
         dest="by_tag",
         action="store_true",
-        help="filter/search by tag name. value passed should be quoted if it contains a regular expression",
+        help=
+        "filter/search by tag name. value passed should be quoted if it contains a regular expression",
     )
-    filterable.add_argument(
-        "--all-tagged", dest="by_all_tagged", action="store_true",
-        help="filter/search by all tagged agents"
-    )
+    filterable.add_argument("--all-tagged",
+                            dest="by_all_tagged",
+                            action="store_true",
+                            help="filter/search by all tagged agents")
     filterable.add_argument(
         "--uuid",
         dest="by_uuid",
         action="store_true",
-        help="filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
+        help=
+        "filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
     )
     filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
     parser = config.ArgumentParser(
@@ -2290,7 +2288,10 @@ def main():
     peers = add_parser("peerlist", help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
 
-    status = add_parser("status", aliases=("list",), parents=[filterable], help="show status of agents")
+    status = add_parser("status",
+                        aliases=("list", ),
+                        parents=[filterable],
+                        help="show status of agents")
     status.add_argument("pattern", nargs="*", help="UUID or name of agent")
     status.add_argument(
         "-n",
@@ -2369,7 +2370,7 @@ def main():
         "pattern",
         nargs="*",
         help="Identity of agent, followed by method(s)"
-             "",
+        "",
     )
     rpc_code.add_argument(
         "-v",
@@ -2401,7 +2402,7 @@ def main():
         "--verbose",
         action="store_true",
         help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
-             "is specified, display the doc-string associated with the method.",
+        "is specified, display the doc-string associated with the method.",
     )
 
     rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
@@ -2782,7 +2783,7 @@ def main():
         dest="new_config",
         action="store_true",
         help="Ignore any existing configuration and creates new empty file."
-             " Configuration is not written if left empty. Type defaults to JSON.",
+        " Configuration is not written if left empty. Type defaults to JSON.",
     )
 
     config_store_edit.set_defaults(func=edit_config, config_type="json")

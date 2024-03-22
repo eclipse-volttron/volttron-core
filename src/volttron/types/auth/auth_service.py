@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
                                                   CredentialsStore)
+from volttron.types.bases import Service
 
 #from volttron.server.server_options import ServerOptions
 
@@ -45,7 +46,7 @@ class AuthorizationManager(ABC):
         return role in self._role_map.mapping
 
 
-class AbstractAuthService(ABC):
+class AbstractAuthService(Service):
 
     @abstractmethod
     def is_authorized(credentials: Credentials, action: str, resource: str, **kwargs) -> bool:

@@ -11,9 +11,10 @@ import typing
 from typing import TYPE_CHECKING, TypeVar
 
 from volttron.server.containers import service_repo
-from volttron.types.auth import (Authenticator, AuthorizationManager, Authorizer, AuthService,
-                                 Credentials, CredentialsCreator, CredentialsStore)
-#from volttron.client.vip.agent.core import Core
+from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
+                                                  CredentialsStore)
+from volttron.types.auth.auth_service import (AbstractAuthService, Authenticator,
+                                              AuthorizationManager, Authorizer)
 from volttron.types.bases import (AbstractCore, AgentBuilder, AgentExecutor, AgentStarter,
                                   Connection, MessageBus, Service)
 from volttron.types.factories import ConnectionBuilder, CoreBuilder
@@ -112,7 +113,7 @@ agent_starter = factory_registration("agent_starter", protocol=AgentStarter)
 agent_executor = factory_registration("agent_executor", protocol=AgentExecutor)
 agent_builder = factory_registration("agent_builder", protocol=AgentBuilder)
 
-authservice = factory_registration("authservice", protocol=AuthService)
+authservice = factory_registration("authservice", protocol=AbstractAuthService)
 
 authorizer = factory_registration("authorizer", protocol=Authorizer)
 authenticator = factory_registration("authenticator", protocol=Authenticator)

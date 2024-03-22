@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, TypeVar
 
 from volttron.client.vip.agent.core import Core
 from volttron.server.containers import service_repo
-from volttron.types.auth import (Authenticator, AuthorizationManager, Authorizer, AuthService,
-                                 Credentials, CredentialsCreator, CredentialsStore)
+from volttron.types.auth import (AbstractAuthService, Authenticator, AuthorizationManager,
+                                 Authorizer, Credentials, CredentialsCreator, CredentialsStore)
 from volttron.types.bases import (AgentBuilder, AgentExecutor, AgentStarter, ConnectionBuilder,
                                   CoreBuilder, MessageBus, Service)
 # from volttron.types.interfaces import (AgentBuilder, AgentExecutor, AgentStarter, Connection,
@@ -92,7 +92,7 @@ core_builder = factory_registration("core_builder", interface=CoreBuilder, singl
 connection_builder = factory_registration("connection_bulider",
                                           interface=ConnectionBuilder,
                                           singleton=True)
-authservice = factory_registration("authservice", interface=AuthService)
+authservice = factory_registration("authservice", interface=AbstractAuthService, singleton=True)
 
 # credentials_store = factory_registration("credentials_store", interface=CredentialsStore)
 # credentials_creator = factory_registration("credentials_creator", interface=CredentialsCreator)

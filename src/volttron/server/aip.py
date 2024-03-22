@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """Component for the instantiation and packaging of agents."""
 
 import errno
@@ -44,19 +43,22 @@ import yaml
 from gevent import subprocess
 from gevent.subprocess import PIPE
 
+from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
+from volttron.client.vip.agent import Agent
+from volttron.server.decorators import service
+from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileEntryAlreadyExists)
+from volttron.types.bases import Service
 # from wheel.tool import unpack
-from volttron.utils import (ClientContext as cc, get_utc_seconds_from_epoch, execute_command)
-from ..utils import jsonapi
+from volttron.utils import ClientContext as cc
+from volttron.utils import execute_command, get_utc_seconds_from_epoch
 from volttron.utils.certs import Certs
 from volttron.utils.identities import is_valid_identity
 from volttron.utils.keystore import KeyStore
-from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.client.vip.agent import Agent
+
+from ..utils import jsonapi
 
 # from volttron.platform.agent.utils import load_platform_config, \
 #     get_utc_seconds_from_epoch
-
-from volttron.services.auth.auth_service import AuthFile, AuthEntry, AuthFileEntryAlreadyExists
 
 # TODO route to wheel_wrap
 # from .packages import UnpackedPackage
@@ -239,7 +241,8 @@ class SecureExecutionEnvironment(object):
         self.execute(*args, **kwargs)
 
 
-class AIPplatform(object):
+@service
+class AIPplatform(Service):
     """Manages the main workflow of receiving and sending agents."""
 
     def __init__(self, env, **kwargs):
@@ -493,7 +496,8 @@ class AIPplatform(object):
                 # And there is data to backup
                 backup_agent_file = "/tmp/{}.tar.gz".format(agent_uuid)
                 with tarfile.open(backup_agent_file, "w:gz") as tar:
-                    tar.add(old_agent_data_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
+                    tar.add(old_agent_data_dir,
+                            arcname=os.path.sep)    # os.path.basename(source_dir))
             # current agent's keystore overrides any keystore data passed
             keystore = self.__get_agent_keystore__(vip_identity, publickey, secretkey)
             publickey = keystore.public
@@ -527,7 +531,8 @@ class AIPplatform(object):
         agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
         # This should happen before install of source. if force=True then below line will remove agent source when
         # removing last/only instance of an agent
-        backup_agent_file, publickey, secretkey = self.backup_agent_data(agent_uuid, publickey, secretkey, vip_identity)
+        backup_agent_file, publickey, secretkey = self.backup_agent_data(
+            agent_uuid, publickey, secretkey, vip_identity)
 
         agent_name = self.install_agent_source(agent, force, pre_release)
 
@@ -688,8 +693,8 @@ class AIPplatform(object):
     @staticmethod
     def _parse_wheel_install_response(response, agent_wheel):
         groups = None
-        result = re.search(".*\n(.*) is already installed with the same version as the provided wheel",
-                           response)
+        result = re.search(
+            ".*\n(.*) is already installed with the same version as the provided wheel", response)
         if result:
             groups = result.groups()
         if groups:
@@ -991,32 +996,32 @@ class AIPplatform(object):
         # TODO: wheel_wrap
         # pkg = UnpackedPackage(os.path.join(agent_path, name))
         return pkg.version
-    
+
     def get_subpath(self, uuid_or_identity: str, path: str = "") -> str:
         """ Retrieve a path inside the agent's directory
-        
+
         This method does not check for existence of the path.  It will only return the
         correct string reference.  It is up to the caller to check for existence or non-existence
         of the path.
-        
-        :param uuid_or_identity: 
+
+        :param uuid_or_identity:
             An identifier for the agent either the uuid associated with the agent or it's identity.
-            
+
         :param path:
             A path below the agent's directory in VOLTTRON_HOME/agents/<identity> that the
             caller wants to referenece.
 
         :returns: A string referencing the correct subpath to the requestors path.
-        
+
         :since
         """
-        
+
         try:
             uuid_passed = uuid.UUID(uuid_or_identity)
             identity = self.uuid_vip_id_map[uuid_or_identity]
         except ValueError:
             identity = uuid_or_identity
-        
+
         return os.path.join(self.install_dir, identity, path)
 
     def agent_dir(self, agent_uuid):
@@ -1036,7 +1041,7 @@ class AIPplatform(object):
                 pass
         return agents
 
-    def _agent_priority(self, agent_uuid):        
+    def _agent_priority(self, agent_uuid):
         autostart = self.get_subpath(agent_uuid, "AUTOSTART")
         with ignore_enoent, open(autostart) as file:
             return file.readline(100).strip()

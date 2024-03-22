@@ -137,7 +137,8 @@ class Agent(AbstractAgent):
                 from pathlib import Path
 
                 from volttron.client.decorators import get_server_credentials
-                from volttron.types.auth import (PKICredentials, PublicCredentials)
+                from volttron.types.auth.auth_credentials import (PKICredentials,
+                                                                  PublicCredentials)
                 from volttron.utils import jsonapi
 
                 keystore_path = Path(

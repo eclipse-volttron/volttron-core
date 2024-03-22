@@ -45,7 +45,8 @@ from urllib.parse import urlparse
 
 import gevent
 
-from volttron.client.known_identities import (CONTROL, CONTROL_CONNECTION, PLATFORM_WEB)
+from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
+                                              CONTROL_CONNECTION)
 from volttron.server import aip
 from volttron.server import server_argparser as config
 from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
@@ -84,8 +85,8 @@ def start_volttron_process(opts):
     os.chdir(opts.volttron_home)
 
     # vip_address is meant to be a list so make it so.
-    if not isinstance(opts.vip_address, list):
-        opts.vip_address = [opts.vip_address]
+    if not isinstance(opts.address, list):
+        opts.address = [opts.address]
     if opts.log:
         opts.log = config.expandall(opts.log)
     if opts.log_config:
@@ -116,40 +117,25 @@ def start_volttron_process(opts):
             _log.error("{}: {}".format(*error))
             sys.exit(1)
 
-    if opts.secure_agent_users == "True":
+    if opts.agent_isolation_mode == "True":
         _log.info("VOLTTRON starting in secure mode")
         os.umask(0o007)
     else:
-        opts.secure_agent_users = "False"
+        opts.agent_isolation_mode = "False"
 
-    opts.publish_address = config.expandall(opts.publish_address)
-    opts.subscribe_address = config.expandall(opts.subscribe_address)
-    opts.vip_address = [config.expandall(addr) for addr in opts.vip_address]
-    opts.vip_local_address = config.expandall(opts.vip_local_address)
-    opts.message_bus = config.expandall(opts.message_bus)
-    if opts.web_ssl_key:
-        opts.web_ssl_key = config.expandall(opts.web_ssl_key)
-    if opts.web_ssl_cert:
-        opts.web_ssl_cert = config.expandall(opts.web_ssl_cert)
+    opts.address = [config.expandall(addr) for addr in opts.address]
+    opts.local_address = config.expandall(opts.local_address)
+    opts.messagebus = config.expandall(opts.messagebus)
 
-    if opts.web_ssl_key and not opts.web_ssl_cert:
-        raise Exception("If web-ssl-key is specified web-ssl-cert MUST be specified.")
-    if opts.web_ssl_cert and not opts.web_ssl_key:
-        raise Exception("If web-ssl-cert is specified web-ssl-key MUST be specified.")
-
-    if opts.web_ca_cert:
-        assert os.path.isfile(opts.web_ca_cert), "web_ca_cert does not exist!"
-        os.environ["REQUESTS_CA_BUNDLE"] = opts.web_ca_cert
-
-    os.environ["MESSAGEBUS"] = opts.message_bus
-    os.environ["SECURE_AGENT_USERS"] = opts.secure_agent_users
+    os.environ["MESSAGEBUS"] = opts.messagebus
+    os.environ["AGENT_ISOLATION_MODE"] = opts.agent_isolation_mode
     if opts.instance_name is None:
-        if len(opts.vip_address) > 0:
-            opts.instance_name = opts.vip_address[0]
+        if len(opts.address) > 0:
+            opts.instance_name = opts.address[0]
 
     _log.debug("opts.instancename {}".format(opts.instance_name))
     if opts.instance_name:
-        store_message_bus_config(opts.message_bus, opts.instance_name)
+        store_message_bus_config(opts.messagebus, opts.instance_name)
     else:
         # if there is no instance_name given get_platform_instance_name will
         # try to retrieve from config or default a value and store it in the config
@@ -215,8 +201,8 @@ def start_volttron_process(opts):
         AuthFile().add(entry, overwrite=True)
         # Add platform key to known-hosts file:
         known_hosts = KnownHostsStore()
-        known_hosts.add(opts.vip_local_address, encode_key(publickey))
-        for addr in opts.vip_address:
+        known_hosts.add(opts.local_address, encode_key(publickey))
+        for addr in opts.address:
             known_hosts.add(addr, encode_key(publickey))
     secretkey = decode_key(keystore.secret)
 
@@ -227,6 +213,90 @@ def start_volttron_process(opts):
     entry = AuthEntry(
         credentials=encode_key(decode_key(ks_control_conn.public)),
         user_id=CONTROL_CONNECTION,
+        capabilities=[
+            {
+                "edit_config_store": {
+                    "identity": "/.*/"
+                }
+            },
+            "allow_auth_modifications",
+        ],
+        comments="Automatically added by platform on start",
+    )
+    try:
+        AuthFile().add(entry)
+    except AuthFileUserIdAlreadyExists:
+        pass
+
+    auth_path = KeyStore.get_agent_keystore_path(CONTROL)
+    os.makedirs(os.path.dirname(auth_path), exist_ok=True)
+    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL))
+    entry = AuthEntry(
+        credentials=encode_key(decode_key(ks_control_conn.public)),
+        user_id=CONTROL,
+        capabilities=[
+            {
+                "edit_config_store": {
+                    "identity": "/.*/"
+                }
+            },
+            "allow_auth_modifications",
+        ],
+        comments="Automatically added by platform on start",
+    )
+    try:
+        AuthFile().add(entry)
+    except AuthFileUserIdAlreadyExists:
+        pass
+
+    auth_path = KeyStore.get_agent_keystore_path(AUTH)
+    os.makedirs(os.path.dirname(auth_path), exist_ok=True)
+    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
+    entry = AuthEntry(
+        credentials=encode_key(decode_key(ks_control_conn.public)),
+        user_id=AUTH,
+        capabilities=[
+            {
+                "edit_config_store": {
+                    "identity": "/.*/"
+                }
+            },
+            "allow_auth_modifications",
+        ],
+        comments="Automatically added by platform on start",
+    )
+    try:
+        AuthFile().add(entry)
+    except AuthFileUserIdAlreadyExists:
+        pass
+
+    config_store = KeyStore.get_agent_keystore_path(CONFIGURATION_STORE)
+    os.makedirs(os.path.dirname(config_store), exist_ok=True)
+    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONFIGURATION_STORE))
+    entry = AuthEntry(
+        credentials=encode_key(decode_key(ks_control_conn.public)),
+        user_id=CONFIGURATION_STORE,
+        capabilities=[
+            {
+                "edit_config_store": {
+                    "identity": "/.*/"
+                }
+            },
+            "allow_auth_modifications",
+        ],
+        comments="Automatically added by platform on start",
+    )
+    try:
+        AuthFile().add(entry)
+    except AuthFileUserIdAlreadyExists:
+        pass
+
+    config_store = KeyStore.get_agent_keystore_path('platform.health')
+    os.makedirs(os.path.dirname(config_store), exist_ok=True)
+    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path('platform.health'))
+    entry = AuthEntry(
+        credentials=encode_key(decode_key(ks_control_conn.public)),
+        user_id='platform.health',
         capabilities=[
             {
                 "edit_config_store": {
@@ -265,7 +335,7 @@ def start_volttron_process(opts):
         proxy_router_task = None
 
         _log.debug("********************************************************************")
-        _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.message_bus))
+        _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.messagebus))
         _log.debug("********************************************************************")
 
         server_config = ServerConfig()
@@ -292,7 +362,7 @@ def start_volttron_process(opts):
 
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
-        if opts.message_bus == "zmq":
+        if opts.messagebus == "zmq":
             # first service loaded must be the config store
             config_store = service_configs.get_service_instance("volttron.services.config_store")
 
@@ -361,7 +431,7 @@ def start_volttron_process(opts):
         this_instance["pid"] = os.getpid()
         this_instance["version"] = get_version()
         # note vip_address is a list
-        this_instance["vip-address"] = opts.vip_address
+        this_instance["address"] = opts.address
         this_instance["volttron-home"] = opts.volttron_home
         this_instance["volttron-root"] = os.path.abspath("../../..")
         this_instance["start-args"] = sys.argv[1:]
@@ -468,6 +538,7 @@ def start_volttron_process(opts):
 def main(argv=sys.argv):
     import coloredlogs
 
+    from volttron.server.server_options import ServerOptions
     from volttron.types.events import volttron_home_set_evnt
     from volttron.utils.logs import setup_logging
 
@@ -596,67 +667,16 @@ def main(argv=sys.argv):
         help=argparse.SUPPRESS,
     )
     agents.add_argument(
-        "--publish-address",
-        metavar="ZMQADDR",
-        help="ZeroMQ URL used for pre-3.x agent publishing (deprecated)",
-    )
-    agents.add_argument(
-        "--subscribe-address",
-        metavar="ZMQADDR",
-        help="ZeroMQ URL used for pre-3.x agent subscriptions (deprecated)",
-    )
-    agents.add_argument(
-        "--vip-address",
+        "--address",
         metavar="ZMQADDR",
         action="append",
         default=[],
         help="ZeroMQ URL to bind for VIP connections",
     )
     agents.add_argument(
-        "--vip-local-address",
+        "--local-address",
         metavar="ZMQADDR",
         help="ZeroMQ URL to bind for local agent VIP connections",
-    )
-    agents.add_argument(
-        "--bind-web-address",
-        metavar="BINDWEBADDR",
-        default=None,
-        help="Bind a web server to the specified ip:port passed",
-    )
-    agents.add_argument(
-        "--web-ca-cert",
-        metavar="CAFILE",
-        default=None,
-        help=
-        "If using self-signed certificates, this variable will be set globally to allow requests"
-        "to be able to correctly reach the webserver without having to specify verify in all calls.",
-    )
-    agents.add_argument(
-        "--web-secret-key",
-        default=None,
-        help="Secret key to be used instead of https based authentication.",
-    )
-    agents.add_argument(
-        "--web-ssl-key",
-        metavar="KEYFILE",
-        default=None,
-        help="ssl key file for using https with the volttron server",
-    )
-    agents.add_argument(
-        "--web-ssl-cert",
-        metavar="CERTFILE",
-        default=None,
-        help="ssl certficate file for using https with the volttron server",
-    )
-    agents.add_argument(
-        "--volttron-central-address",
-        default=None,
-        help="The web address of a volttron central install instance.",
-    )
-    agents.add_argument(
-        "--volttron-central-serverkey",
-        default=None,
-        help="The serverkey of volttron central.",
     )
     agents.add_argument(
         "--instance-name",
@@ -675,16 +695,11 @@ def main(argv=sys.argv):
         help="Setup mode flag for setting up authorization of external platforms.",
     )
     parser.add_argument(
-        "--message-bus",
+        "--messagebus",
         action="store",
         default="zmq",
-        dest="message_bus",
+        dest="messagebus",
         help="set message to be used. valid values are zmq and rmq",
-    )
-    agents.add_argument(
-        "--volttron-central-rmq-address",
-        default=None,
-        help="The AMQP address of a volttron central install instance",
     )
     agents.add_argument(
         "--agent-monitor-frequency",
@@ -693,7 +708,7 @@ def main(argv=sys.argv):
         "attempt to restart. Units=seconds. Default=600",
     )
     agents.add_argument(
-        "--secure-agent-users",
+        "--agent-isolation-mode",
         default=False,
         help="Require that agents run with their own users (this requires "
         "running scripts/secure_user_permissions.sh as sudo)",
@@ -723,16 +738,8 @@ def main(argv=sys.argv):
         verboseness=logging.WARNING,
         volttron_home=volttron_home,
         autostart=True,
-        publish_address=ipc + "publish",
-        subscribe_address=ipc + "subscribe",
-        vip_address=[],
-        vip_local_address=ipc + "vip.socket",
-    # This is used to start the web server from the web module.
-        bind_web_address=None,
-    # Used to contact volttron central when registering volttron central
-    # platform agent.
-        volttron_central_address=None,
-        volttron_central_serverkey=None,
+        address=[],
+        local_address=ipc + "vip.socket",
         instance_name=None,
     # allow_root=False,
     # allow_users=None,
@@ -743,14 +750,7 @@ def main(argv=sys.argv):
         msgdebug=None,
         setup_mode=False,
     # Type of underlying message bus to use - ZeroMQ or RabbitMQ
-        message_bus="zmq",
-    # Volttron Central in AMQP address format is needed if running on RabbitMQ message bus
-        volttron_central_rmq_address=None,
-        web_ssl_key=None,
-        web_ssl_cert=None,
-        web_ca_cert=None,
-    # If we aren't using ssl then we need a secret key available for us to use.
-        web_secret_key=None,
+        messagebus="zmq",
     )
 
     # Parse and expand options
@@ -762,7 +762,7 @@ def main(argv=sys.argv):
     logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
 
-    load_messagebus_module(opts.message_bus)
+    load_messagebus_module(opts.messagebus)
 
     start_volttron_process(opts)
 

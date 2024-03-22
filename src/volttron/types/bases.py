@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 
 from gevent.subprocess import Popen
 
-#if TYPE_CHECKING:
 from volttron.types.agent_context import AgentContext
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.message import Message
