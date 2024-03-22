@@ -161,8 +161,12 @@ def get_server_credentials(address: Optional[str] = None) -> Credentials:
         known_host_properties.store(new_path)
 
     publickey = known_host_properties.get_property(address, "publickey")
+
+    data = jsonapi.loads((Path(os.environ["VOLTTRON_HOME"]) / "keystore").open().read())
+
+    # TODO This should only return the PublicCredentials instead of PKICredentials, but for now
     # TODO Verify the credentails for the server.
-    return PublicCredentials(identity="platform", publickey=publickey)
+    return PKICredentials(identity="platform", publickey=data['public'], secretkey=data['secret'])
 
     # credential_type = os.environ.get("VOLTTRON_CREDENTIALS_TYPE")
     # credentials = os.environ.get("VOLTTRON_SERVER_CREDENTIALS")
