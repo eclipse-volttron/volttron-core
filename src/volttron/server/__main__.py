@@ -50,22 +50,29 @@ for arg in sys.argv:
         vcount = 1
     total_count += vcount
 
-import coloredlogs
+try:
+    import coloredlogs
 
-total_count = logging.WARNING - 10 * total_count
-
-#coloredlogs.install()
-#logging.basicConfig(level=logging.DEBUG)
-#logging.getLogger().setLevel(logging.DEBUG)
+    total_count = logging.WARNING - 10 * total_count
+    coloredlogs.install(level=total_count)
+except ImportError:
+    pass
 
 from volttron.utils.logs import enable_trace, setup_logging
 
 setup_logging(logging.DEBUG)
-coloredlogs.install(level=logging.DEBUG)
 
 if total_count <= logging.DEBUG:
     enable_trace()
 
 from volttron.server.run_server import _main
 
+python_path = os.environ.get("PYTHONPATH")
+if python_path not in sys.path:
+    sys.path.insert(0, python_path)
+print(f"Curdir is: {os.getcwd()}")
+for k in sorted(os.environ):
+    print(k, os.environ[k])
+syspathoutput = '\n'.join(sys.path)
+logging.getLogger().debug(f"SYSPATH:\n{syspathoutput}")
 _main()
