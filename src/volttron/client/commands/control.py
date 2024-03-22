@@ -46,27 +46,6 @@ import gevent
 import gevent.event
 
 from volttron.client.commands.connection import ControlConnection
-# from volttron.platform import aip as aipmod
-# from volttron.platform import config
-# from volttron.platform import get_home, get_address
-# from volttron.platform import jsonapi
-# from volttron.platform.jsonrpc import MethodNotFound
-# from volttron.platform.agent import utils
-# from volttron.platform.agent.known_identities import CONTROL_CONNECTION, \
-#     CONFIGURATION_STORE, PLATFORM_HEALTH, AUTH
-# from volttron.platform.auth import AuthEntry, AuthFile, AuthException
-# from volttron.platform.certs import Certs
-# from volttron.platform.jsonrpc import RemoteError
-# from volttron.platform.keystore import KeyStore, KnownHostsStore
-# from volttron.platform.messaging.health import Status, STATUS_BAD
-# from volttron.platform.scheduling import periodic
-# from volttron.platform.vip.agent import Agent as BaseAgent, Core, RPC
-# from volttron.platform.vip.agent.errors import VIPError, Unreachable
-# from volttron.platform.vip.agent.subsystems.query import Query
-# from volttron.utils.rmq_config_params import RMQConfig
-# from volttron.utils.rmq_mgmt import RabbitMQMgmt
-# from volttron.utils.rmq_setup import check_rabbit_status
-# from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.client.commands.install_agents import add_install_agent_parser
 from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
 from volttron.client.vip.agent.errors import Unreachable, VIPError
@@ -78,10 +57,6 @@ from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shut
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 
-# TODO Requests dependency
-# import requests
-# from requests.exceptions import ConnectionError
-
 _stdout = sys.stdout
 _stderr = sys.stderr
 
@@ -91,7 +66,6 @@ _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__"
 # _log.setLevel(logging.DEBUG)
 
 message_bus = cc.get_messagebus()
-rmq_mgmt = None
 
 CHUNK_SIZE = 4096
 
@@ -2849,126 +2823,7 @@ def main():
     stats.set_defaults(func=do_stats, op="status")
 
     # ==============================================================================
-    global message_bus, rmq_mgmt
-
-    # if message_bus == 'rmq':
-    # rmq_mgmt = RabbitMQMgmt()
-    # # ====================================================
-    # # rabbitmq commands
-    # # ====================================================
-    # rabbitmq_cmds = add_parser("rabbitmq", help="manage rabbitmq")
-    # rabbitmq_subparsers = rabbitmq_cmds.add_subparsers(title='subcommands',
-    #                                                    metavar='',
-    #                                                    dest='store_commands')
-    # rabbitmq_add_vhost = add_parser('add-vhost', help='add a new virtual host',
-    #                                 subparser=rabbitmq_subparsers)
-    # rabbitmq_add_vhost.add_argument('vhost', help='Virtual host')
-    # rabbitmq_add_vhost.set_defaults(func=add_vhost)
-
-    # rabbitmq_add_user = add_parser('add-user',
-    #                                help='Add a new user. User will have admin privileges i.e,'
-    #                                     'configure, read and write',
-    #                                subparser=rabbitmq_subparsers)
-    # rabbitmq_add_user.add_argument('user', help='user id')
-    # rabbitmq_add_user.add_argument('pwd', help='password')
-    # rabbitmq_add_user.set_defaults(func=add_user)
-
-    # rabbitmq_add_exchange = add_parser('add-exchange',
-    #                                    help='add a new exchange',
-    #                                    subparser=rabbitmq_subparsers)
-    # rabbitmq_add_exchange.add_argument('name', help='Name of the exchange')
-    # rabbitmq_add_exchange.add_argument('type', help='Type of the exchange - fanout/direct/topic')
-    # rabbitmq_add_exchange.set_defaults(func=add_exchange)
-
-    # rabbitmq_add_queue = add_parser('add-queue',
-    #                                 help='add a new queue',
-    #                                 subparser=rabbitmq_subparsers)
-    # rabbitmq_add_queue.add_argument('name', help='Name of the queue')
-    # rabbitmq_add_queue.set_defaults(func=add_queue)
-    # # =======================================================================
-    # # List commands
-    # rabbitmq_list_vhosts = add_parser('list-vhosts', help='List virtual hosts',
-    #                                   subparser=rabbitmq_subparsers)
-    # rabbitmq_list_vhosts.set_defaults(func=list_vhosts)
-
-    # rabbitmq_list_users = add_parser('list-users', help='List users',
-    #                                  subparser=rabbitmq_subparsers)
-    # rabbitmq_list_users.set_defaults(func=list_users)
-
-    # rabbitmq_list_user_properties = add_parser('list-user-properties', help='List users',
-    #                                            subparser=rabbitmq_subparsers)
-    # rabbitmq_list_user_properties.add_argument('user', help='RabbitMQ user id')
-    # rabbitmq_list_user_properties.set_defaults(func=list_user_properties)
-
-    # rabbitmq_list_exchanges = add_parser('list-exchanges', help='List exhanges',
-    #                                      subparser=rabbitmq_subparsers)
-    # rabbitmq_list_exchanges.set_defaults(func=list_exchanges)
-
-    # rabbitmq_list_exchanges_props = add_parser('list-exchange-properties', help='list exchanges with properties',
-    #                                            subparser=rabbitmq_subparsers)
-    # rabbitmq_list_exchanges_props.set_defaults(func=list_exchanges_with_properties)
-
-    # rabbitmq_list_queues = add_parser('list-queues', help='list all queues',
-    #                                   subparser=rabbitmq_subparsers)
-    # rabbitmq_list_queues.set_defaults(func=list_queues)
-    # rabbitmq_list_queues_props = add_parser('list-queue-properties', help='list queues with properties',
-    #                                         subparser=rabbitmq_subparsers)
-    # rabbitmq_list_queues_props.set_defaults(func=list_queues_with_properties)
-
-    # rabbitmq_list_bindings = add_parser('list-bindings', help='list all bindings with exchange',
-    #                                     subparser=rabbitmq_subparsers)
-    # rabbitmq_list_bindings.add_argument('exchange', help='Source exchange')
-    # rabbitmq_list_bindings.set_defaults(func=list_bindings)
-
-    # rabbitmq_list_fed_parameters = add_parser('list-federation-parameters', help='list all federation parameters',
-    #                                           subparser=rabbitmq_subparsers)
-    # rabbitmq_list_fed_parameters.set_defaults(func=list_fed_parameters)
-
-    # rabbitmq_list_shovel_parameters = add_parser('list-shovel-parameters', help='list all shovel parameters',
-    #                                              subparser=rabbitmq_subparsers)
-    # rabbitmq_list_shovel_parameters.set_defaults(func=list_shovel_parameters)
-
-    # rabbitmq_list_policies = add_parser('list-policies', help='list all policies',
-    #                                     subparser=rabbitmq_subparsers)
-    # rabbitmq_list_policies.set_defaults(func=list_policies)
-    # # ==========================================================================================
-    # # Remove commands
-    # rabbitmq_remove_vhosts = add_parser('remove-vhosts', help='Remove virtual host/s',
-    #                                     subparser=rabbitmq_subparsers)
-    # rabbitmq_remove_vhosts.add_argument('vhost', nargs='+', help='Virtual host')
-    # rabbitmq_remove_vhosts.set_defaults(func=remove_vhosts)
-
-    # rabbitmq_remove_users = add_parser('remove-users', help='Remove virtual user/s',
-    #                                    subparser=rabbitmq_subparsers)
-    # rabbitmq_remove_users.add_argument('user', nargs='+', help='Virtual host')
-    # rabbitmq_remove_users.set_defaults(func=remove_users)
-
-    # rabbitmq_remove_exchanges = add_parser('remove-exchanges', help='Remove exchange/s',
-    #                                        subparser=rabbitmq_subparsers)
-    # rabbitmq_remove_exchanges.add_argument('exchanges', nargs='+', help='Remove exchanges/s')
-    # rabbitmq_remove_exchanges.set_defaults(func=remove_exchanges)
-
-    # rabbitmq_remove_queues = add_parser('remove-queues', help='Remove queue/s',
-    #                                     subparser=rabbitmq_subparsers)
-    # rabbitmq_remove_queues.add_argument('queues', nargs='+', help='Queue')
-    # rabbitmq_remove_queues.set_defaults(func=remove_queues)
-
-    # rabbitmq_remove_fed_parameters = add_parser('remove-federation-parameters',
-    #                                             help='Remove federation parameter',
-    #                                             subparser=rabbitmq_subparsers)
-    # rabbitmq_remove_fed_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
-    # rabbitmq_remove_fed_parameters.set_defaults(func=remove_fed_parameters)
-
-    # rabbitmq_remove_shovel_parameters = add_parser('remove-shovel-parameters',
-    #                                                help='Remove shovel parameter',
-    #                                                subparser=rabbitmq_subparsers)
-    # rabbitmq_remove_shovel_parameters.add_argument('parameters', nargs='+', help='parameter name/s')
-    # rabbitmq_remove_shovel_parameters.set_defaults(func=remove_shovel_parameters)
-
-    # rabbitmq_remove_policies = add_parser('remove-policies', help='Remove policy',
-    #                                       subparser=rabbitmq_subparsers)
-    # rabbitmq_remove_policies.add_argument('policies', nargs='+', help='policy name/s')
-    # rabbitmq_remove_policies.set_defaults(func=remove_policies)
+    global message_bus
 
     # Parse and expand options
     args = sys.argv[1:]

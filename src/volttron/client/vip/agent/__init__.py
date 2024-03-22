@@ -113,65 +113,45 @@ class Agent(AbstractAgent):
             if tag_refresh_interval == -1:
                 # no value was sent, use what is configured in server config or default returned by cc
                 tag_refresh_interval = cc.get_tag_refresh_interval()
-            if message_bus is not None and message_bus.lower() == "rmq":
-                _log.debug("Creating RMQ Core {}".format(identity))
-                self.core = RMQCore(
-                    self,
-                    identity=identity,
-                    address=address,
-                    context=context,
-                    publickey=publickey,
-                    secretkey=secretkey,
-                    serverkey=serverkey,
-                    instance_name=instance_name,
-                    volttron_home=volttron_home,
-                    agent_uuid=agent_uuid,
-                    reconnect_interval=reconnect_interval,
-                    version=version,
-                    volttron_central_address=volttron_central_address,
-                    volttron_central_instance_name=volttron_central_instance_name,
-                )
-            else:
-                #from volttron.types.agent_context import AgentOptions, AgentContext
-                import os
-                from pathlib import Path
+            #from volttron.types.agent_context import AgentOptions, AgentContext
+            import os
+            from pathlib import Path
 
-                from volttron.client.decorators import get_server_credentials
-                from volttron.types.auth.auth_credentials import (PKICredentials,
-                                                                  PublicCredentials)
-                from volttron.utils import jsonapi
+            from volttron.client.decorators import get_server_credentials
+            from volttron.types.auth.auth_credentials import (PKICredentials, PublicCredentials)
+            from volttron.utils import jsonapi
 
-                keystore_path = Path(
-                    os.environ["VOLTTRON_HOME"]) / f"keystores/{identity}/keystore.json"
-                real_auth = jsonapi.loads(keystore_path.open().read())
+            keystore_path = Path(
+                os.environ["VOLTTRON_HOME"]) / f"keystores/{identity}/keystore.json"
+            real_auth = jsonapi.loads(keystore_path.open().read())
 
-                agent_creds = PKICredentials(identity=identity,
-                                             secretkey=real_auth["secret"],
-                                             publickey=real_auth["public"])
-                #server_creds = get_server_credentials()
+            agent_creds = PKICredentials(identity=identity,
+                                         secretkey=real_auth["secret"],
+                                         publickey=real_auth["public"])
+            #server_creds = get_server_credentials()
 
-                _log.debug("Creating ZMQ Core {}".format(identity))
+            _log.debug("Creating ZMQ Core {}".format(identity))
 
-                # self.core = ZmqCore(self,
-                #                     address=address,
-                #                     credentials=agent_creds,
-                #                     identity=identity,
-                #                     reconnect_interval=reconnect_interval)
+            # self.core = ZmqCore(self,
+            #                     address=address,
+            #                     credentials=agent_creds,
+            #                     identity=identity,
+            #                     reconnect_interval=reconnect_interval)
 
-                self.core = ZmqCore(
-                    self,
-                    identity=identity,
-                    address=address,
-                    context=context,
-                    publickey=publickey,
-                    secretkey=secretkey,
-                    serverkey=serverkey,
-                    instance_name=instance_name,
-                    volttron_home=volttron_home,
-                    agent_uuid=agent_uuid,
-                    reconnect_interval=reconnect_interval,
-                    version=version,
-                )
+            self.core = ZmqCore(
+                self,
+                identity=identity,
+                address=address,
+                context=context,
+                publickey=publickey,
+                secretkey=secretkey,
+                serverkey=serverkey,
+                instance_name=instance_name,
+                volttron_home=volttron_home,
+                agent_uuid=agent_uuid,
+                reconnect_interval=reconnect_interval,
+                version=version,
+            )
             self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart, heartbeat_period,
                                         enable_store, enable_web, enable_channel, message_bus,
                                         tag_vip_id, tag_refresh_interval)
