@@ -548,22 +548,6 @@ def main(argv=sys.argv):
                          "potential damage.\n" % os.path.basename(argv[0]))
         sys.exit(77)
 
-    # TODO: Pre-parse for logging level.
-    total_count = 0
-    for arg in sys.argv:
-        vcount = 0
-
-        if arg.startswith("-v"):
-            vcount = arg.count("v")
-        elif arg == "--verbose":
-            vcount = 1
-        total_count += vcount
-
-    total_count = logging.WARNING - 10 * total_count
-
-    setup_logging(total_count)
-    coloredlogs.install(level=total_count)
-
     default_levels_for_modules = {
         "volttron.server.decorators": logging.WARNING,
         "volttron.server.containers": logging.INFO,

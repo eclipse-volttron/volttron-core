@@ -60,7 +60,7 @@ except ImportError:
 
 from volttron.utils.logs import enable_trace, setup_logging
 
-setup_logging(logging.DEBUG)
+setup_logging(total_count)
 
 if total_count <= logging.DEBUG:
     enable_trace()
@@ -70,9 +70,5 @@ from volttron.server.run_server import _main
 python_path = os.environ.get("PYTHONPATH")
 if python_path not in sys.path:
     sys.path.insert(0, python_path)
-print(f"Curdir is: {os.getcwd()}")
-for k in sorted(os.environ):
-    print(k, os.environ[k])
-syspathoutput = '\n'.join(sys.path)
-logging.getLogger().debug(f"SYSPATH:\n{syspathoutput}")
+
 _main()

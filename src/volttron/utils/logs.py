@@ -33,26 +33,6 @@ import warnings
 
 from volttron.utils import jsonapi
 
-default_levels_for_modules = {
-    "volttron.server.decorators": logging.WARNING,
-    "volttron.server.containers": logging.INFO,
-    "volttron.loader": logging.WARNING,
-    "volttron.server.run_server": logging.INFO,
-    "volttron.client.decorators": logging.INFO,
-    "volttron.messagebus.zmq.socket": logging.INFO
-}
-[logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
-
-# Only show debug on the platform when really necessary!
-log_level_info = ('volttron.platform.main', 'volttron.platform.vip.zmq_connection',
-                  'urllib3.connectionpool', 'watchdog.observers.inotify_buffer',
-                  'volttron.platform.auth', 'volttron.platform.store', 'volttron.platform.control',
-                  'volttron.platform.vip.agent.core', 'volttron.utils',
-                  'volttron.platform.vip.router', 'vip.router', 'volttron.server.router.router')
-
-for log_name in log_level_info:
-    logging.getLogger(log_name).setLevel(logging.INFO)
-
 try:
     HAS_SYSLOG = True
     import syslog
