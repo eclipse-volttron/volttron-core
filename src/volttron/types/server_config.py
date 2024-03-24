@@ -34,6 +34,8 @@ from typing import Any, Dict, List, Optional, Type
 
 import yaml
 
+from volttron.server.containers import service_repo
+from volttron.server.server_options import ServerOptions
 from volttron.utils.dynamic_helper import get_class, get_subclasses
 
 _log = logging.getLogger(__name__)
@@ -106,6 +108,9 @@ class ServiceConfigs:
 
             config = self._config_map.get(service_name)
             kwargs = {"identity": self._identity_map[service_name], "address": "inproc://vip"}
+            if 'AuthService' in service_cls.__name__:
+                continue
+                kwargs['options'] = service_repo.resolve(ServerOptions)
             for arg_name, arg_value in params.items():
                 #arg_name, arg_value = arg
                 if arg_name in config and arg_name != 'kwargs':

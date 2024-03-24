@@ -54,6 +54,7 @@ from volttron.server.log_actions import (LogLevelAction, configure_logging, log_
 from volttron.server.server_options import ServerOptions
 from volttron.server.tracking import Tracker
 from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileUserIdAlreadyExists)
+from volttron.types.auth.auth_service import AbstractAuthService
 from volttron.types.events import volttron_home_set_evnt
 from volttron.types.peer import ServicePeerNotifier
 from volttron.types.server_config import ServerConfig, ServiceConfigs
@@ -96,6 +97,7 @@ def run_server():
         service_repo.add_instance(ServerOptions, ServerOptions(volttron_home=volttron_home))
 
     server_options: ServerOptions = service_repo.resolve(ServerOptions)
+
     parser = build_arg_parser(server_options)
 
     if server_options.messagebus is None:
@@ -419,7 +421,9 @@ def start_volttron_process(options: ServerOptions):
             # if we have an auth service it should be started before the
             # zmq router.
 
-            auth_service = service_configs.get_service_instance("volttron.services.auth")
+            auth_service = service_repo.resolve(AbstractAuthService)
+
+            #auth_service = service_configs.get_service_instance("volttron.services.auth")
             if auth_service is None:
                 _log.warning("Auth service disabled.")
 

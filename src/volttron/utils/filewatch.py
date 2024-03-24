@@ -32,8 +32,8 @@ __all__ = [
 import logging
 import os
 
-from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
+from watchdog.observers import Observer
 
 from volttron.utils import ClientContext as cc
 

@@ -1,11 +1,11 @@
 import argparse
-from collections import OrderedDict
-from configparser import ConfigParser
 import configparser
 import os
-from pathlib import Path
 import socket
+from collections import OrderedDict
+from configparser import ConfigParser
 from dataclasses import dataclass, field, fields
+from pathlib import Path
 
 
 class MultiOrderedDict(OrderedDict):
@@ -62,6 +62,7 @@ class ServerOptions:
     auth_enabled: bool = True
     config_file: Path = None
     initialized: bool = False
+    service_address: str = None
 
     #services: list[ServiceData] = field(default_factory=list)
 
@@ -83,6 +84,10 @@ class ServerOptions:
 
         if self.config_file is None:
             self.config_file = self.volttron_home / "config"
+
+        # TODO: This should be removed once we have a better way of handling
+        if self.service_address is None:
+            self.service_address = "inproc://vip"
 
         # Allow the config path to be whereever the user wants it to be.
         if not self.config_file.exists():
@@ -135,7 +140,8 @@ class ServerOptions:
         for field in fields(ServerOptions):
             try:
                 # Don't save volttron_home within the config file.
-                if field.name not in ('volttron_home', 'services', 'config_file', 'initialized'):
+                if field.name not in ('volttron_home', 'services', 'config_file', 'initialized',
+                                      'service_address'):
                     # More than one address can be present so we must be careful
                     # with it.
                     if field.name == 'address':
