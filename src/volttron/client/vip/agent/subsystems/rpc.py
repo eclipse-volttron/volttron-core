@@ -196,7 +196,6 @@ class RPC(SubsystemBase):
             self._handle_error,
         )
         self._isconnected = True
-        self._message_bus = self.core().messagebus
         self.peerlist_subsystem = peerlist_subsys
         self.peer_list = {}
 
@@ -260,10 +259,6 @@ class RPC(SubsystemBase):
 
         def checked_method(*args, **kwargs):
             user = str(self.context.vip_message.user)
-            if self._message_bus == "rmq":
-                # When we address issue #2107 external platform user should
-                # have instance name also included in username.
-                user = user.split(".")[1]
             user_capabilites = self._owner.vip.auth.get_capabilities(user)
             _log.debug("**user caps is: {}".format(user_capabilites))
             if user_capabilites:
@@ -394,43 +389,16 @@ class RPC(SubsystemBase):
     def _handle_subsystem(self, message):
         dispatch = self._dispatcher.dispatch
 
-        if self._message_bus == "rmq":
-            for idx, msg in enumerate(message.args):
-                if not isinstance(msg, dict):
-                    message.args[idx] = jsonapi.loads(msg)
-
-            responses = [
-                response for response in (dispatch(msg, message) for msg in message.args)
-                if response
-            ]
-        else:
-            responses = [
-                response for response in (dispatch(msg, message) for msg in message.args)
-                if response
-            ]
+        responses = [
+            response for response in (dispatch(msg, message) for msg in message.args) if response
+        ]
         if responses:
             message.user = ""
             message.args = responses
             try:
                 if self._isconnected:
-                    if self._message_bus == "zmq":
-                        self.core().connection.send_vip_object(message, copy=False)
-                    else:
-                        # Agent is running on RMQ message bus.
-                        # Adding backward compatibility support for ZMQ.
-                        # Check if the peer is running on ZMQ bus.
-                        # If yes, send RPC message to proxy router
-                        # agent to forward using ZMQ message bus connection
-                        try:
-                            msg_bus = self.peer_list[message.peer]
-                        except KeyError:
-                            msg_bus = self._message_bus
-                        if msg_bus == "zmq":
-                            # If peer connected to ZMQ bus,
-                            # send via proxy router agent
-                            self.core().connection.send_vip_object_via_proxy(message)
-                        else:
-                            self.core().connection.send_vip_object(message, copy=False)
+                    self.core().connection.send_vip_object(message, copy=False)
+
             except ZMQError as exc:
                 if exc.errno == ENOTSOCK:
                     _log.debug("Socket send on non-socket %s", self.core().identity)
@@ -495,48 +463,29 @@ class RPC(SubsystemBase):
         if not self._isconnected:
             return
 
-        if self._message_bus == "zmq":
-            if platform == "":    # local platform
-                subsystem = "RPC"
-                frames.append(request)
-            else:
-                frames = []
-                operation = "send_platform"
-                subsystem = "external_rpc"
-                frames.append(operation)
-                msg = dict(
-                    to_platform=platform,
-                    to_peer=peer,
-                    from_platform="",
-                    from_peer="",
-                    args=[request],
-                )
-                frames.append(msg)
-                peer = ""
-
-            try:
-                self.core().connection.send_vip(peer, subsystem, args=frames, msg_id=ident)
-            except ZMQError as exc:
-                if exc.errno == ENOTSOCK:
-                    _log.debug("Socket send on non-socket %r", self.core().identity)
+        if platform == "":    # local platform
+            subsystem = "RPC"
+            frames.append(request)
         else:
-            # Agent running on RMQ message bus.
-            # Adding backward compatibility support for ZMQ. Check if peer
-            # is running on ZMQ bus. If yes, send RPC message to proxy router
-            # agent to forward over ZMQ message bus connection
-            try:
-                peer_msg_bus = self.peer_list[peer]
-            except KeyError:
-                peer_msg_bus = self._message_bus
-            if peer_msg_bus == "zmq":
-                # peer connected to ZMQ bus, send via proxy router agent
-                self.core().connection.send_via_proxy(peer, "RPC", msg_id=ident, args=[request])
-            else:
-                self.core().connection.send_vip(peer,
-                                                "RPC",
-                                                args=[request],
-                                                msg_id=ident,
-                                                platform=platform)
+            frames = []
+            operation = "send_platform"
+            subsystem = "external_rpc"
+            frames.append(operation)
+            msg = dict(
+                to_platform=platform,
+                to_peer=peer,
+                from_platform="",
+                from_peer="",
+                args=[request],
+            )
+            frames.append(msg)
+            peer = ""
+
+        try:
+            self.core().connection.send_vip(peer, subsystem, args=frames, msg_id=ident)
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.debug("Socket send on non-socket %r", self.core().identity)
 
         return result
 
@@ -549,44 +498,29 @@ class RPC(SubsystemBase):
         if not self._isconnected:
             return
 
-        if self._message_bus == "zmq":
-            subsystem = None
-            if platform == "":
-                subsystem = "RPC"
-                frames.append(request)
-            else:
-                operation = "send_platform"
-                subsystem = "external_rpc"
-                frames.append(operation)
-                msg = dict(
-                    to_platform=platform,
-                    to_peer=peer,
-                    from_platform="",
-                    from_peer="",
-                    args=[request],
-                )
-                frames.append(msg)
-                peer = ""
-
-            try:
-                self.core().connection.send_vip(peer, subsystem, args=frames)
-            except ZMQError as exc:
-                if exc.errno == ENOTSOCK:
-                    _log.debug("Socket send on non-socket %r", self.core().identity)
+        subsystem = None
+        if platform == "":
+            subsystem = "RPC"
+            frames.append(request)
         else:
-            # Agent running on RMQ message bus.
-            # Adding backward compatibility support for ZMQ. Check if peer
-            # is running on ZMQ bus. If yes, send RPC message to proxy
-            # router agent to forward over ZMQ message bus connection
-            try:
-                peer_msg_bus = self.peer_list[peer]
-            except KeyError:
-                peer_msg_bus = self._message_bus
-            if peer_msg_bus == "zmq":
-                # peer connected to ZMQ bus, send via proxy router agent
-                self.core().connection.send_via_proxy(peer, "RPC", args=[request])
-            else:
-                self.core().connection.send_vip(peer, "RPC", args=[request], platform=platform)
+            operation = "send_platform"
+            subsystem = "external_rpc"
+            frames.append(operation)
+            msg = dict(
+                to_platform=platform,
+                to_peer=peer,
+                from_platform="",
+                from_peer="",
+                args=[request],
+            )
+            frames.append(msg)
+            peer = ""
+
+        try:
+            self.core().connection.send_vip(peer, subsystem, args=frames)
+        except ZMQError as exc:
+            if exc.errno == ENOTSOCK:
+                _log.debug("Socket send on non-socket %r", self.core().identity)
 
     @dualmethod
     def allow(self, method, capabilities):

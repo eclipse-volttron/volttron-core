@@ -8,7 +8,7 @@ from typing import Any
 
 from dataclass_wizard import JSONSerializable, JSONWizard
 
-from volttron.types.events import volttron_home_set_evnt
+from volttron.types.blinker import volttron_home_set_evnt
 
 PropertyValue = str | int | float
 
@@ -39,9 +39,7 @@ class _KnownHostProperties(JSONWizard):
         return self.hosts.get(host, dict())
 
     @staticmethod
-    def load(path: Path) -> _KnownHostProperties:
-        global KnownHostProperties
-
+    def load(path: Path) -> KnownHostProperties:
         if isinstance(path, str):
             path = Path(path)
 
@@ -49,7 +47,6 @@ class _KnownHostProperties(JSONWizard):
             obj = _KnownHostProperties.from_json(path.open().read())
         else:
             obj = _KnownHostProperties()
-        KnownHostProperties = obj
         return obj
 
 

@@ -41,7 +41,6 @@ class AuthorizationManager(ABC):
     def getall(self) -> list:
         ...
 
-    @abstractmethod
     def has_role(self, role: str) -> bool:
         return role in self._role_map.mapping
 

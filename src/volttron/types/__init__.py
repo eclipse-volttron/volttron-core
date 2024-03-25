@@ -32,3 +32,4 @@
 # from volttron.types.server_config import ServerConfig
 
 # __all__: list[str] = ['Service', 'Message', 'ServerConfig']
+import volttron.types.known_host

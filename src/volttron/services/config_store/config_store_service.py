@@ -34,8 +34,12 @@ import gevent
 from deprecated import deprecated
 from gevent.lock import Semaphore
 
+from volttron.client.known_identities import CONFIGURATION_STORE
 from volttron.client.vip.agent import RPC, Agent, Core, Unreachable, VIPError
+from volttron.server.decorators import service
+from volttron.server.server_options import ServerOptions
 from volttron.services.auth.auth_service import AuthEntry, AuthFile
+from volttron.types.bases import Service
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import (format_timestamp, get_aware_utc_now, jsonapi, parse_json_config)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
@@ -98,11 +102,22 @@ def process_raw_config(config_string, config_type="raw"):
     raise ValueError("Unsupported configuration type.")
 
 
-class ConfigStoreService(ServiceInterface):
+@service
+class ConfigStoreService(Service, Agent):
 
-    def __init__(self, **kwargs):
+    class Meta:
+        identity = CONFIGURATION_STORE
+
+    def __init__(self, options: ServerOptions, **kwargs):
+        from volttron.server.containers import service_repo
+        from volttron.types.auth.auth_credentials import CredentialsStore
         kwargs["enable_store"] = False
-        super(ConfigStoreService, self).__init__(**kwargs)
+        kwargs["identity"] = self.Meta.identity
+
+        creds = service_repo.resolve(CredentialsStore).retrieve_credentials(
+            identity=self.Meta.identity)
+
+        super().__init__(credentials=creds, address=options.service_address, **kwargs)
 
         # This agent is started before the router so we need
         # to keep it from blocking.
@@ -110,11 +125,11 @@ class ConfigStoreService(ServiceInterface):
 
         self.store = {}
         self.store_path = os.path.join(os.environ["VOLTTRON_HOME"], "configuration_store")
-        entry = AuthEntry(credentials=self.core.publickey,
-                          user_id=self.core.identity,
-                          capabilities="sync_agent_config",
-                          comments="Automatically added by config store service")
-        AuthFile().add(entry, overwrite=True)
+        # entry = AuthEntry(credentials=self.core.publickey,
+        #                   user_id=self.core.identity,
+        #                   capabilities="sync_agent_config",
+        #                   comments="Automatically added by config store service")
+        # AuthFile().add(entry, overwrite=True)
 
     @Core.receiver("onsetup")
     def _setup(self, sender, **kwargs):

@@ -50,6 +50,9 @@ class Container:
     containers: dict[Container] = {}
     name: Frozen = Frozen()
 
+    def start_services(self):
+        pass
+
     class Resolvable:
 
         @property
@@ -406,6 +409,7 @@ class Container:
 
         match self._resolve(type, **kwargs):
             case Success(value):
+                self._resolvable[type] = value
                 return value
             case Failure(_):
                 raise Unresolvable(type)

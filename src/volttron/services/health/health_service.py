@@ -26,21 +26,30 @@ import logging
 from collections import defaultdict
 from datetime import datetime
 
-from volttron.client.known_identities import (CONTROL_CONNECTION, PROCESS_IDENTITIES)
+from volttron.client.known_identities import (CONTROL_CONNECTION, PLATFORM_HEALTH,
+                                              PROCESS_IDENTITIES)
 from volttron.client.vip.agent import RPC, Agent, Core
+from volttron.server.decorators import service
 # TODO: rmq addition
 # from volttron.utils.rmq_config_params import RMQConfig
 # from volttron.utils.rmq_setup import start_rabbit, RabbitMQStartError
 from volttron.services.auth.auth_service import AuthEntry, AuthFile
+from volttron.types.bases import Service
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import format_timestamp
 
 _log = logging.getLogger(__name__)
 
 
-class HealthService(ServiceInterface):
+@service
+class HealthService(Service):
+
+    class Meta:
+        identity = PLATFORM_HEALTH
 
     def __init__(self, **kwargs):
+        kwargs["address"] = options.service_address
+        kwargs["identity"] = self.Meta.identity
         super(HealthService, self).__init__(**kwargs)
 
         # Store the health stats for given peers in a dictionary with

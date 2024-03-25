@@ -214,8 +214,11 @@ def start_volttron_process(options: ServerOptions):
                 )
         _log.debug("open file resource limit %d to %d", soft, hard)
 
-    opts.aip = aip.AIPplatform(opts)
-    opts.aip.setup()
+    aip_platform = service_repo.resolve(aip.AIPplatform)
+    aip_platform.setup()
+    opts.aip = aip_platform
+    #opts.aip = aip.AIPplatform(opts)
+    #opts.aip.setup()
 
     # Check for secure mode/permissions on VOLTTRON_HOME directory
     mode = os.stat(opts.volttron_home).st_mode
@@ -229,133 +232,6 @@ def start_volttron_process(options: ServerOptions):
     st = os.stat(keystore.filename)
     if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
         _log.warning("insecure mode on key file")
-    publickey = decode_key(keystore.public)
-    opts.volttron_publickey = keystore.public
-    if publickey:
-        # Authorize the platform key:
-        entry = AuthEntry(
-            credentials=encode_key(publickey),
-            user_id="platform",
-            capabilities=[{
-                "edit_config_store": {
-                    "identity": "/.*/"
-                }
-            }],
-            comments="Automatically added by platform on start",
-        )
-        AuthFile().add(entry, overwrite=True)
-        # Add platform key to known-hosts file:
-        known_hosts = KnownHostsStore()
-        known_hosts.add(opts.local_address, encode_key(publickey))
-        for addr in opts.address:
-            known_hosts.add(addr, encode_key(publickey))
-    secretkey = decode_key(keystore.secret)
-
-    # Add the control.connection so that volttron-ctl can access the bus
-    control_conn_path = KeyStore.get_agent_keystore_path(CONTROL_CONNECTION)
-    os.makedirs(os.path.dirname(control_conn_path), exist_ok=True)
-    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL_CONNECTION))
-    entry = AuthEntry(
-        credentials=encode_key(decode_key(ks_control_conn.public)),
-        user_id=CONTROL_CONNECTION,
-        capabilities=[
-            {
-                "edit_config_store": {
-                    "identity": "/.*/"
-                }
-            },
-            "allow_auth_modifications",
-        ],
-        comments="Automatically added by platform on start",
-    )
-    try:
-        AuthFile().add(entry)
-    except AuthFileUserIdAlreadyExists:
-        pass
-
-    auth_path = KeyStore.get_agent_keystore_path(CONTROL)
-    os.makedirs(os.path.dirname(auth_path), exist_ok=True)
-    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONTROL))
-    entry = AuthEntry(
-        credentials=encode_key(decode_key(ks_control_conn.public)),
-        user_id=CONTROL,
-        capabilities=[
-            {
-                "edit_config_store": {
-                    "identity": "/.*/"
-                }
-            },
-            "allow_auth_modifications",
-        ],
-        comments="Automatically added by platform on start",
-    )
-    try:
-        AuthFile().add(entry)
-    except AuthFileUserIdAlreadyExists:
-        pass
-
-    auth_path = KeyStore.get_agent_keystore_path(AUTH)
-    os.makedirs(os.path.dirname(auth_path), exist_ok=True)
-    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(AUTH))
-    entry = AuthEntry(
-        credentials=encode_key(decode_key(ks_control_conn.public)),
-        user_id=AUTH,
-        capabilities=[
-            {
-                "edit_config_store": {
-                    "identity": "/.*/"
-                }
-            },
-            "allow_auth_modifications",
-        ],
-        comments="Automatically added by platform on start",
-    )
-    try:
-        AuthFile().add(entry)
-    except AuthFileUserIdAlreadyExists:
-        pass
-
-    config_store = KeyStore.get_agent_keystore_path(CONFIGURATION_STORE)
-    os.makedirs(os.path.dirname(config_store), exist_ok=True)
-    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path(CONFIGURATION_STORE))
-    entry = AuthEntry(
-        credentials=encode_key(decode_key(ks_control_conn.public)),
-        user_id=CONFIGURATION_STORE,
-        capabilities=[
-            {
-                "edit_config_store": {
-                    "identity": "/.*/"
-                }
-            },
-            "allow_auth_modifications",
-        ],
-        comments="Automatically added by platform on start",
-    )
-    try:
-        AuthFile().add(entry)
-    except AuthFileUserIdAlreadyExists:
-        pass
-
-    config_store = KeyStore.get_agent_keystore_path('platform.health')
-    os.makedirs(os.path.dirname(config_store), exist_ok=True)
-    ks_control_conn = KeyStore(KeyStore.get_agent_keystore_path('platform.health'))
-    entry = AuthEntry(
-        credentials=encode_key(decode_key(ks_control_conn.public)),
-        user_id='platform.health',
-        capabilities=[
-            {
-                "edit_config_store": {
-                    "identity": "/.*/"
-                }
-            },
-            "allow_auth_modifications",
-        ],
-        comments="Automatically added by platform on start",
-    )
-    try:
-        AuthFile().add(entry)
-    except AuthFileUserIdAlreadyExists:
-        pass
 
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, "protected_topics.json")
@@ -382,87 +258,112 @@ def start_volttron_process(options: ServerOptions):
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.messagebus))
         _log.debug("********************************************************************")
+        from volttron.services.config_store.config_store_service import \
+            ConfigStoreService
+        from volttron.services.control.control_service import ControlService
+        from volttron.services.health.health_service import HealthService
+        from volttron.types.auth.auth_credentials import CredentialsStore
+        from volttron.types.known_host import \
+            KnownHostProperties as known_host_properties
 
-        server_config = ServerConfig()
-        server_config.opts = opts
-        server_config.internal_address = address
-        server_config.aip = opts.aip
-
-        server_config.auth_file = Path(opts.volttron_home).joinpath("auth.json")
-        server_config.protected_topics_file = Path(
-            opts.volttron_home).joinpath("protected_topics.json")
-
+        # server_config = ServerConfig()
+        # server_config.opts = opts
+        # server_config.internal_address = address
+        # server_config.aip = opts.aip
+        # server_config.auth_file = Path(opts.volttron_home).joinpath("auth.json")
+        # server_config.protected_topics_file = Path(
+        #     opts.volttron_home).joinpath("protected_topics.json")
         # The return value will be added to the service_config.yml file in order to pass in
         # the expected defaults. From there the user may choose to modify the defaults.
-        service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
-        service_configs = ServiceConfigs(service_config_file=service_config_file,
-                                         server_config=server_config)
-        service_configs.init_services(server_config=server_config)
-
+        # service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
+        # service_configs = ServiceConfigs(service_config_file=service_config_file,
+        #                                  server_config=server_config)
+        # service_configs.init_services(server_config=server_config)
         # This variable will hold the executing services to determine when one of the services
         # dies or the platform has been shutdown.
         spawned_greenlets = []
 
         mb = None
 
+        # auth_service: Optional[AbstractAuthService] = None
+        # # if we have an auth service it should be started before the
+        # # zmq router.
+        # if options.auth_enabled:
+        #     # TODO Move probably to auth service.
+        #     auth_service = service_repo.resolve(AbstractAuthService)
+        #     cred_service = service_repo.resolve(CredentialsStore)
+        #     server_creds = cred_service.retrieve_credentials(identity="server")
+
+        #     # Add the server credentials to the known host properties.  Note this is how zmq does it
+        #     # there may be different schemes that we put in auth here.
+        #     if hasattr(server_creds, "publickey"):
+        #         known_host_properties.add_property("@", "publickey", server_creds.publickey)
+        #     else:
+        #         known_host_properties.add_property("@", "publickey", None)
+        #     for ip in options.address:
+        #         known_host_properties.add_property(ip, "publickey", server_creds.publickey)
+        #     known_host_properties.store(options.volttron_home / "known_hosts.json")
+
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
-        if opts.messagebus == "zmq":
-            # first service loaded must be the config store
-            config_store = service_configs.get_service_instance("volttron.services.config_store")
 
-            # start it up before anything else
-            event = gevent.event.Event()
-            task = gevent.spawn(config_store.core.run, event)
-            event.wait()
-            del event
-            spawned_greenlets.append(task)
+        # first service loaded must be the config store
+        #config_store = service_configs.get_service_instance("volttron.services.config_store")
+        config_store = service_repo.resolve(ConfigStoreService)
 
-            # if we have an auth service it should be started before the
-            # zmq router.
+        # start it up before anything else
+        event = gevent.event.Event()
+        task = gevent.spawn(config_store.core.run, event)
+        event.wait()
+        del event
+        spawned_greenlets.append(task)
 
-            auth_service = service_repo.resolve(AbstractAuthService)
+        #auth_service = service_configs.get_service_instance("volttron.services.auth")
+        # if auth_service is None:
+        #     _log.warning("Auth service disabled.")
 
-            #auth_service = service_configs.get_service_instance("volttron.services.auth")
-            if auth_service is None:
-                _log.warning("Auth service disabled.")
+        # if auth_service:
+        #     event = gevent.event.Event()
+        #     task = gevent.spawn(auth_service.core.run, event)
+        #     event.wait()
+        #     del event
+        #     spawned_greenlets.append(task)
 
-            if auth_service:
-                event = gevent.event.Event()
-                task = gevent.spawn(auth_service.core.run, event)
-                event.wait()
-                del event
-                spawned_greenlets.append(task)
+        # Allows registration agents to callbacks for peers
+        notifier = ServicePeerNotifier()
+        from volttron.server.decorators import get_messagebus_class
+        ZmqMessageBus = get_messagebus_class()
 
-            # Allows registration agents to callbacks for peers
-            notifier = ServicePeerNotifier()
-            from volttron.server.decorators import get_messagebus_class
-            ZmqMessageBus = get_messagebus_class()
+        cred_service = service_repo.resolve(CredentialsStore)
+        mb = ZmqMessageBus(opts,
+                           notifier,
+                           tracker,
+                           protected_topics,
+                           external_address_file,
+                           config_store.core.stop,
+                           credentials_store=cred_service)
 
-            mb = ZmqMessageBus(opts, notifier, secretkey, publickey, tracker, protected_topics,
-                               external_address_file, config_store.core.stop)
+        mb.start()
 
-            mb.start()
+        assert mb.is_running()
+        # Start ZMQ router in separate thread to remain responsive
+        # thread = threading.Thread(target=zmq_router,
+        #                           args=(
+        #                               opts,
+        #                               notifier,
+        #                               secretkey,
+        #                               publickey,
+        #                               tracker,
+        #                               protected_topics,
+        #                               external_address_file,
+        #                               config_store.core.stop,
+        #                           ))
+        # thread.daemon = True
+        # thread.start()
 
-            assert mb.is_running()
-            # Start ZMQ router in separate thread to remain responsive
-            # thread = threading.Thread(target=zmq_router,
-            #                           args=(
-            #                               opts,
-            #                               notifier,
-            #                               secretkey,
-            #                               publickey,
-            #                               tracker,
-            #                               protected_topics,
-            #                               external_address_file,
-            #                               config_store.core.stop,
-            #                           ))
-            # thread.daemon = True
-            # thread.start()
-
-            # gevent.sleep(0.1)
-            # if not thread.is_alive():
-            #     sys.exit()
+        # gevent.sleep(0.1)
+        # if not thread.is_alive():
+        #     sys.exit()
 
         # TODO Better make this so that it removes instances from this file or it will just be an
         #  ever increasing file depending on the number of instances it could get quite large.
@@ -491,51 +392,62 @@ def start_volttron_process(options: ServerOptions):
         _log.debug("external_address_file file %s", external_address_file)
 
         # Auth and config store services have already been run, so we can run the others now.
-        for svc_name in service_configs.get_service_names():
-            if svc_name not in ('volttron.services.auth', 'volttron.services.config_store'):
-                _log.debug(f"Starting service: {svc_name}")
-                obj = service_configs.get_service_instance(svc_name)
-                event = gevent.event.Event()
-                task = gevent.spawn(obj.core.run, event)
-                event.wait()
-                spawned_greenlets.append(task)
+        # for svc_name in service_configs.get_service_names():
+        #     if svc_name not in ('volttron.services.auth', 'volttron.services.config_store'):
+        #         _log.debug(f"Starting service: {svc_name}")
+        #         obj = service_configs.get_service_instance(svc_name)
+        #         event = gevent.event.Event()
+        #         task = gevent.spawn(obj.core.run, event)
+        #         event.wait()
+        #         spawned_greenlets.append(task)
 
-        control_service = service_configs.get_service_instance("volttron.services.control")
+        # control_service = service_repo.resolve(ControlService)
+        # event = gevent.event.Event()
+        # task = gevent.spawn(control_service.core.run, event)
+        # event.wait()
+        # del event
+        # spawned_greenlets.append(task)
+        # #control_service = service_configs.get_service_instance("volttron.services.control")
 
-        entry = AuthEntry(
-            credentials=control_service.core.publickey,
-            user_id=CONTROL,
-            capabilities=[
-                {
-                    "edit_config_store": {
-                        "identity": "/.*/"
-                    }
-                },
-                "allow_auth_modifications",
-            ],
-            comments="Automatically added by platform on start",
-        )
-        try:
-            AuthFile().add(entry)
-        except AuthFileUserIdAlreadyExists:
-            pass
+        # entry = AuthEntry(
+        #     credentials=control_service.core.publickey,
+        #     user_id=CONTROL,
+        #     capabilities=[
+        #         {
+        #             "edit_config_store": {
+        #                 "identity": "/.*/"
+        #             }
+        #         },
+        #         "allow_auth_modifications",
+        #     ],
+        #     comments="Automatically added by platform on start",
+        # )
+        # try:
+        #     AuthFile().add(entry)
+        # except AuthFileUserIdAlreadyExists:
+        #     pass
 
-        # # TODO Key discovery agent add in.
-        # # KeyDiscoveryAgent(
-        # #     address=address,
-        # #     serverkey=publickey,
-        # #     identity=KEY_DISCOVERY,
-        # #     external_address_config=external_address_file,
-        # #     setup_mode=opts.setup_mode,
-        # #     bind_web_address=opts.bind_web_address,
-        # #     enable_store=False,
-        # #     message_bus="zmq",
-        # # ),
-        # ]
+        # # # TODO Key discovery agent add in.
+        # # # KeyDiscoveryAgent(
+        # # #     address=address,
+        # # #     serverkey=publickey,
+        # # #     identity=KEY_DISCOVERY,
+        # # #     external_address_config=external_address_file,
+        # # #     setup_mode=opts.setup_mode,
+        # # #     bind_web_address=opts.bind_web_address,
+        # # #     enable_store=False,
+        # # #     message_bus="zmq",
+        # # # ),
+        # # ]
 
-        health_service = service_configs.get_service_instance("volttron.services.health")
-        if health_service is not None:
-            notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
+        # #health_service = service_configs.get_service_instance("volttron.services.health")
+        # health_service = service_repo.resolve(HealthService)
+        # event = gevent.event.Event()
+        # task = gevent.spawn(health_service.core.run, event)
+        # event.wait()
+        # del event
+        # if health_service is not None:
+        #     notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
 
         # Auto-start agents now that all services are up
         if opts.autostart:
@@ -601,7 +513,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         "volttron.loader": logging.WARNING,
         "volttron.server.run_server": logging.INFO,
         "volttron.client.decorators": logging.INFO,
-        "volttron.messagebus.zmq.socket": logging.INFO
+    #"volttron.messagebus.zmq.socket": logging.INFO
     }
     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 

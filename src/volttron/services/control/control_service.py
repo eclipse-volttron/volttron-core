@@ -35,9 +35,14 @@ from typing import Any, Dict, Optional
 import gevent
 import gevent.event
 
+from volttron.client.known_identities import CONTROL
 from volttron.client.messaging.health import STATUS_BAD, Status
-from volttron.client.vip.agent import RPC, Core
+from volttron.client.vip.agent import RPC, Agent, Core
 from volttron.client.vip.agent.subsystems.query import Query
+from volttron.server.aip import AIPplatform
+from volttron.server.decorators import service
+from volttron.server.server_options import ServerOptions
+from volttron.types.bases import Service
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import ClientContext as cc
 from volttron.utils import get_aware_utc_now, jsonapi
@@ -70,7 +75,11 @@ rmq_mgmt = None
 CHUNK_SIZE = 4096
 
 
-class ControlService(ServiceInterface):
+@service
+class ControlService(Service, Agent):
+
+    class Meta:
+        identity = CONTROL
 
     @classmethod
     def get_kwargs_defaults(cls) -> Dict[str, Any]:
@@ -80,14 +89,21 @@ class ControlService(ServiceInterface):
         """
         return {"agent-monitor-frequency": 10}
 
-    def __init__(self, aip, **kwargs):
+    def __init__(self, aip: AIPplatform, options: ServerOptions, **kwargs):
+        from volttron.server.containers import service_repo
+        from volttron.types.auth.auth_credentials import CredentialsStore
+        kwargs["enable_store"] = False
+        kwargs["identity"] = self.Meta.identity
 
+        creds = service_repo.resolve(CredentialsStore).retrieve_credentials(
+            identity=self.Meta.identity)
+        kwargs["identity"] = self.Meta.identity
         tracker = kwargs.pop("tracker", None)
         # Control config store not necessary right now
         kwargs["enable_store"] = False
-        kwargs["enable_channel"] = True
+
         agent_monitor_frequency = kwargs.pop("agent-monitor-frequency", 10)
-        super(ControlService, self).__init__(**kwargs)
+        super().__init__(credentials=creds, address=options.service_address, **kwargs)
         self._aip = aip
         self._tracker = tracker
         self.crashed_agents = {}

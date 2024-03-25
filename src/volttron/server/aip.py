@@ -46,6 +46,7 @@ from gevent.subprocess import PIPE
 from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.client.vip.agent import Agent
 from volttron.server.decorators import service
+from volttron.server.server_options import ServerOptions
 from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileEntryAlreadyExists)
 from volttron.types.bases import Service
 # from wheel.tool import unpack
@@ -245,7 +246,7 @@ class SecureExecutionEnvironment(object):
 class AIPplatform(Service):
     """Manages the main workflow of receiving and sending agents."""
 
-    def __init__(self, env, **kwargs):
+    def __init__(self, env: ServerOptions, **kwargs):
         self.env = env
         self.active_agents = {}
         self.vip_id_uuid_map = {}
