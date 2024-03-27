@@ -25,49 +25,71 @@ import logging
 
 import gevent
 
-from volttron.utils import ClientContext as cc
-from volttron.client.known_identities import CONTROL_CONNECTION, CONTROL
+from volttron.client.known_identities import CONTROL, CONTROL_CONNECTION
 from volttron.client.vip.agent import Agent as BaseAgent
+from volttron.types.agent_context import AgentContext, AgentOptions
+from volttron.utils import ClientContext as cc
+from volttron.utils.logs import logtrace
 
 _log = logging.getLogger(__name__)
 
 
 class ControlConnection(object):
 
+    @logtrace
     def __init__(self, address, peer=CONTROL):
         self.address = address
-        _log.debug(f"Address is: {address}")
+        _log.debug(f"Address is: {address} peer is: {peer}")
         self.peer = peer
         message_bus = cc.get_messagebus()
-        self._server = BaseAgent(
-            address=self.address,
-            enable_store=False,
-            identity=CONTROL_CONNECTION,
-            message_bus=message_bus,
-            enable_channel=True,
-        )
+
+        from pathlib import Path
+
+        from volttron.types.auth import Credentials, PKICredentials
+        from volttron.utils import jsonapi
+        credentials_path = Path(
+            cc.get_volttron_home()) / "credentials_store" / f"{CONTROL_CONNECTION}.json"
+        if not credentials_path.exists():
+            raise ValueError(f"Control connection credentials not found at {credentials_path}")
+
+        credjson = jsonapi.load(credentials_path.open("r"))
+
+        credentials = PKICredentials(**credjson)
+        options = AgentOptions(heartbeat_autostart=False,
+                               volttron_home=cc.get_volttron_home(),
+                               enable_store=False,
+                               address=address)
+        self._server = BaseAgent(credentials=credentials, options=options)
         self._greenlet = None
 
     @property
     def server(self):
         if self._greenlet is None:
+            # event = gevent.event.Event()
+            # with gevent.Timeout(2):
+            #     self._greenlet = gevent.spawn(self._server.core.run, event)
+            #     event.wait()
+
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
             event.wait()
         return self._server
 
+    @logtrace
     def call(self, method, *args, **kwargs):
         _log.debug(f"Calling {self.peer} method: {method} with args {args}")
         assert self.server
         assert self.server.vip.rpc
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs).get(timeout=20)
 
+    @logtrace
     def call_no_get(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs)
 
     def notify(self, method, *args, **kwargs):
         return self.server.vip.rpc.notify(self.peer, method, *args, **kwargs)
 
+    @logtrace
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
             self._greenlet.kill(*args, **kwargs)

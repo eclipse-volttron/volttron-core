@@ -21,14 +21,15 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
+# isort: skip_file
 from __future__ import annotations
 
 import logging as _log
 
 import gevent
 
-from volttron.types.agent_context import AgentContext, AgentOptions
 from volttron.types.auth.auth_credentials import Credentials
+from volttron.types.agent_context import AgentContext, AgentOptions
 from volttron.types.bases import AbstractAgent
 from volttron.utils import ClientContext as cc
 from volttron.utils import is_valid_identity

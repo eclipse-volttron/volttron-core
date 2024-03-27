@@ -8,7 +8,7 @@ from typing import Any
 
 from dataclass_wizard import JSONSerializable, JSONWizard
 
-from volttron.types.blinker import volttron_home_set_evnt
+from volttron.types.blinker_events import volttron_home_set_evnt
 
 PropertyValue = str | int | float
 

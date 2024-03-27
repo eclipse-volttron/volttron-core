@@ -10,13 +10,18 @@ import logging
 import typing
 from typing import TYPE_CHECKING, TypeVar
 
+import gevent
+from gevent import Greenlet
+
+from volttron.client.known_identities import CONFIGURATION_STORE
 from volttron.server.containers import service_repo
+from volttron.server.server_options import ServerOptions
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
                                                   CredentialsStore)
 from volttron.types.auth.auth_service import (AbstractAuthService, Authenticator,
                                               AuthorizationManager, Authorizer)
-from volttron.types.bases import (AbstractCore, AgentBuilder, AgentExecutor, AgentStarter,
-                                  Connection, MessageBus, Service)
+from volttron.types.bases import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor,
+                                  AgentStarter, Connection, MessageBus, Service)
 from volttron.types.factories import ConnectionBuilder, CoreBuilder
 from volttron.utils.logs import logtrace
 
@@ -383,6 +388,40 @@ def get_service_startup_order() -> list[str]:
             ordered.append(lookup)
 
     return ordered
+
+
+def start_service_agents() -> list[Greenlet]:
+    """
+    Start all services in the registry.
+
+    :return: A list of greenlets that are running the services.
+    :rtype: list[Greenlet]
+    """
+    from volttron.types.auth.auth_service import AbstractAuthService
+
+    greenlets = []
+    options = service_repo.resolve(ServerOptions)
+
+    for lookup, cls in service.registry.items():
+        if isinstance(cls, type) and issubclass(cls, AbstractAgent) and cls.Meta.identity == AUTH:
+            obj = service_repo.resolve(cls)
+            event = gevent.event.Event()
+            task = gevent.spawn(obj.core.run, event)
+            event.wait()
+            del event
+            greenlets.append(task)
+            break
+
+    for lookup, cls in service.registry.items():
+        if isinstance(cls, type) and issubclass(
+                cls, AbstractAgent) and cls.Meta.identity not in (CONFIGURATION_STORE, AUTH):
+            obj = service_repo.resolve(cls)
+            event = gevent.event.Event()
+            task = gevent.spawn(obj.core.run, event)
+            event.wait()
+            del event
+            greenlets.append(task)
+    return greenlets
 
 
 #    is_required_by: dict[str, list[str]] = {}

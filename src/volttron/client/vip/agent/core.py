@@ -492,8 +492,7 @@ class Core(BasicCore):
         # self.instance_name = instance_name
         # self.messagebus = messagebus
         self.subsystems = {"error": self.handle_error}
-        #self._version = version
-        self.socket = None
+
         self._connection: Connection = connection_factory.build(credentials)
         self.identity = credentials.identity
 
@@ -504,6 +503,10 @@ class Core(BasicCore):
 
     def version(self):
         return self._version
+
+    @property
+    def connection(self):
+        return self._connection
 
     def get_connected(self):
         return self._connection.connected
@@ -567,11 +570,10 @@ class Core(BasicCore):
 
     def create_event_handlers(self, state, hello_response_event, running_event):
 
-        @logtrace
         def connection_failed_check():
             # If we don't have a verified connection after 10.0 seconds
             # shut down.
-            if hello_response_event.wait(10.0):
+            if hello_response_event.wait(60.0):
                 return
             _log.error("No response to hello message after 10 seconds.")
             _log.error("Possible reasons are authentication or conflicting vip identities.")

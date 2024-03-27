@@ -1,6 +1,6 @@
 import re
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Protocol, runtime_checkable
+from typing import Optional
 
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
                                                   CredentialsStore)
@@ -25,10 +25,15 @@ class Authenticator(ABC):
         ...
 
 
-class AuthorizationManager(ABC):
+class AuthorizationManager(Service):
 
     @abstractmethod
-    def create(self, *, role: str, action: str, filter: str | re.Pattern[str], resource: any,
+    def create(self,
+               *,
+               role: str,
+               action: str,
+               filter: Optional[str | re.Pattern[str]] = None,
+               resource: any,
                **kwargs) -> any:
         ...
 

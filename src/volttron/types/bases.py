@@ -1,3 +1,4 @@
+# isort: skip_file
 from __future__ import annotations
 
 from abc import ABC, abstractmethod, abstractproperty
@@ -5,8 +6,9 @@ from typing import TYPE_CHECKING
 
 from gevent.subprocess import Popen
 
-from volttron.types.agent_context import AgentContext
+# Credentials must be imported before AgentContext!
 from volttron.types.auth.auth_credentials import Credentials
+from volttron.types.agent_context import AgentContext
 from volttron.types.message import Message
 
 

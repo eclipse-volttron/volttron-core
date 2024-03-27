@@ -1,5 +1,6 @@
-from dataclasses import dataclass, field
 import functools
+from dataclasses import dataclass, field
+
 from volttron.types.auth.auth_credentials import Credentials
 
 

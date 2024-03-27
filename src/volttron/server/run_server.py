@@ -81,7 +81,7 @@ def run_server():
     that case the dictionaries keys are mapped into a value that acts like the
     args options.
     """
-    from volttron.types.blinker import volttron_home_set_evnt
+    from volttron.types.blinker_events import volttron_home_set_evnt
 
     os.environ['VOLTTRON_SERVER'] = "1"
     volttron_home = Path(os.environ.get("VOLTTRON_HOME", "~/.volttron")).expanduser()
@@ -258,6 +258,7 @@ def start_volttron_process(options: ServerOptions):
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.messagebus))
         _log.debug("********************************************************************")
+        from volttron.server.decorators import start_service_agents
         from volttron.services.config_store.config_store_service import \
             ConfigStoreService
         from volttron.services.control.control_service import ControlService
@@ -307,6 +308,10 @@ def start_volttron_process(options: ServerOptions):
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
 
+        auth_service: Optional[AbstractAuthService] = None
+        if options.auth_enabled:
+            auth_service = service_repo.resolve(AbstractAuthService)
+
         # first service loaded must be the config store
         #config_store = service_configs.get_service_instance("volttron.services.config_store")
         config_store = service_repo.resolve(ConfigStoreService)
@@ -317,17 +322,6 @@ def start_volttron_process(options: ServerOptions):
         event.wait()
         del event
         spawned_greenlets.append(task)
-
-        #auth_service = service_configs.get_service_instance("volttron.services.auth")
-        # if auth_service is None:
-        #     _log.warning("Auth service disabled.")
-
-        # if auth_service:
-        #     event = gevent.event.Event()
-        #     task = gevent.spawn(auth_service.core.run, event)
-        #     event.wait()
-        #     del event
-        #     spawned_greenlets.append(task)
 
         # Allows registration agents to callbacks for peers
         notifier = ServicePeerNotifier()
@@ -346,24 +340,6 @@ def start_volttron_process(options: ServerOptions):
         mb.start()
 
         assert mb.is_running()
-        # Start ZMQ router in separate thread to remain responsive
-        # thread = threading.Thread(target=zmq_router,
-        #                           args=(
-        #                               opts,
-        #                               notifier,
-        #                               secretkey,
-        #                               publickey,
-        #                               tracker,
-        #                               protected_topics,
-        #                               external_address_file,
-        #                               config_store.core.stop,
-        #                           ))
-        # thread.daemon = True
-        # thread.start()
-
-        # gevent.sleep(0.1)
-        # if not thread.is_alive():
-        #     sys.exit()
 
         # TODO Better make this so that it removes instances from this file or it will just be an
         #  ever increasing file depending on the number of instances it could get quite large.
@@ -391,15 +367,7 @@ def start_volttron_process(options: ServerOptions):
         external_address_file = os.path.join(opts.volttron_home, "external_address.json")
         _log.debug("external_address_file file %s", external_address_file)
 
-        # Auth and config store services have already been run, so we can run the others now.
-        # for svc_name in service_configs.get_service_names():
-        #     if svc_name not in ('volttron.services.auth', 'volttron.services.config_store'):
-        #         _log.debug(f"Starting service: {svc_name}")
-        #         obj = service_configs.get_service_instance(svc_name)
-        #         event = gevent.event.Event()
-        #         task = gevent.spawn(obj.core.run, event)
-        #         event.wait()
-        #         spawned_greenlets.append(task)
+        spawned_greenlets.extend(start_service_agents())
 
         # control_service = service_repo.resolve(ControlService)
         # event = gevent.event.Event()
