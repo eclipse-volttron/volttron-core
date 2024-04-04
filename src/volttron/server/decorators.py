@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, TypeVar
 import gevent
 from gevent import Greenlet
 
-from volttron.client.known_identities import CONFIGURATION_STORE
+from volttron.client.known_identities import AUTH, CONFIGURATION_STORE
 from volttron.server.containers import service_repo
 from volttron.server.server_options import ServerOptions
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,

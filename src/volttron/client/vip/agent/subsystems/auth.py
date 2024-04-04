@@ -379,8 +379,17 @@ class Auth(SubsystemBase):
         :returns: list of capabilities
         :rtype: list
         """
-        self._fetch_capabilities()
-        return self._user_to_capabilities.get(user_id, [])
+        # TODO Add auth methodology for roles and etc for the capabilities.
+        return {
+            "edit_config_store": {
+                "identity": "/.*/"
+            },
+            "sync_agent_config": None,
+            "allow_auth_modifications": None,
+            "modify_rpc_method_allowance": None
+        }
+        #self._fetch_capabilities()
+        #return self._user_to_capabilities.get(user_id, [])
 
     def _update_capabilities(self, user_to_capabilities):
         identity = self._rpc().context.vip_message.peer
