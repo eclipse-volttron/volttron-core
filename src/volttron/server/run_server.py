@@ -326,16 +326,17 @@ def start_volttron_process(options: ServerOptions):
         # Allows registration agents to callbacks for peers
         notifier = ServicePeerNotifier()
         from volttron.server.decorators import get_messagebus_class
-        ZmqMessageBus = get_messagebus_class()
+        MessageBusClass = get_messagebus_class()
 
         cred_service = service_repo.resolve(CredentialsStore)
-        mb = ZmqMessageBus(opts,
-                           notifier,
-                           tracker,
-                           protected_topics,
-                           external_address_file,
-                           config_store.core.stop,
-                           credentials_store=cred_service)
+
+        mb = MessageBusClass(opts,
+                             notifier,
+                             tracker,
+                             protected_topics,
+                             external_address_file,
+                             config_store.core.stop,
+                             credentials_store=cred_service)
 
         mb.start()
 
@@ -351,6 +352,17 @@ def start_volttron_process(options: ServerOptions):
         except ValueError:
             os.remove(instance_file)
             instances = load_create_store(instance_file)
+
+        # Trim instances from instance file.
+        for k in list(instances):
+            try:
+                # Raises OSError if the pid is not found
+                # TODO if necessary include all the cases found
+                # https://stackoverflow.com/questions/568271/how-to-check-if-there-exists-a-process-with-a-given-pid-in-python/6940314#6940314
+                os.kill(instances[k]['pid'], 0)
+            except OSError:
+                del instances[k]
+
         this_instance = instances.get(opts.volttron_home, {})
         this_instance["pid"] = os.getpid()
         this_instance["version"] = get_version()

@@ -120,7 +120,23 @@ class CoreBuilder(ABC):
 
 
 class Service(ABC):
-    ...
+
+    def retrieve_credentials(self) -> Credentials:
+        if not hasattr(self, 'Meta'):
+            raise ValueError(f'Meta class not defined in {self}')
+
+        meta = getattr(self, 'Meta')
+
+        if not hasattr(meta, 'identity'):
+            raise ValueError(f'identity not found in Meta class for {self}')
+
+        identity = getattr(meta, 'identity')
+
+        from volttron.server.containers import service_repo
+        from volttron.types.auth.auth_credentials import CredentialsStore
+        creds = service_repo.resolve(CredentialsStore).retrieve_credentials(identity=identity)
+
+        return creds
 
 
 class MessageBus(ABC):

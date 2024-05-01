@@ -573,9 +573,9 @@ def update_health_cache(opts):
 
     if do_update:
         health_cache.clear()
-        health_cache.update(
-            opts.connection.server.vip.rpc.call(PLATFORM_HEALTH,
-                                                "get_platform_health").get(timeout=4))
+        response = opts.connection.server.vip.rpc.call(PLATFORM_HEALTH,
+                                                       "get_platform_health").get(timeout=4)
+        health_cache.update(response)
         health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
 
 
@@ -2876,9 +2876,9 @@ def main():
 
     # with gevent.Timeout(opts.timeout):
     #     return opts.func(opts)
-    # with gevent.Timeout(opts.timeout):
-    #     return opts.func(opts)
-    # sys.exit(0)
+    with gevent.Timeout(opts.timeout):
+        return opts.func(opts)
+    sys.exit(0)
     try:
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)

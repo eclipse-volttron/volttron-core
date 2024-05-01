@@ -37,20 +37,22 @@ from volttron.services.auth.auth_service import AuthEntry, AuthFile
 from volttron.types.bases import Service
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import format_timestamp
+from volttron.server.server_options import ServerOptions
 
 _log = logging.getLogger(__name__)
 
 
 @service
-class HealthService(Service):
+class HealthService(Service, Agent):
 
     class Meta:
         identity = PLATFORM_HEALTH
 
-    def __init__(self, **kwargs):
-        kwargs["address"] = options.service_address
+    def __init__(self, options: ServerOptions, **kwargs):
         kwargs["identity"] = self.Meta.identity
-        super(HealthService, self).__init__(**kwargs)
+        super().__init__(credentials=self.retrieve_credentials(),
+                         address=options.service_address,
+                         **kwargs)
 
         # Store the health stats for given peers in a dictionary with
         # keys being the identity of the connected agent.
@@ -110,8 +112,10 @@ class HealthService(Service):
         # Ignore the connection from control in the health as it will only be around for a short while.
         agents = {
             k: v
-            for k, v in self._health_dict.items() if not v.get("peer") == CONTROL_CONNECTION
+            for k, v in self._health_dict.items()
+            if v is dict and not v.get("peer") == CONTROL_CONNECTION
         }
+        _log.debug(f"get_platform_health() -> {agents}")
         return agents
 
     def _heartbeat_updates(self, peer, sender, bus, topic, headers, message):

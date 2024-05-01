@@ -90,20 +90,17 @@ class ControlService(Service, Agent):
         return {"agent-monitor-frequency": 10}
 
     def __init__(self, aip: AIPplatform, options: ServerOptions, **kwargs):
-        from volttron.server.containers import service_repo
-        from volttron.types.auth.auth_credentials import CredentialsStore
         kwargs["enable_store"] = False
         kwargs["identity"] = self.Meta.identity
 
-        creds = service_repo.resolve(CredentialsStore).retrieve_credentials(
-            identity=self.Meta.identity)
-        kwargs["identity"] = self.Meta.identity
         tracker = kwargs.pop("tracker", None)
         # Control config store not necessary right now
         kwargs["enable_store"] = False
 
         agent_monitor_frequency = kwargs.pop("agent-monitor-frequency", 10)
-        super().__init__(credentials=creds, address=options.service_address, **kwargs)
+        super().__init__(credentials=self.retrieve_credentials(),
+                         address=options.service_address,
+                         **kwargs)
         self._aip = aip
         self._tracker = tracker
         self.crashed_agents = {}
