@@ -543,7 +543,7 @@ class AIPplatform(Service):
             # get site-packages dir using agent's package name
             # installed package name is agent_name without version. Version is at the end. ex. agent-name-0.2.1
             installed_package_name = agent_name[0:agent_name.rfind("-")]
-            cmd = ["pip", "show", installed_package_name]
+            cmd = [sys.executable, "-m", "pip", "show", installed_package_name]
             response = execute_command(cmd)
             site_package_dir = re.search(".*\nLocation: (.*)", response).groups()[0].strip()
             # get default vip id
@@ -633,13 +633,13 @@ class AIPplatform(Service):
             raise ValueError("Identity already exists, but not forced!")
         return agent_uuid
 
-    def install_agent_source(self, agent, force, pre_release):
+    def install_agent_source(self, agent: str, force: bool = False, pre_release: bool = False):
         _log.info(f"AGENT_WHEEL: {agent}")
 
         if force:
-            cmd = ["pip", "install", "--force-reinstall"]
+            cmd = [sys.executable, "-m", "pip", "install", "--force-reinstall"]
         else:
-            cmd = ["pip", "install"]
+            cmd = [sys.executable, "-m", "pip", "install"]
 
         if pre_release:
             cmd.append("--pre")

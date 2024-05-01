@@ -135,16 +135,8 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
     except Exception as exc:
         raise InstallRuntimeError(exc)
 
-    agent_uuid = send_agent(
-        opts.connection,
-        opts.package,
-        opts.vip_identity,
-        publickey,
-        secretkey,
-        opts.force,
-        opts.pre_release,
-        config_dict
-    )
+    agent_uuid = send_agent(opts.connection, opts.package, opts.vip_identity, publickey, secretkey,
+                            opts.force, opts.pre_release, config_dict)
 
     if not agent_uuid:
         raise ValueError(f"Agent was not installed properly.")
@@ -231,16 +223,8 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
         _send_and_intialize_agent(opts, publickey, secretkey)
 
 
-def send_agent(
-    connection: "ControlConnection",
-    agent: str,
-    vip_identity: str,
-    publickey: str,
-    secretkey: str,
-    force: bool,
-    pre_release: bool,
-    agent_config: dict
-):
+def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, publickey: str,
+               secretkey: str, force: bool, pre_release: bool, agent_config: dict):
     """
     Send an agent wheel from the client to the server.
 
@@ -423,50 +407,39 @@ def send_agent(
             del channel
 
     task = None
-    if server.core.messagebus == "rmq":
-        if wheel_install:
-            _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
-            task = gevent.spawn(send_rmq)
-            # TODO: send config
-            agent_package = os.path.basename(path)
-        else:
-            agent_package = agent
-        result = server.vip.rpc.call(
-            peer,
-            "install_agent_rmq",
-            agent_package,
-            rmq_send_topic,
-            rmq_response_topic,
-            vip_identity,
-            publickey,
-            secretkey,
-            force,
-            pre_release,
-            agent_config
-        )
-    elif server.core.messagebus == "zmq":
-        if wheel_install:
-            _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
-            task = gevent.spawn(send_zmq)
-            agent_package = os.path.basename(path)
-            channel_name = channel.name
-        else:
-            agent_package = agent
-            channel_name = None
-        result = server.vip.rpc.call(
-            peer,
-            "install_agent",
-            agent_package,
-            channel_name,
-            vip_identity,
-            publickey,
-            secretkey,
-            force,
-            pre_release,
-            agent_config
-        )
+    # if server.core.messagebus == "rmq":
+    #     if wheel_install:
+    #         _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
+    #         task = gevent.spawn(send_rmq)
+    #         # TODO: send config
+    #         agent_package = os.path.basename(path)
+    #     else:
+    #         agent_package = agent
+    #     result = server.vip.rpc.call(
+    #         peer,
+    #         "install_agent_rmq",
+    #         agent_package,
+    #         rmq_send_topic,
+    #         rmq_response_topic,
+    #         vip_identity,
+    #         publickey,
+    #         secretkey,
+    #         force,
+    #         pre_release,
+    #         agent_config
+    #     )
+    # elif server.core.messagebus == "zmq":
+    if wheel_install:
+        _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
+        task = gevent.spawn(send_zmq)
+        agent_package = os.path.basename(path)
+        channel_name = channel.name
     else:
-        raise ValueError("Unknown messagebus detected!")
+        agent_package = agent
+        channel_name = None
+    result = server.vip.rpc.call(peer, "install_agent", agent_package, channel_name, vip_identity,
+                                 publickey, secretkey, force, pre_release, agent_config)
+
     try:
         if wheel_install:
             result.rawlink(lambda glt: task.kill(block=False))
@@ -556,7 +529,9 @@ def add_install_agent_parser(add_parser_fn):
         help="the amount of time to wait and verify that the agent has started up.",
     )
     install.add_argument(
-        "--pre-release", "--pre", "--allow-prereleases",
+        "--pre-release",
+        "--pre",
+        "--allow-prereleases",
         action="store_true",
         help="enables installation of pre-releases and development releases",
     )
