@@ -7,13 +7,28 @@ from typing import TYPE_CHECKING
 from gevent.subprocess import Popen
 
 # Credentials must be imported before AgentContext!
-from volttron.types.auth.auth_credentials import Credentials
+from volttron.types.auth.auth_credentials import Credentials, CredentialsFactory
 from volttron.types.agent_context import AgentContext
 from volttron.types.message import Message
+from pathlib import Path
 
 
 class AbstractAgent(ABC):
-    ...
+
+    def get_credentials(self, identity: str) -> Credentials:
+        """
+        Retrieve credentials from the keystore.json file in the agent's directory
+
+        If the file does not exist then raises an exception.  This method assumes
+        that the current path is at the root of an installed agent.
+
+        :param identity: The identity to load from the credentials.
+        :return: A credentials object
+        :rtype: Credentials
+        """
+        cred_path = Path("keystore.json")
+
+        return CredentialsFactory.create_from_file(identity=identity, path=cred_path)
 
 
 class AbstractCore(ABC):

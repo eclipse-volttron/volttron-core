@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import logging as _log
+import os
 
 import gevent
 
@@ -127,17 +128,23 @@ class Agent(AbstractAgent):
 
         factory = get_core_builder(**kwargs)
 
-        if credentials.identity is None:
-            raise ValueError("Agent identity is required.")
+        # if credentials.identity is None:
+        #     raise ValueError("Agent identity is required.")
 
-        identity = credentials.identity
-        if identity is not None and not is_valid_identity(identity):
-            _log.warning("Deprecation warning")
-            _log.warning(
-                "All characters in {identity} are not in the valid set.".format(identity=identity))
+        # identity = credentials.identity
+        # if identity is not None and not is_valid_identity(identity):
+        #     _log.warning("Deprecation warning")
+        #     _log.warning(
+        #         "All characters in {identity} are not in the valid set.".format(identity=identity))
 
         if options is None:
             options = AgentOptions()
+
+        if credentials is None:
+            if not (identity := os.environ.get('AGENT_VIP_IDENTITY')):
+                raise ValueError(f"Environmental variable AGENT_VIP_IDENTITY not set!")
+
+            credentials = self.get_credentials(identity)
 
         # TODO: We need to be able to get the address from environment probably here.
         context = AgentContext(credentials=credentials, options=options, address=address)

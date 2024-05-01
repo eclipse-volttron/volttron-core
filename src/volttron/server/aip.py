@@ -451,8 +451,8 @@ class AIPplatform(Service):
             os.kill(pid, signal.SIGINT)
             os.remove(pid_file)
 
-    subscribe_address = property(lambda me: me.env.subscribe_address)
-    publish_address = property(lambda me: me.env.publish_address)
+    # subscribe_address = property(lambda me: me.env.subscribe_address)
+    # publish_address = property(lambda me: me.env.publish_address)
 
     config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, "agents"))
@@ -1120,8 +1120,8 @@ class AIPplatform(Service):
 
     def start_agent(self, agent_uuid):
         name = self.agent_name(agent_uuid)
-        name_no_version = name[0:name.rfind(
-            "-")]    # get last index of - to split version number from name
+        # get last index of - to split version number from name
+        name_no_version = name[0:name.rfind("-")]
 
         vip_identity = self.uuid_vip_id_map[agent_uuid]
         agent_dir = os.path.join(self.install_dir, vip_identity)
@@ -1166,17 +1166,17 @@ class AIPplatform(Service):
             environ["AGENT_TAG"] = tag
         else:
             environ.pop("AGENT_TAG", None)
-        environ["AGENT_SUB_ADDR"] = self.subscribe_address
-        environ["AGENT_PUB_ADDR"] = self.publish_address
+        # environ["AGENT_SUB_ADDR"] = self.subscribe_address
+        # environ["AGENT_PUB_ADDR"] = self.publish_address
         environ["AGENT_UUID"] = agent_uuid
         environ["_LAUNCHED_BY_PLATFORM"] = "1"
 
         environ["AGENT_VIP_IDENTITY"] = vip_identity
-        environ["VOLTTRON_SERVERKEY"] = KeyStore().public
-        keystore_path = os.path.join(cc.get_volttron_home(), "agents", vip_identity,
-                                     "keystore.json")
-        keystore = KeyStore(keystore_path)
-        environ["AGENT_PUBLICKEY"], environ["AGENT_SECRETKEY"] = keystore.public, keystore.secret
+        # environ["VOLTTRON_SERVERKEY"] = KeyStore().public
+        # keystore_path = os.path.join(cc.get_volttron_home(), "agents", vip_identity,
+        #                              "keystore.json")
+        # keystore = KeyStore(keystore_path)
+        # environ["AGENT_PUBLICKEY"], environ["AGENT_SECRETKEY"] = keystore.public, keystore.secret
 
         #module, _, func = module.partition(":")
         # if func:
@@ -1219,22 +1219,6 @@ class AIPplatform(Service):
                         self.set_acl_for_path("rwx", agent_user, os.path.join(root, directory))
                     for f in files:
                         self.set_acl_for_path("rwx", agent_user, os.path.join(root, f))
-
-        if self.message_bus == "rmq":
-            rmq_user = cc.get_fq_identity(vip_identity, self.instance_name)
-            _log.info("Create RMQ user {} for agent {}".format(rmq_user, vip_identity))
-
-            self.rmq_mgmt.create_user_with_permissions(
-                rmq_user, self.rmq_mgmt.get_default_permissions(rmq_user), ssl_auth=True)
-            key_file = Certs().private_key_file(rmq_user)
-            if not os.path.exists(key_file):
-                # This could happen when user switches from zmq to rmq after installing agent
-                _log.info(f"agent certs don't exists. creating certs for agent")
-                Certs().create_signed_cert_files(rmq_user, overwrite=False)
-
-            if self.secure_agent_user:
-                # give read access to user to its own private key file.
-                self.set_acl_for_path("r", agent_user, key_file)
 
         if agent_user:
             execenv = SecureExecutionEnvironment(agent_user=agent_user)
