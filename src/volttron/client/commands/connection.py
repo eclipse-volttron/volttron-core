@@ -36,8 +36,7 @@ _log = logging.getLogger(__name__)
 
 class ControlConnection(object):
 
-    @logtrace
-    def __init__(self, address, peer=CONTROL):
+    def __init__(self, address: str, peer=CONTROL):
         self.address = address
         _log.debug(f"Address is: {address} peer is: {peer}")
         self.peer = peer
@@ -57,9 +56,8 @@ class ControlConnection(object):
         credentials = PKICredentials(**credjson)
         options = AgentOptions(heartbeat_autostart=False,
                                volttron_home=cc.get_volttron_home(),
-                               enable_store=False,
-                               address=address)
-        self._server = BaseAgent(credentials=credentials, options=options)
+                               enable_store=False)
+        self._server = BaseAgent(credentials=credentials, options=options, address=address)
         self._greenlet = None
 
     @property

@@ -73,7 +73,12 @@ class Agent(AbstractAgent):
 
             self.auth = Auth(owner, core, self.rpc)
 
-    def __init__(self, *, credentials: Credentials = None, options: AgentOptions = None, **kwargs):
+    def __init__(self,
+                 *,
+                 credentials: Credentials = None,
+                 options: AgentOptions = None,
+                 address: str = None,
+                 **kwargs):
         # TODO: Try to create them if possible
         # if credentials is None:
         #     if 'vip_identity' in kwargs:
@@ -135,9 +140,7 @@ class Agent(AbstractAgent):
             options = AgentOptions()
 
         # TODO: We need to be able to get the address from environment probably here.
-        context = AgentContext(credentials=credentials,
-                               options=options,
-                               address=kwargs.get("address", None))
+        context = AgentContext(credentials=credentials, options=options, address=address)
 
         self.core = factory.build(owner=self, context=context)
         #self.core = get_core_instance(credentials=credentials)

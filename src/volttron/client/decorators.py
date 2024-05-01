@@ -147,7 +147,7 @@ def get_server_credentials(address: Optional[str] = None) -> Credentials:
         KnownHostProperties as known_host_properties
     from volttron.utils import jsonapi
 
-    if address is None:
+    if address is None or address.startswith('ipc'):
         address = "@"
 
     if known_host_properties is None:

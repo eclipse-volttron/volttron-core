@@ -2869,7 +2869,7 @@ def main():
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
-    opts.connection = ControlConnection(opts.vip_address)
+    opts.connection = ControlConnection(address=opts.vip_address)
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)
