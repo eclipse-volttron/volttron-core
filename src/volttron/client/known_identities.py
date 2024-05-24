@@ -22,6 +22,7 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+PLATFORM = "platform"
 AUTH = "platform.auth"
 
 VOLTTRON_CENTRAL = "volttron.central"

@@ -43,6 +43,7 @@ dataclass-wizard = "^0.22.3"
 returns = "^0.22.0"
 pyzmq = "^25.1.2"
 coloredlogs = "^15.0.1"
+cattrs = "^23.2.3"
 
 [tool.poetry.group.dev.dependencies]
 coloredlogs = "^15.0.1"
