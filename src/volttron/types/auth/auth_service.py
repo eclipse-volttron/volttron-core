@@ -13,6 +13,15 @@ class Authorizer(ABC):
     def is_authorized(self, *, user: str, resource: Any, action: Any, **kwargs) -> bool:
         ...
 
+class AuthzPersistence(ABC):
+
+    @classmethod
+    def load(cls, input: Any, **kwargs) -> authz.VolttronAuthzMap:
+        ...
+
+    @classmethod
+    def store(cls, authz_map: authz.VolttronAuthzMap, **kwargs) -> bool:
+        ...
 
 class Authenticator(ABC):
 
@@ -42,7 +51,7 @@ class AuthorizationManager(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user_authz(self, *, name: str,
+    def create_or_merge_user_authz(self, *, identity: str,
                            protected_rpcs: set[authz.vipid_dot_rpc_method],
                            roles: set[authz.role_name],
                            rpc_capabilities: authz.RPCCapabilities,
@@ -58,11 +67,11 @@ class AuthorizationManager(Service):
         ...
 
     @abstractmethod
-    def remove_protected_topic(self, *, topic_name_patter: str) -> bool:
+    def remove_protected_topic(self, *, topic_name_pattern: str) -> bool:
         ...
 
     @abstractmethod
-    def remove_user(self, name: authz.Identity):
+    def remove_user(self, identity: authz.Identity):
         ...
 
     @abstractmethod
@@ -73,7 +82,7 @@ class AuthorizationManager(Service):
     def remove_role(self, name: str):
         ...
 
-class AbstractAuthService(Service):
+class AuthService(Service):
 
     # Authentication
 
