@@ -18,7 +18,7 @@ from volttron.server.containers import service_repo
 from volttron.server.server_options import ServerOptions
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
                                                   CredentialsStore)
-from volttron.types.auth.auth_service import (AbstractAuthService, Authenticator,
+from volttron.types.auth.auth_service import (AuthService, Authenticator,
                                               AuthorizationManager, Authorizer)
 from volttron.types.bases import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor,
                                   AgentStarter, Connection, MessageBus, Service)
@@ -118,7 +118,7 @@ agent_starter = factory_registration("agent_starter", protocol=AgentStarter)
 agent_executor = factory_registration("agent_executor", protocol=AgentExecutor)
 agent_builder = factory_registration("agent_builder", protocol=AgentBuilder)
 
-authservice = factory_registration("authservice", protocol=AbstractAuthService)
+authservice = factory_registration("authservice", protocol=AuthService)
 
 authorizer = factory_registration("authorizer", protocol=Authorizer)
 authenticator = factory_registration("authenticator", protocol=Authenticator)
@@ -397,7 +397,7 @@ def start_service_agents() -> list[Greenlet]:
     :return: A list of greenlets that are running the services.
     :rtype: list[Greenlet]
     """
-    from volttron.types.auth.auth_service import AbstractAuthService
+    from volttron.types.auth.auth_service import AuthService
 
     greenlets = []
     options = service_repo.resolve(ServerOptions)

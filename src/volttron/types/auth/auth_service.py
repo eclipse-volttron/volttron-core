@@ -1,22 +1,27 @@
-import re
+from typing import Any
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
                                                   CredentialsStore)
 from volttron.types.bases import Service
-
-#from volttron.server.server_options import ServerOptions
+import volttron.types.auth.authz_types as authz
 
 
 class Authorizer(ABC):
 
-    # def __init__(*, credentials_rules_map: any, **kwargs):
-    #     ...
     @abstractmethod
-    def is_authorized(self, *, role: str, action: str, resource: any, **kwargs) -> bool:
+    def is_authorized(self, *, user: str, resource: Any, action: Any, **kwargs) -> bool:
         ...
 
+class AuthzPersistence(ABC):
+
+    @classmethod
+    def load(cls, input: Any, **kwargs) -> authz.VolttronAuthzMap:
+        ...
+
+    @classmethod
+    def store(cls, authz_map: authz.VolttronAuthzMap, **kwargs) -> bool:
+        ...
 
 class Authenticator(ABC):
 
@@ -28,73 +33,131 @@ class Authenticator(ABC):
 class AuthorizationManager(Service):
 
     @abstractmethod
-    def create(self,
-               *,
-               role: str,
-               action: str,
-               filter: Optional[str | re.Pattern[str]] = None,
-               resource: any,
-               **kwargs) -> any:
+    def create_or_merge_role(self,
+                    *,
+                    name: str,
+                    rpc_capabilities: authz.RPCCapabilities,
+                    pubsub_capabilities: authz.PubsubCapabilities,
+                    **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def delete(self, *, role: str, action: str, filter: str | re.Pattern[str], resource: any,
-               **kwargs) -> any:
+    def create_or_merge_user_group(self, *, name: str,
+                                   users: set[authz.Identity],
+                                   roles: set[authz.role_name],
+                                   rpc_capabilities: authz.RPCCapabilities,
+                                   pubsub_capabilities: authz.PubsubCapabilities,
+                                   **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def getall(self) -> list:
-        ...
-
-    def has_role(self, role: str) -> bool:
-        return role in self._role_map.mapping
-
-
-class AbstractAuthService(Service):
-
-    @abstractmethod
-    def is_authorized(credentials: Credentials, action: str, resource: str, **kwargs) -> bool:
-        ...
-
-    @abstractmethod
-    def add_credentials(credentials: Credentials):
+    def create_or_merge_user_authz(self, *, identity: str,
+                           protected_rpcs: set[authz.vipid_dot_rpc_method],
+                           roles: set[authz.role_name],
+                           rpc_capabilities: authz.RPCCapabilities,
+                           pubsub_capabilities: authz.PubsubCapabilities,
+                           comments: str | None,
+                           domain: str|None,
+                           address: str | None,
+                           **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def remove_credentials(credentials: Credentials):
+    def create_protected_topic(self, *, topic_name_pattern: str) -> bool:
         ...
 
     @abstractmethod
-    def is_credentials(identity: str) -> bool:
+    def remove_protected_topic(self, *, topic_name_pattern: str) -> bool:
         ...
 
     @abstractmethod
-    def has_credentials_for(identity: str) -> bool:
+    def remove_user(self, identity: authz.Identity):
         ...
 
     @abstractmethod
-    def add_role(role: str) -> None:
+    def remove_user_group(self, name: str):
         ...
 
     @abstractmethod
-    def remove_role(role: str) -> None:
+    def remove_role(self, name: str):
+        ...
+
+class AuthService(Service):
+
+    # Authentication
+
+    @abstractmethod
+    def authenticate(self, *, credentials: Credentials) -> bool:
         ...
 
     @abstractmethod
-    def is_role(role: str) -> bool:
+    def has_credentials_for(self, *, identity: str) -> bool:
         ...
 
-    # def add_credential_to_role(credential: Credentials, role: str) -> None:
-    #     ...
+    @abstractmethod
+    def add_credentials(self, *, credentials: Credentials):
+        ...
 
-    # def remove_credential_from_role(credential: Credentials, role: str) -> None:
-    #     ...
+    @abstractmethod
+    def remove_credentials(self, *, credentials: Credentials):
+        ...
 
-    # def add_capability(name: str, value: str | list | dict, role: str = None, credential: Credentials = None) -> None:
-    #     ...
+    @abstractmethod
+    def is_credentials(self, *, identity: str) -> bool:
+        ...
 
-    # def is_capability(name: str):
-    #     ...
+    # Authorization
 
-    # def remove_capability(name: str, role: str, credential: Credentials = None) -> None:
-    #     ...
+    @abstractmethod
+    def is_authorized(self, *, identity: authz.Identity, resource: Any, action: Any, **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def create_or_merge_role(self,
+                             *,
+                             name: str,
+                             rpc_capabilities: authz.RPCCapabilities,
+                             pubsub_capabilities: authz.PubsubCapabilities,
+                             **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def create_or_merge_user_group(self, *, name: str,
+                                   users: set[authz.Identity],
+                                   roles: set[authz.role_name],
+                                   rpc_capabilities: authz.RPCCapabilities,
+                                   pubsub_capabilities: authz.PubsubCapabilities,
+                                   **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def create_or_merge_user_authz(self, *, identity: authz.Identity,
+                                   protected_rpcs: set[authz.vipid_dot_rpc_method],
+                                   roles: set[authz.role_name],
+                                   rpc_capabilities: authz.RPCCapabilities,
+                                   pubsub_capabilities: authz.PubsubCapabilities,
+                                   comments: str | None,
+                                   domain: str | None,
+                                   address: str | None,
+                                   **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def create_protected_topic(self, *, topic_name_pattern: str) -> bool:
+        ...
+
+    @abstractmethod
+    def remove_protected_topic(self, *, topic_name_patter: str) -> bool:
+        ...
+
+    @abstractmethod
+    def remove_user(self, name: authz.Identity):
+        ...
+
+    @abstractmethod
+    def remove_user_group(self, name: str):
+        ...
+
+    @abstractmethod
+    def remove_role(self, name: str):
+        ...

@@ -3,7 +3,7 @@ from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreato
                                                   IdentityAlreadyExists, IdentityNotFound,
                                                   InvalidCredentials, PKICredentials,
                                                   PublicCredentials)
-from volttron.types.auth.auth_service import (AbstractAuthService, Authenticator,
+from volttron.types.auth.auth_service import (AuthService, Authenticator,
                                               AuthorizationManager, Authorizer)
 
 # from .authz_types import AccessRule
@@ -17,7 +17,7 @@ __all__: list[str] = [
     "IdentityAlreadyExists",
     "IdentityNotFound",
     "CredentialsStoreProtocol",
-    "AbstractAuthService",
+    "AuthService",
     "Authorizer",
     "Authenticator",
     "CredentialsCreator",

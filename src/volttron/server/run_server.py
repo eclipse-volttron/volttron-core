@@ -54,7 +54,7 @@ from volttron.server.log_actions import (LogLevelAction, configure_logging, log_
 from volttron.server.server_options import ServerOptions
 from volttron.server.tracking import Tracker
 from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileUserIdAlreadyExists)
-from volttron.types.auth.auth_service import AbstractAuthService
+from volttron.types.auth.auth_service import AuthService
 from volttron.types.events import volttron_home_set_evnt
 from volttron.types.peer import ServicePeerNotifier
 from volttron.types.server_config import ServerConfig, ServiceConfigs
@@ -286,12 +286,12 @@ def start_volttron_process(options: ServerOptions):
 
         mb = None
 
-        # auth_service: Optional[AbstractAuthService] = None
+        # auth_service: Optional[AuthService] = None
         # # if we have an auth service it should be started before the
         # # zmq router.
         # if options.auth_enabled:
         #     # TODO Move probably to auth service.
-        #     auth_service = service_repo.resolve(AbstractAuthService)
+        #     auth_service = service_repo.resolve(AuthService)
         #     cred_service = service_repo.resolve(CredentialsStore)
         #     server_creds = cred_service.retrieve_credentials(identity="server")
 
@@ -308,9 +308,9 @@ def start_volttron_process(options: ServerOptions):
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
 
-        auth_service: Optional[AbstractAuthService] = None
+        auth_service: Optional[AuthService] = None
         if options.auth_enabled:
-            auth_service = service_repo.resolve(AbstractAuthService)
+            auth_service = service_repo.resolve(AuthService)
 
         # first service loaded must be the config store
         #config_store = service_configs.get_service_instance("volttron.services.config_store")
