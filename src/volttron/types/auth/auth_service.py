@@ -13,6 +13,7 @@ class Authorizer(ABC):
     def is_authorized(self, *, user: str, resource: Any, action: Any, **kwargs) -> bool:
         ...
 
+
 class AuthzPersistence(ABC):
 
     @classmethod
@@ -22,6 +23,7 @@ class AuthzPersistence(ABC):
     @classmethod
     def store(cls, authz_map: authz.VolttronAuthzMap, **kwargs) -> bool:
         ...
+
 
 class Authenticator(ABC):
 
@@ -34,11 +36,11 @@ class AuthorizationManager(Service):
 
     @abstractmethod
     def create_or_merge_role(self,
-                    *,
-                    name: str,
-                    rpc_capabilities: authz.RPCCapabilities,
-                    pubsub_capabilities: authz.PubsubCapabilities,
-                    **kwargs) -> bool:
+                             *,
+                             name: str,
+                             rpc_capabilities: authz.RPCCapabilities,
+                             pubsub_capabilities: authz.PubsubCapabilities,
+                             **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -51,15 +53,23 @@ class AuthorizationManager(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user_authz(self, *, identity: str,
-                           protected_rpcs: set[authz.vipid_dot_rpc_method],
-                           roles: set[authz.role_name],
-                           rpc_capabilities: authz.RPCCapabilities,
-                           pubsub_capabilities: authz.PubsubCapabilities,
-                           comments: str | None,
-                           domain: str|None,
-                           address: str | None,
-                           **kwargs) -> bool:
+    def remove_users_from_group(self, name: str, identities: set[authz.Identity]):
+        ...
+
+    @abstractmethod
+    def add_users_to_group(self, name: str, identities: set[authz.Identity]):
+        ...
+
+    @abstractmethod
+    def create_or_merge_user(self, *, identity: str,
+                                   protected_rpcs: set[authz.vipid_dot_rpc_method],
+                                   roles: set[authz.role_name],
+                                   rpc_capabilities: authz.RPCCapabilities,
+                                   pubsub_capabilities: authz.PubsubCapabilities,
+                                   comments: str | None,
+                                   domain: str | None,
+                                   address: str | None,
+                                   **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -81,6 +91,7 @@ class AuthorizationManager(Service):
     @abstractmethod
     def remove_role(self, name: str):
         ...
+
 
 class AuthService(Service):
 
@@ -131,7 +142,15 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user_authz(self, *, identity: authz.Identity,
+    def remove_users_from_group(self, name: str, identities: set[authz.Identity]):
+        ...
+
+    @abstractmethod
+    def add_users_to_group(self, name: str, identities: set[authz.Identity]):
+        ...
+
+    @abstractmethod
+    def create_or_merge_user(self, *, identity: authz.Identity,
                                    protected_rpcs: set[authz.vipid_dot_rpc_method],
                                    roles: set[authz.role_name],
                                    rpc_capabilities: authz.RPCCapabilities,
