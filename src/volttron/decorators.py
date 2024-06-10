@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, TypeVar
 
 from volttron.client.vip.agent.core import Core
 from volttron.server.containers import service_repo
-from volttron.types.auth import (AuthService, Authenticator, AuthorizationManager,
-                                 Authorizer, Credentials, CredentialsCreator, CredentialsStore)
+from volttron.types.auth import (AuthService, Authenticator, AuthorizationManager, Authorizer,
+                                 Credentials, CredentialsCreator, CredentialsStore)
 from volttron.types.bases import (AgentBuilder, AgentExecutor, AgentStarter, ConnectionBuilder,
                                   CoreBuilder, MessageBus, Service)
 # from volttron.types.interfaces import (AgentBuilder, AgentExecutor, AgentStarter, Connection,
@@ -60,7 +60,8 @@ def factory_registration(registy_name: str,
 
         # args = typing.get_args(interface)
         # if
-        if interface is not None and not interface in cls.__bases__ and not isinstance(
+
+        if interface is not None and not issubclass(cls, interface) and not isinstance(
                 cls, interface):
             raise ValueError(f"{cls.__name__} doesn't implement {interface}")
 
