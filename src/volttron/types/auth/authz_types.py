@@ -1,3 +1,4 @@
+import copy
 from typing import Any
 
 from attrs import validators, define, field, fields
@@ -7,6 +8,7 @@ vipid_dot_rpc_method = str
 RPC_CAPABILITIES = "rpc_capabilities"
 PUBSUB_CAPABILITIES = "pubsub_capabilities"
 ROLES = "roles"
+
 
 @define
 class RPCCapability:
@@ -248,14 +250,80 @@ def unstructure_users(instance: Users):
 
 @define
 class VolttronAuthzMap:
-    protected_topics: field(type=set[str], default=None)
-    roles: field(type=Roles, default=None)
-    user_groups: field(type=UserGroups, default=None)
-    users: field(type=Users, default=None)
-    compact_dict: field(type=dict, init=False, default=None)
+
+    # TODO - Persist changes to file!
+
+    protected_topics = field(type=set[str], default=None)
+    roles = field(type=Roles, default=None)
+    user_groups = field(type=UserGroups, default=None)
+    users = field(type=Users, default=None)
+    compact_dict = field(type=dict, init=False, default=None)
+    user_capabilities = field(type=dict, init=False, default=None)
 
     def __attrs_post_init__(self):
-        self.compact_dict = dict()
+        self.compact_dict = authz_converter.unstructure(self)
+        self.user_capabilities = copy.deepcopy(self.compact_dict.get("users"))
+        VolttronAuthzMap.expand_user_capabilities(self.user_capabilities,
+                                                  self.compact_dict.get("user_groups"),
+                                                  self.compact_dict.get("roles"))
+
+    @classmethod
+    def from_unstructured_dict(cls, input_dict: dict):
+        """
+        Method to create VolttronAuthzMap instance from json.load(authz.json file)
+        :param input_dict: json.load(authz.json file created by unstructure(VolttronAuthzMap))
+        :return: instance of VolttronAuthzMap
+        """
+        protected_topics = input_dict.get("protected_topics")
+
+        # Build Roles
+        _roles = list()
+        for name, value in input_dict.get(ROLES, dict()).items():
+            rpc_obj_list = VolttronAuthzMap.create_rpc_capabilities_obj(value.get(RPC_CAPABILITIES))
+            pubsub_obj_list = VolttronAuthzMap.create_pubsub_capabilities_obj(value.get(PUBSUB_CAPABILITIES))
+
+            r_obj = Role(name, rpc_capabilities=rpc_obj_list, pubsub_capabilities=pubsub_obj_list)
+            _roles.append(r_obj)
+
+        # Build user groups
+        groups = list()
+        for group_name, value in input_dict.get("user_groups", dict()).items():
+            vip_ids = value.get("identities", list())
+            role_names = value.get(ROLES, list())
+            rpc_obj_list = VolttronAuthzMap.create_rpc_capabilities_obj(value.get(RPC_CAPABILITIES))
+            pubsub_obj_list = VolttronAuthzMap.create_pubsub_capabilities_obj(value.get(PUBSUB_CAPABILITIES))
+            groups.append(UserGroup(name=group_name, identities=vip_ids, roles=role_names,
+                                    rpc_capabilities=rpc_obj_list, pubsub_capabilities=pubsub_obj_list))
+
+        # Build users
+        users = list()
+        for identity, value in input_dict.get("users", dict()).items():
+            protected_rpcs = value.get("protected_rpcs", list())
+            role_names = value.get(ROLES, list())
+            rpc_obj_list = VolttronAuthzMap.create_rpc_capabilities_obj(value.get(RPC_CAPABILITIES))
+            pubsub_obj_list = VolttronAuthzMap.create_pubsub_capabilities_obj(value.get(PUBSUB_CAPABILITIES))
+            comments = value.get("comments")
+            domain = value.get("domain")
+            address = value.get("address")
+            users.append(User(identity=identity,
+                              protected_rpcs=protected_rpcs,
+                              roles=role_names,
+                              rpc_capabilities=rpc_obj_list,
+                              pubsub_capabilities=pubsub_obj_list,
+                              comments=comments,
+                              domain=domain,
+                              address=address))
+
+        authz_roles = Roles(_roles)
+        authz_user_groups = UserGroups(groups)
+        authz_users = Users(users)
+        instance = cls(protected_topics=protected_topics,
+                       roles=authz_roles,
+                       user_groups=authz_user_groups,
+                       users=authz_users)
+        # print(json.dumps(authz.authz_converter.unstructure(instance), indent=4))
+        instance.compact_dict = input_dict
+        return instance
 
     @classmethod
     def create_rpc_capabilities_obj(cls, rpc_cap_list: list = None) -> RPCCapabilities:
@@ -281,60 +349,80 @@ class VolttronAuthzMap:
         return obj_list
 
     @classmethod
-    def from_unstructured_dict(cls, authz_compact_dict: dict):
-        protected_topics = authz_compact_dict.get("protected_topics")
+    def expand_user_capabilities(cls, *, user_capabilities, user_groups, roles):
+        if not user_capabilities:
+            return
+        if user_groups:
+            # Apply rules of the group to each group member
+            for _name, group_details in user_groups:
+                for vip in group_details["identities"]:
+                    if group_details.get(ROLES):
+                        # assume we have validated vipid at time of group creation/updation
+                        user_roles = set(user_capabilities[vip].get(ROLES, []))
+                        user_roles.update(group_details.get(ROLES))
+                        user_capabilities[vip][ROLES] = list(user_roles)
+                    new_rpc_caps = group_details.get(RPC_CAPABILITIES)
+                    cls.update_rpc_capabilities(user_capabilities[vip], new_rpc_caps)
+                    new_pubsub_caps = group_details.get(PUBSUB_CAPABILITIES)
+                    cls.update_pubsub_capabilities(user_capabilities[vip], new_pubsub_caps)
 
-        # Build Roles
-        _roles = list()
-        for name, value in authz_compact_dict.get(ROLES, dict()).items():
-            rpc_obj_list = VolttronAuthzMap.create_rpc_capabilities_obj(value.get(RPC_CAPABILITIES))
-            pubsub_obj_list = VolttronAuthzMap.create_pubsub_capabilities_obj(value.get(PUBSUB_CAPABILITIES))
+        if roles:
+            # Apply role's capabilities to user_capabilities.
+            for vip, user_authz in user_capabilities:
+                for user_role in user_authz.get(ROLES, []):
+                    param_restriction = None
+                    if isinstance(user_role, dict):
+                        user_role_name = list(user_role.keys())[0]
+                        param_restriction = user_role[user_role_name]
+                        # TODO add  restriction dict to role's rpc capbailities before merging with
+                        # user capabilities
 
-            r_obj = Role(name, rpc_capabilities=rpc_obj_list, pubsub_capabilities=pubsub_obj_list)
-            _roles.append(r_obj)
+                    else:
+                        user_role_name = user_role
+                        # Update user authz with role's rpc cap
+                        cls.update_rpc_capabilities(user_authz,
+                                                    roles.get(user_role_name).get(RPC_CAPABILITIES))
+                    # update user authz with role's pubsub cap
+                    cls.update_pubsub_capabilities(user_authz, roles.get(user_role_name).get(PUBSUB_CAPABILITIES))
 
-        # Build user groups
-        groups = list()
-        for group_name, value in authz_compact_dict.get("user_groups", dict()).items():
-            vip_ids = value.get("identities", list())
-            role_names = value.get(ROLES, list())
-            rpc_obj_list = VolttronAuthzMap.create_rpc_capabilities_obj(value.get(RPC_CAPABILITIES))
-            pubsub_obj_list = VolttronAuthzMap.create_pubsub_capabilities_obj(value.get(PUBSUB_CAPABILITIES))
-            groups.append(UserGroup(name=group_name, identities=vip_ids, roles=role_names,
-                                    rpc_capabilities=rpc_obj_list, pubsub_capabilities=pubsub_obj_list))
 
-        # Build users
-        users = list()
-        for identity, value in authz_compact_dict.get("users", dict()).items():
-            protected_rpcs = value.get("protected_rpcs", list())
-            role_names = value.get(ROLES, list())
-            rpc_obj_list = VolttronAuthzMap.create_rpc_capabilities_obj(value.get(RPC_CAPABILITIES))
-            pubsub_obj_list = VolttronAuthzMap.create_pubsub_capabilities_obj(value.get(PUBSUB_CAPABILITIES))
-            comments = value.get("comments")
-            domain = value.get("domain")
-            address = value.get("address")
-            users.append(User(identity=identity,
-                              protected_rpcs=protected_rpcs,
-                              roles=role_names,
-                              rpc_capabilities=rpc_obj_list,
-                              pubsub_capabilities=pubsub_obj_list,
-                              comments=comments,
-                              domain=domain,
-                              address=address))
 
-        authz_roles = Roles(_roles)
-        authz_user_groups = UserGroups(groups)
-        authz_users = Users(users)
-        instance = cls(protected_topics=protected_topics,
-                       roles=authz_roles,
-                       user_groups=authz_user_groups,
-                       users=authz_users)
-        # print(json.dumps(authz.authz_converter.unstructure(instance), indent=4))
-        instance.compact_dict = authz_compact_dict
-        return instance
 
-    def create_merge_role(self, *, name: str, rpc_capabilities: RPCCapabilities = None,
-                          pubsub_capabilities: PubsubCapabilities = None) -> bool:
+
+    @classmethod
+    def update_rpc_capabilities(cls, authz_dict: dict, new_rpc_caps: list):
+        if not new_rpc_caps:
+            return
+        current_rpc_caps = authz_dict.get(RPC_CAPABILITIES)
+        if not current_rpc_caps:
+            authz_dict[RPC_CAPABILITIES] = new_rpc_caps
+            return
+
+        # Both current and new rpc capabilities are not empty.
+        # Merge
+        for element in new_rpc_caps:
+            if isinstance(element, dict):
+                for i, cur_cap in enumerate(current_rpc_caps):
+                    if isinstance(cur_cap, dict) and next(iter(element)) == next(iter(cur_cap)):
+                        new_param_restrict_value = element[next(iter(element))]
+                        new_param_restrict_value.update(cur_cap[next(iter(cur_cap))])
+                        current_rpc_caps[i] = element
+                        break
+                else:
+                    # for loop completed and didn't do anything so new cap is not in current. so append
+                    current_rpc_caps.append(element)
+            elif element not in current_rpc_caps:
+                current_rpc_caps.append(element)
+
+    @classmethod
+    def update_pubsub_capabilities(cls, authz_dict, new_pubsub_caps):
+        if new_pubsub_caps:
+            user_pubsub_caps = authz_dict.get(PUBSUB_CAPABILITIES, dict())
+            user_pubsub_caps.update(new_pubsub_caps)
+            authz_dict[PUBSUB_CAPABILITIES] = user_pubsub_caps
+
+    def create_or_merge_role(self, *, name: str, rpc_capabilities: RPCCapabilities = None,
+                             pubsub_capabilities: PubsubCapabilities = None) -> bool:
         if not rpc_capabilities and not pubsub_capabilities:
             raise ValueError(f"Role {name} should have non empty capabilities - rpc capabilities, "
                              "pubsub capabilities or both")
@@ -344,15 +432,8 @@ class VolttronAuthzMap:
             self.compact_dict.get(ROLES)[name] = dict()
 
         role_dict = self.compact_dict.get(ROLES).get(name)
-        if rpc_capabilities:
-            current_rpc_caps = role_dict.get(RPC_CAPABILITIES, [])
-            s = set(current_rpc_caps)
-            s.update(authz_converter.unstructure(rpc_capabilities))
-            role_dict[RPC_CAPABILITIES] = list(s)
-        if pubsub_capabilities:
-            current_pubsub_caps = role_dict.get(PUBSUB_CAPABILITIES, dict())
-            current_pubsub_caps.update(authz_converter.unstructure(pubsub_capabilities))
-            role_dict[PUBSUB_CAPABILITIES] = current_pubsub_caps
+        VolttronAuthzMap.update_rpc_capabilities(role_dict, authz_converter.unstructure(rpc_capabilities))
+        VolttronAuthzMap.update_pubsub_capabilities(role_dict, authz_converter.unstructure(pubsub_capabilities))
         return True
 
     def create_or_merge_user_group(self, *, name: str, identities: set[Identity], roles: set[role_name],
@@ -370,29 +451,37 @@ class VolttronAuthzMap:
             self.compact_dict.get("user_groups")[name] = dict()
 
         group_dict = self.compact_dict.get("user_groups").get(name)
-
+        # todo validate ids
         current_ids_set = set(group_dict.get("identities", list()))
         current_ids_set.update(identities)
         group_dict["identities"] = list(current_ids_set)
 
         if roles:
+            # todo validate roles
             current_roles_set = set(group_dict.get(ROLES, list()))
             current_roles_set.update(roles)
             group_dict[ROLES] = list(current_roles_set)
 
-        if rpc_capabilities:
-            current_rpc_caps = group_dict.get(RPC_CAPABILITIES, [])
-            s = set(current_rpc_caps)
-            s.update(authz_converter.unstructure(rpc_capabilities))
-            group_dict[RPC_CAPABILITIES] = list(s)
-
-        if pubsub_capabilities:
-            current_pubsub_caps = group_dict.get(PUBSUB_CAPABILITIES, dict())
-            current_pubsub_caps.update(authz_converter.unstructure(pubsub_capabilities))
-            group_dict[PUBSUB_CAPABILITIES] = current_pubsub_caps
+        VolttronAuthzMap.update_rpc_capabilities(group_dict, authz_converter.unstructure(rpc_capabilities))
+        VolttronAuthzMap.update_pubsub_capabilities(group_dict, authz_converter.unstructure(pubsub_capabilities))
         return True
-    
-    def create_or_merge_user_authz(self, *, identity: str, protected_rpcs: set[vipid_dot_rpc_method],
+
+    def remove_users_from_group(self, name: str, identities: set[Identity]) -> bool:
+        if not self.compact_dict.get("user_groups") or name not in self.compact_dict["user_groups"]:
+            return False
+        s = set(self.compact_dict["user_groups"][name]["identities"])
+        self.compact_dict["user_groups"][name]["identities"] = list(s - identities)
+        return True
+
+    def add_users_to_group(self, name: str, identities: set[Identity]):
+        if not self.compact_dict.get("user_groups") or name not in self.compact_dict["user_groups"]:
+            return False
+        # TODO validate identity
+        s = set(self.compact_dict["user_groups"][name]["identities"])
+        s.update(identities)
+        self.compact_dict["user_groups"][name]["identities"] = list(s)
+
+    def create_or_merge_user(self, *, identity: str, protected_rpcs: set[vipid_dot_rpc_method],
                                    roles: set[role_name], rpc_capabilities: RPCCapabilities,
                                    pubsub_capabilities: PubsubCapabilities, comments: str | None,
                                    domain: str | None, address: str | None, **kwargs) -> bool:
@@ -413,6 +502,7 @@ class VolttronAuthzMap:
             user_dict["protected_rpcs"] = list(current_rpc_set)
 
         if roles:
+            # todo validate role
             current_roles_set = set(user_dict.get(ROLES, list()))
             current_roles_set.update(roles)
             user_dict[ROLES] = list(current_roles_set)
@@ -503,34 +593,55 @@ authz_converter.register_unstructure_hook(VolttronAuthzMap, unstructure_authz_ma
 # test
 ###############
 if __name__ == "__main__":
-    r1 = RPCCapability("id.rpc1")
-    r2 = RPCCapability("id2.rpc2", {"id": "id2", "p2": "v2"})
-    rpc_list = RPCCapabilities([r1, r2])
-    print(rpc_list)
-    rpc_dict = authz_converter.unstructure(rpc_list)
-    print(rpc_dict)
-    pubsub_list = PubsubCapabilities([PubsubCapability(topic_pattern="device/*", topic_access="pubsub"),
-                                      PubsubCapability(topic_pattern="*", topic_access="pubsub")])
-    print(pubsub_list)
-    pubsub_dict = authz_converter.unstructure(pubsub_list)
+
+    test_r1 = RPCCapability("id.rpc1")
+    test_r2 = RPCCapability("id2.rpc2", {"id": "id2", "p2": "v2"})
+    test_rpc_list = RPCCapabilities([test_r1, test_r2])
+    print(test_rpc_list)
+    test_rpc_dict = authz_converter.unstructure(test_rpc_list)
+    print(test_rpc_dict)
+    test_pubsub_list = PubsubCapabilities([PubsubCapability(topic_pattern="device/*", topic_access="pubsub"),
+                                           PubsubCapability(topic_pattern="*", topic_access="pubsub")])
+    print(test_pubsub_list)
+    pubsub_dict = authz_converter.unstructure(test_pubsub_list)
     print(pubsub_dict)
 
-    r = Role("admin", rpc_list, pubsub_list)
-    print(r)
-    r_dict = authz_converter.unstructure(r)
-    print(r_dict)
-    roles = Roles([Role("admin", rpc_list), Role("new_role", pubsub_capabilities=pubsub_list)])
-    print(roles)
-    roles_dict = authz_converter.unstructure(roles)
-    print(roles_dict)
+    test_role = Role("admin", test_rpc_list, test_pubsub_list)
+    print(test_role)
+    test_role_dict = authz_converter.unstructure(test_role)
+    print(test_role_dict)
+    test_roles = Roles([Role("admin", test_rpc_list), Role("new_role", pubsub_capabilities=test_pubsub_list)])
+    print(test_roles)
+    test_roles_dict = authz_converter.unstructure(test_roles)
+    print(test_roles_dict)
 
-    g = UserGroups([UserGroup("admin_users", {"volttron.ctl", "config.store"}, roles={"admin"},
-                              pubsub_capabilities=pubsub_list)])
-    print(g)
-    g_dict = authz_converter.unstructure(g)
-    print(g_dict)
+    test_group = UserGroups([UserGroup("admin_users", {"volttron.ctl", "config.store"}, roles={"admin"},
+                                       pubsub_capabilities=test_pubsub_list)])
+    print(test_group)
+    test_group_dict = authz_converter.unstructure(test_group)
+    print(test_group_dict)
 
-    u = Users([User("volttron.ctl", roles={"admin"}), User("hist1", rpc_capabilities=rpc_list)])
-    print(u)
-    u_dict = authz_converter.unstructure(u)
-    print(u_dict)
+    test_users = Users([User("volttron.ctl", roles={"admin"}), User("hist1", rpc_capabilities=test_rpc_list)])
+    print(test_users)
+    test_users_dict = authz_converter.unstructure(test_users)
+    print(test_users_dict)
+
+
+    ## Test rpc capabilities update
+    current_rpc_caps = ["string value", {"p1": {"param1": "value1", "param2": "value3", "param3": "value3"}}]
+    element = {"p1": {"param1": "value1", "param2": "value2"}}
+    ## element = {"p3": {1: "12"}}
+    ## element = "sasdf"
+    if isinstance(element, dict):
+        for i, cur_cap in enumerate(current_rpc_caps):
+            if isinstance(cur_cap, dict) and next(iter(element)) == next(iter(cur_cap)):
+                new_param_restrict_value = element[next(iter(element))]
+                new_param_restrict_value.update(cur_cap[next(iter(cur_cap))])
+                current_rpc_caps[i] = element
+                break
+        else:
+            current_rpc_caps.append(element)
+    elif element not in current_rpc_caps:
+        current_rpc_caps.append(element)
+
+    print(current_rpc_caps)
