@@ -13,7 +13,11 @@ ROLES = "roles"
 @define
 class RPCCapability:
     resource = field(type=vipid_dot_rpc_method)
-    param_restrictions = field(type=dict, default=dict())
+    param_restrictions = field(type=dict, default=None)
+
+    def __attrs_post_init__(self):
+        if self.param_restrictions is None:
+            self.param_restrictions = dict()
 
     def add_param_restrictions(self, param: str, value: Any):
         self.param_restrictions[param] = value
@@ -21,17 +25,39 @@ class RPCCapability:
 
 @define
 class RPCCapabilities:
-    rpc_capabilities = field(type=list[RPCCapability], default=[])
+    rpc_capabilities = field(type=list[RPCCapability], default=None)
+    _rpc_dict = field(type=dict, default=None, init=False)
+
+    def __attrs_post_init__(self):
+        if self.rpc_capabilities is None:
+            self.rpc_capabilities = []
+        self._rpc_dict = dict()
+        for r in self.rpc_capabilities:
+            self._rpc_dict
 
     def add_rpc_capability(self, c: RPCCapability):
-        if c.resource not in self.rpc_capabilities:
+        if c.resource not in self._rpc_dict:
             self.rpc_capabilities.append(c)
+            self._rpc_dict[c.resource] = c.param_restrictions
+        else:
+            for r in self.rpc_capabilities:
+                if r.resource == c.resource:
+                    r.param_restrictions.update(c.param_restrictions)
+                    self._rpc_dict[r.resource] = r.param_restrictions
+                    break
 
     def remove_rpc_capability(self, c: RPCCapability):
         try:
             self.rpc_capabilities.remove(c)
         except ValueError:
-            pass
+            if c.resource in self._rpc_dict:
+                # difference is in param_restriction
+                for r in self.rpc_capabilities:
+                    if r.resource == c.resource:
+                       for k in c.param_restrictions:
+                           r.param_restrictions.pop(k, None)
+        else:
+            self._rpc_dict.pop(c.resource)
 
     def __len__(self):
         return len(self.rpc_capabilities)
@@ -69,7 +95,11 @@ class PubsubCapability:
 @define
 class PubsubCapabilities:
     # todo check for duplicates
-    pubsub_capabilities = field(type=list[PubsubCapability], default=[])
+    pubsub_capabilities = field(type=list[PubsubCapability], default=None)
+
+    def __attrs_post_init__(self):
+        if self.pubsub_capabilities is None:
+            self.pubsub_capabilities = []
 
     def add_pubsub_capability(self, c: PubsubCapability):
         if c not in self.pubsub_capabilities:
@@ -117,7 +147,11 @@ class Role:
 
 @define
 class Roles:
-    roles = field(type=list[Role], default=[])
+    roles = field(type=list[Role], default=None)
+
+    def __attrs_post_init__(self):
+        if self.roles is None:
+            self.roles = []
 
     def __len__(self):
         return len(self.roles)
@@ -163,15 +197,25 @@ Identity = str
 @define
 class UserGroup:
     name = field(type=str)
-    identities = field(type=set[Identity], default=set())
-    roles = field(type=set[role_name], default=set())
+    identities = field(type=set[Identity], default=None)
+    roles = field(type=set[role_name], default=None)
     rpc_capabilities = field(type=RPCCapabilities, default=None)
     pubsub_capabilities = field(type=PubsubCapabilities, default=None)
+
+    def __attrs_post_init__(self):
+        if self.identities is None:
+            self.identities = set()
+        if self.roles is None:
+            self.roles = set()
 
 
 @define
 class UserGroups:
-    user_groups = field(type=list[UserGroup], default=[])
+    user_groups = field(type=list[UserGroup], default=None)
+
+    def __attrs_post_init__(self):
+        if self.user_groups is None:
+            self.user_groups = []
 
     def __len__(self):
         return len(self.user_groups)
@@ -216,10 +260,85 @@ def unstructure_user_groups(instance: UserGroups):
 
 
 @define
+class UserRole:
+    role_name = field(type=role_name)
+    param_restrictions = field(type=dict, default=None)
+
+    def __attrs_post_init__(self):
+        if self.param_restrictions is None:
+            self.param_restrictions = dict()
+
+    def add_param_restrictions(self, param: str, value: Any):
+        self.param_restrictions[param] = value
+
+
+@define
+class UserRoles:
+    user_roles = field(type=list[UserRole], default=None)
+    _user_roles_dict = field(type=dict, default=None, init=False)
+
+    def __attrs_post_init__(self):
+        if self.user_roles is None:
+            self.user_roles = []
+        self._user_roles_dict = dict()
+        for r in self.user_roles:
+            self._user_roles_dict
+
+    def add_rpc_capability(self, c: RPCCapability):
+        if c.resource not in self._user_roles_dict:
+            self.user_roles.append(c)
+            self._user_roles_dict[c.resource] = c.param_restrictions
+        else:
+            for r in self.user_roles:
+                if r.resource == c.resource:
+                    r.param_restrictions.update(c.param_restrictions)
+                    self._user_roles_dict[r.resource] = r.param_restrictions
+                    break
+
+    def remove_rpc_capability(self, c: RPCCapability):
+        try:
+            self.user_roles.remove(c)
+        except ValueError:
+            if c.resource in self._user_roles_dict:
+                # difference is in param_restriction
+                for r in self.user_roles:
+                    if r.resource == c.resource:
+                       for k in c.param_restrictions:
+                           r.param_restrictions.pop(k, None)
+        else:
+            self._user_roles_dict.pop(c.resource)
+
+    def __len__(self):
+        return len(self.user_roles)
+
+
+def unstructure_user_roles(instance: UserRoles):
+    """
+    Convert from:
+
+        UserRoles(
+        user_roles=[UserRole(role_name='role1', param_restrictions={}),
+                    UserRole(role_name='role2', param_restrictions={'id': 'id2', 'p2': 'v2'})])
+
+    TO:
+        ['role1', {'role2': {'id': 'id2', 'p2': 'v2'}}]
+        i.e. instead of the default unstructure/asdict behavior - list of {role_name:value, param_restrictions:value}
+        generate single List with just role_name str if param_restrictions is None or dict(role_name, param_restriction)
+
+    """
+    user_roles_list = []
+    for c in instance.user_roles:
+        if c.param_restrictions:
+            user_roles_list.append({c.role_name: c.param_restrictions})
+        else:
+            user_roles_list.append(c.role_name)
+    return user_roles_list
+
+@define
 class User:
     identity = field(type=Identity)
     protected_rpcs = field(type=set[vipid_dot_rpc_method], default=None)
-    roles = field(type=set[role_name], default=None)
+    roles = field(type=UserRoles, default=None)
     rpc_capabilities = field(type=RPCCapabilities, default=None)
     pubsub_capabilities = field(type=PubsubCapabilities, default=None)
     comments = field(type=str, default=None)
@@ -229,7 +348,11 @@ class User:
 
 @define
 class Users:
-    users = field(type=list[User])
+    users = field(type=list[User], default=None)
+
+    def __attrs_post_init__(self):
+        if self.users is None:
+            self.users = []
 
     def __len__(self):
         return len(self.users)
@@ -251,8 +374,6 @@ def unstructure_users(instance: Users):
 @define
 class VolttronAuthzMap:
 
-    # TODO - Persist changes to file!
-
     protected_topics = field(type=set[str], default=None)
     roles = field(type=Roles, default=None)
     user_groups = field(type=UserGroups, default=None)
@@ -263,9 +384,9 @@ class VolttronAuthzMap:
     def __attrs_post_init__(self):
         self.compact_dict = authz_converter.unstructure(self)
         self.user_capabilities = copy.deepcopy(self.compact_dict.get("users"))
-        VolttronAuthzMap.expand_user_capabilities(self.user_capabilities,
-                                                  self.compact_dict.get("user_groups"),
-                                                  self.compact_dict.get("roles"))
+        VolttronAuthzMap.expand_user_capabilities(user_capabilities=self.user_capabilities,
+                                                  user_groups=self.compact_dict.get("user_groups"),
+                                                  roles=self.compact_dict.get("roles"))
 
     @classmethod
     def from_unstructured_dict(cls, input_dict: dict):
@@ -354,10 +475,10 @@ class VolttronAuthzMap:
             return
         if user_groups:
             # Apply rules of the group to each group member
-            for _name, group_details in user_groups:
+            for _name, group_details in user_groups.items():
                 for vip in group_details["identities"]:
                     if group_details.get(ROLES):
-                        # assume we have validated vipid at time of group creation/updation
+                        # assume we have validated vip id at time of group creation/updation
                         user_roles = set(user_capabilities[vip].get(ROLES, []))
                         user_roles.update(group_details.get(ROLES))
                         user_capabilities[vip][ROLES] = list(user_roles)
@@ -365,28 +486,37 @@ class VolttronAuthzMap:
                     cls.update_rpc_capabilities(user_capabilities[vip], new_rpc_caps)
                     new_pubsub_caps = group_details.get(PUBSUB_CAPABILITIES)
                     cls.update_pubsub_capabilities(user_capabilities[vip], new_pubsub_caps)
-
         if roles:
             # Apply role's capabilities to user_capabilities.
-            for vip, user_authz in user_capabilities:
+            for vip, user_authz in user_capabilities.items():
                 for user_role in user_authz.get(ROLES, []):
                     param_restriction = None
                     if isinstance(user_role, dict):
                         user_role_name = list(user_role.keys())[0]
                         param_restriction = user_role[user_role_name]
-                        # TODO add  restriction dict to role's rpc capbailities before merging with
+                        # add param restriction dict to role's rpc capbailities before merging with
                         # user capabilities
-
+                        role_rpc_caps = copy.deepcopy(roles.get(user_role_name).get(RPC_CAPABILITIES))
+                        role_rpc_caps_params = []
+                        for role_rpc_cap in role_rpc_caps:
+                            if isinstance(role_rpc_cap, str):
+                                d = {role_rpc_cap: param_restriction}
+                            else:
+                                key = list(role_rpc_cap.keys())[0]
+                                value = role_rpc_cap[key]
+                                d={key: value}
+                                value.update(param_restriction)
+                            role_rpc_caps_params.append(d)
+                        # Update user authz with role's rpc cap
+                        cls.update_rpc_capabilities(user_authz, role_rpc_caps_params)
                     else:
                         user_role_name = user_role
                         # Update user authz with role's rpc cap
                         cls.update_rpc_capabilities(user_authz,
                                                     roles.get(user_role_name).get(RPC_CAPABILITIES))
+
                     # update user authz with role's pubsub cap
                     cls.update_pubsub_capabilities(user_authz, roles.get(user_role_name).get(PUBSUB_CAPABILITIES))
-
-
-
 
 
     @classmethod
@@ -434,6 +564,7 @@ class VolttronAuthzMap:
         role_dict = self.compact_dict.get(ROLES).get(name)
         VolttronAuthzMap.update_rpc_capabilities(role_dict, authz_converter.unstructure(rpc_capabilities))
         VolttronAuthzMap.update_pubsub_capabilities(role_dict, authz_converter.unstructure(pubsub_capabilities))
+        # TODO update user_capabilities
         return True
 
     def create_or_merge_user_group(self, *, name: str, identities: set[Identity], roles: set[role_name],
@@ -464,6 +595,7 @@ class VolttronAuthzMap:
 
         VolttronAuthzMap.update_rpc_capabilities(group_dict, authz_converter.unstructure(rpc_capabilities))
         VolttronAuthzMap.update_pubsub_capabilities(group_dict, authz_converter.unstructure(pubsub_capabilities))
+        # TODO update user_capabilities
         return True
 
     def remove_users_from_group(self, name: str, identities: set[Identity]) -> bool:
@@ -586,6 +718,7 @@ authz_converter.register_unstructure_hook(RPCCapabilities, unstructure_rpc_capab
 authz_converter.register_unstructure_hook(PubsubCapabilities, unstructure_pubsub_capabilities)
 authz_converter.register_unstructure_hook(Roles, unstructure_roles)
 authz_converter.register_unstructure_hook(UserGroups, unstructure_user_groups)
+authz_converter.register_unstructure_hook(UserRoles, unstructure_user_roles)
 authz_converter.register_unstructure_hook(Users, unstructure_users)
 authz_converter.register_unstructure_hook(VolttronAuthzMap, unstructure_authz_map)
 
@@ -594,6 +727,7 @@ authz_converter.register_unstructure_hook(VolttronAuthzMap, unstructure_authz_ma
 ###############
 if __name__ == "__main__":
 
+    # test unstructure hooks
     test_r1 = RPCCapability("id.rpc1")
     test_r2 = RPCCapability("id2.rpc2", {"id": "id2", "p2": "v2"})
     test_rpc_list = RPCCapabilities([test_r1, test_r2])
@@ -621,27 +755,33 @@ if __name__ == "__main__":
     test_group_dict = authz_converter.unstructure(test_group)
     print(test_group_dict)
 
-    test_users = Users([User("volttron.ctl", roles={"admin"}), User("hist1", rpc_capabilities=test_rpc_list)])
+    test_users = Users([User("volttron.ctl", roles=UserRoles([UserRole("admin")])),
+                        #User("hist1", rpc_capabilities=test_rpc_list),
+                        User("listener1",roles=UserRoles([
+                            UserRole(role_name="role1", param_restrictions={"param1":"value1"})]))
+                        ])
     print(test_users)
     test_users_dict = authz_converter.unstructure(test_users)
     print(test_users_dict)
 
 
     ## Test rpc capabilities update
-    current_rpc_caps = ["string value", {"p1": {"param1": "value1", "param2": "value3", "param3": "value3"}}]
-    element = {"p1": {"param1": "value1", "param2": "value2"}}
-    ## element = {"p3": {1: "12"}}
-    ## element = "sasdf"
-    if isinstance(element, dict):
-        for i, cur_cap in enumerate(current_rpc_caps):
-            if isinstance(cur_cap, dict) and next(iter(element)) == next(iter(cur_cap)):
-                new_param_restrict_value = element[next(iter(element))]
-                new_param_restrict_value.update(cur_cap[next(iter(cur_cap))])
-                current_rpc_caps[i] = element
-                break
-        else:
-            current_rpc_caps.append(element)
-    elif element not in current_rpc_caps:
-        current_rpc_caps.append(element)
+    # current_rpc_caps = ["string value", {"p1": {"param1": "value1", "param2": "value3", "param3": "value3"}}]
+    # element = {"p1": {"param1": "value1", "param2": "value2"}}
+    # ## element = {"p3": {1: "12"}}
+    # ## element = "sasdf"
+    # if isinstance(element, dict):
+    #     for i, cur_cap in enumerate(current_rpc_caps):
+    #         if isinstance(cur_cap, dict) and next(iter(element)) == next(iter(cur_cap)):
+    #             new_param_restrict_value = element[next(iter(element))]
+    #             new_param_restrict_value.update(cur_cap[next(iter(cur_cap))])
+    #             current_rpc_caps[i] = element
+    #             break
+    #     else:
+    #         current_rpc_caps.append(element)
+    # elif element not in current_rpc_caps:
+    #     current_rpc_caps.append(element)
+    # print(current_rpc_caps)
 
-    print(current_rpc_caps)
+    # #test expand user caps
+
