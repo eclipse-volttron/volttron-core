@@ -1,3 +1,4 @@
+# .github/workflows/sbom.yml
 name: Generate SBOM and VDR
 
 on:
@@ -36,7 +37,7 @@ jobs:
       - name: Generate Vulnerability Data Report
         run: |
           depscan --bom bom.json
-          mv ./bom.vdr.json ./reports/bom.vdr.json || echo "No VDR was generated."
+          mv ./bom.json ./reports/bom.json || echo "No VDR was generated."
 
       - name: Upload SBOM Artifact
         uses: actions/upload-artifact@v4
