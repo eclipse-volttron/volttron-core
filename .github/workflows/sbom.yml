@@ -54,12 +54,6 @@ jobs:
           fi
         # Generated files: bom.vdr.json (if VDR is generated)
 
-      - name: Print VDR as table
-        run: |
-          sudo apt-get install -y jq
-          python .github/workflows/print_sbom_vdr_table.py
-        # Prints the VDR as a table in the logs
-
       - name: Upload SBOM Artifact
         uses: actions/upload-artifact@v4
         with:
