@@ -87,7 +87,7 @@ def factory_registration(registy_name: str,
 
 
 # Allow many so lookup based upon concrete class rather than interface.
-service = factory_registration("services", interface=Service, singleton=True, allow_many=True)
+service = factory_registration("services", singleton=True, allow_many=True)
 
 core_builder = factory_registration("core_builder", interface=CoreBuilder, singleton=True)
 connection_builder = factory_registration("connection_bulider",

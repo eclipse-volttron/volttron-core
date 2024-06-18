@@ -47,7 +47,7 @@ from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.client.vip.agent import Agent
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
-from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileEntryAlreadyExists)
+#from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileEntryAlreadyExists)
 from volttron.types.bases import Service
 # from wheel.tool import unpack
 from volttron.utils import ClientContext as cc

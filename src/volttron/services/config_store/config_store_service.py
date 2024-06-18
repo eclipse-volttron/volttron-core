@@ -38,8 +38,8 @@ from volttron.client.known_identities import CONFIGURATION_STORE
 from volttron.client.vip.agent import RPC, Agent, Core, Unreachable, VIPError
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
-from volttron.services.auth.auth_service import AuthEntry, AuthFile
 from volttron.types.bases import Service
+from volttron.types.auth import Credentials, CredentialsStore
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import (format_timestamp, get_aware_utc_now, jsonapi, parse_json_config)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
@@ -108,14 +108,17 @@ class ConfigStoreService(Service, Agent):
     class Meta:
         identity = CONFIGURATION_STORE
 
-    def __init__(self, options: ServerOptions, **kwargs):
-        from volttron.server.containers import service_repo
-        from volttron.types.auth.auth_credentials import CredentialsStore
+    def __init__(self,
+                 options: ServerOptions,
+                 credential_store: CredentialsStore | None = None,
+                 **kwargs):
         kwargs["enable_store"] = False
         kwargs["identity"] = self.Meta.identity
 
-        creds = service_repo.resolve(CredentialsStore).retrieve_credentials(
-            identity=self.Meta.identity)
+        if credential_store is not None:
+            creds = credential_store.retrieve_credentials(identity=self.Meta.identity)
+        else:
+            creds = Credentials(identity=self.Meta.identity)
 
         super().__init__(credentials=creds, address=options.service_address, **kwargs)
 
@@ -153,7 +156,11 @@ class ConfigStoreService(Service, Agent):
             root, ext = os.path.splitext(store_path)
             agent_identity = os.path.basename(root)
             _log.debug("Processing store for agent {}".format(agent_identity))
-            store = PersistentDict(filename=store_path, flag="c", format="json")
+            #store = PersistentDict(filename=store_path, flag="c", format="json")
+            store = {}
+            if os.path.exists(store_path):
+                store = jsonapi.loads(open(store_path).read())
+
             parsed_configs, name_map = process_store(agent_identity, store)
             self.store[agent_identity] = {
                 "configs": parsed_configs,
@@ -248,7 +255,10 @@ class ConfigStoreService(Service, Agent):
         agent_name_map.clear()
 
         # Sync will delete the file if the store is empty.
-        agent_disk_store.async_sync()
+        #agent_disk_store.async_sync()
+        if not agent_disk_store and os.path.exists(
+                os.path.join(self.store_path, identity + store_ext)):
+            os.remove(os.path.join(self.store_path, identity + store_ext))
 
         if identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
@@ -446,7 +456,12 @@ class ConfigStoreService(Service, Agent):
         agent_name_map.pop(config_name_lower)
 
         # Sync will delete the file if the store is empty.
-        agent_disk_store.async_sync()
+        if not agent_disk_store and os.path.exists(
+                os.path.join(self.store_path, identity + store_ext)):
+            os.remove(os.path.join(self.store_path, identity + store_ext))
+        else:
+            with open(os.path.join(self.store_path, identity + store_ext), "w") as f:
+                jsonapi.dump(agent_disk_store, f)
 
         if send_update and identity in self.vip.peerlist.peers_list:
             with agent_store_lock:
@@ -554,7 +569,12 @@ class ConfigStoreService(Service, Agent):
             "data": raw,
         }
 
-        agent_disk_store.async_sync()
+        if not agent_disk_store and os.path.exists(
+                os.path.join(self.store_path, identity + store_ext)):
+            os.remove(os.path.join(self.store_path, identity + store_ext))
+        else:
+            with open(os.path.join(self.store_path, identity + store_ext), "w") as f:
+                jsonapi.dump(agent_disk_store, f)
 
         _log.debug("Agent {} config {} stored.".format(identity, config_name))
 

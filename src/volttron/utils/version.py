@@ -26,6 +26,12 @@ __all__ = ["get_version"]
 
 from pathlib import Path
 import importlib.metadata as importlib_metadata
+import sys
+
+from volttron.utils import execute_command
+
+# Version is going to start out as None and get set when import is done.
+__version__ = None
 
 # Try to get the version from written metadata, but
 # if failed then get it from the pyproject.toml file
@@ -34,19 +40,32 @@ try:
     # this is the version of the program that is used when the application is installed
     # via a wheel.
     __version__ = importlib_metadata.version('volttron')
+
 except importlib_metadata.PackageNotFoundError:
-    # We should be in a develop environment therefore
-    # we can get the version from the toml pyproject.toml
-    root = Path(__file__).parent.parent.parent
-    tomle_file = root.joinpath("pyproject.toml")
-    if not tomle_file.exists():
-        raise ValueError(
-            f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})")
-    import toml
+    try:
+        # We should be in a develop environment therefore
+        # we can get the version from the toml pyproject.toml
+        root = Path(__file__).parent.parent.parent
+        tomle_file = root.joinpath("pyproject.toml")
+        if not tomle_file.exists():
+            raise ValueError(
+                f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})")
+        import toml
 
-    pyproject = toml.load(tomle_file)
+        pyproject = toml.load(tomle_file)
 
-    __version__ = pyproject["tool"]["poetry"]["version"]
+        __version__ = pyproject["tool"]["poetry"]["version"]
+    except ValueError:
+        cmd = [sys.executable, "-m", "pip", "list"]
+        results = execute_command(cmd).split("\n")
+        for r in results:
+            if r.find("volttron-core") >= 0:
+                # split trims and removes whitespace around the elements.
+                __version__ = r.split()[1]
+                break
+
+if not __version__:
+    raise ImportError("Couldn't find version for volttron-core library!")
 
 
 def get_version():

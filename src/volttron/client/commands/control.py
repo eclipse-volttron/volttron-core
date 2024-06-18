@@ -23,9 +23,6 @@
 # }}}
 from gevent import monkey
 
-from volttron.auth.auth_file import AuthFile
-from volttron.services.auth.auth_service import AuthEntry, AuthException
-
 monkey.patch_all()
 import argparse
 import collections
@@ -2869,7 +2866,10 @@ def main():
     if opts.log_config:
         logging.config.fileConfig(opts.log_config)
 
-    opts.connection = ControlConnection(address=opts.vip_address)
+    logging.getLogger().setLevel(level=logging.DEBUG)
+
+    opts.connection: ControlConnection = ControlConnection(address=opts.vip_address)
+    assert opts.connection.server.core.is_connected()
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)

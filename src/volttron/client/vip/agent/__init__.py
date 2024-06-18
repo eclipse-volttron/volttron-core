@@ -52,7 +52,7 @@ class Agent(AbstractAgent):
             self.ping = Ping(core)
             self.rpc = RPC(core=core, owner=owner, peerlist_subsys=self.peerlist)
             self.hello = Hello(core)
-            # TODO Figure out how to  hook up to pubsub.
+            # TODO Figure out how to hook up to pubsub.
             # if message_bus == "rmq":
             #     self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)
             # else:

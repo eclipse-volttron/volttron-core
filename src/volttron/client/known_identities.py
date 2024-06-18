@@ -28,6 +28,7 @@ AUTH = "platform.auth"
 VOLTTRON_CENTRAL = "volttron.central"
 VOLTTRON_CENTRAL_PLATFORM = "platform.agent"
 
+PLATFORM = "platform"
 PLATFORM_DRIVER = "platform.driver"
 PLATFORM_TOPIC_WATCHER = "platform.topic_watcher"
 PLATFORM_SYSMON = "platform.sysmon"

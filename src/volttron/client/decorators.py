@@ -143,26 +143,34 @@ def get_server_credentials(address: Optional[str] = None) -> Credentials:
     from pathlib import Path
 
     from volttron.types.auth import (Credentials, PKICredentials, PublicCredentials)
-    from volttron.types.known_host import \
-        KnownHostProperties as known_host_properties
+    from volttron.types.known_host import KnownHostProperties as known_host_properties
     from volttron.utils import jsonapi
 
+    # ipc address must mean we are local so use @ symbol to mean so.
     if address is None or address.startswith('ipc'):
         address = "@"
 
+    new_path = Path(os.environ['VOLTTRON_HOME']) / "known_hosts.json"
     if known_host_properties is None:
         from volttron.types.known_host import _KnownHostProperties
-        new_path = Path(os.environ['VOLTTRON_HOME']) / "known_hosts.json"
         known_host_properties = _KnownHostProperties.load(new_path)
 
+        # Handle original known_hosts file if necessary.
         old_path = Path(os.environ['VOLTTRON_HOME']) / "known_hosts"
-        old_data = jsonapi.loads(old_path.open().read())
-        known_host_properties.add_property("@", "publickey", old_data["@"])
+        if old_path.exists():
+            old_data = jsonapi.loads(old_path.open().read())
+            if "@" in old_data:
+                known_host_properties.add_property("@", "publickey", old_data["@"])
+
         known_host_properties.store(new_path)
 
-    publickey = known_host_properties.get_property(address, "publickey")
-
     data = jsonapi.loads((Path(os.environ["VOLTTRON_HOME"]) / "keystore").open().read())
+
+    # TODO This should only be necessary if there is in fact a credential store.
+    # TODO Redo this thing here!
+    known_host_properties.add_property(address, "publickey", data["public"])
+    known_host_properties.store(new_path)
+    publickey = known_host_properties.get_property(address, "publickey")
 
     # TODO This should only return the PublicCredentials instead of PKICredentials, but for now
     # TODO Verify the credentails for the server.

@@ -103,9 +103,19 @@ class Container:
             else:
                 resolved = Success(container)
         else:
-            if self.is_optional_type(field):
-                resolved = Success(None)
-                #resolved = self._resolve_optional_argument(field)
+            for k, v in self._resolvable.items():
+                if isinstance(v, Container.ResolvableList):
+                    if v.contains(field):
+                        resolved = v.retrieve(field)
+                        break
+                    elif found_subclass := v.find_subclass(field):
+                        return v.retrieve(found_subclass)
+
+            if not resolved:
+                if self.is_optional_type(field):
+                    resolved = Success(None)
+                else:
+                    resolved = Failure(f"Couldn't resolve {field}")
 
             #resolved = Failure(f"Couldn't resolve {field}")
             # if isinstance(self._resolvable[field], Container.Singleton) or isinstance(
@@ -125,6 +135,10 @@ class Container:
             for k, v in self._resolvable_lists.items():
                 if v.contains(field):
                     return v.retrieve(field)
+
+                found_subclass = v.find_subclass(field)
+                if found_subclass:
+                    return v.retrieve(found_subclass)
 
         # If already found
         if found:
@@ -187,6 +201,19 @@ class Container:
         def __init__(self, type: T):
             self._the_type = type
             self._resolvers: dict[S, Container.Singleton] = {}
+
+        def find_subclass(self, type: T) -> Optional[S]:
+            """Find subclass of type T in the resolvers.
+
+            :param type: Type to search for
+            :type type: T
+            :return: The subclass if found or None
+            :rtype: Optional[S]
+            """
+            for k, v in self._resolvers.items():
+                if issubclass(k, type):
+                    return k
+            return None
 
         @property
         def type(self) -> T:
@@ -299,6 +326,7 @@ class Container:
                 #             self._kwargs[k] = self._resolvable[non_none_type]
 
                 try:
+                    arg_dict = resolved_kwargs.unwrap()
                     self._resolved = self._value(**resolved_kwargs.unwrap())
                 except TypeError as ex:
                     for x in ex.args:

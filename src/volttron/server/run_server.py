@@ -261,9 +261,9 @@ def start_volttron_process(options: ServerOptions):
         from volttron.server.decorators import start_service_agents
         from volttron.services.config_store.config_store_service import \
             ConfigStoreService
+        from volttron.types.auth import CredentialsStore
         from volttron.services.control.control_service import ControlService
         from volttron.services.health.health_service import HealthService
-        from volttron.types.auth.auth_credentials import CredentialsStore
         from volttron.types.known_host import \
             KnownHostProperties as known_host_properties
 
@@ -308,8 +308,16 @@ def start_volttron_process(options: ServerOptions):
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
 
-        auth_service: Optional[AuthService] = None
+        auth_service: AuthService | None = None
         if options.auth_enabled:
+            from volttron.types.auth.auth_service import AuthService
+            import importlib
+
+            # Use volttron.services.auth to load the main auth service.  A user may choose
+            # to not use our default auth service and can install their own service to this
+            # location.
+            loader = importlib.find_loader("volttron.services.auth")
+
             auth_service = service_repo.resolve(AuthService)
 
         # first service loaded must be the config store
@@ -322,6 +330,13 @@ def start_volttron_process(options: ServerOptions):
         event.wait()
         del event
         spawned_greenlets.append(task)
+
+        if auth_service is not None:
+            event = gevent.event.Event()
+            task = gevent.spawn(auth_service.core.run, event)
+            event.wait()
+            del event
+            spawned_greenlets.append(task)
 
         # Allows registration agents to callbacks for peers
         notifier = ServicePeerNotifier()

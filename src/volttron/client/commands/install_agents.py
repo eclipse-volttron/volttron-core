@@ -37,8 +37,7 @@ import yaml
 
 from volttron.client.vip.agent.results import AsyncResult
 
-from volttron.utils import (
-    execute_command, )
+from volttron.utils import execute_command
 from volttron.utils import jsonapi
 
 # from volttron.platform import agent, config, jsonapi, get_home

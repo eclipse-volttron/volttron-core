@@ -32,20 +32,18 @@ class Authenticator(ABC):
         ...
 
 
-class AuthorizationManager(Service):
+class AuthorizationManager:
 
     @abstractmethod
-    def create_or_merge_role(self,
-                             *,
-                             name: str,
-                             rpc_capabilities: authz.RPCCapabilities,
-                             pubsub_capabilities: authz.PubsubCapabilities,
-                             **kwargs) -> bool:
+    def create_or_merge_role(self, *, name: str, rpc_capabilities: authz.RPCCapabilities,
+                             pubsub_capabilities: authz.PubsubCapabilities, **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def create_or_merge_user_group(self, *, name: str,
-                                   users: set[authz.Identity],
+    def create_or_merge_user_group(self,
+                                   *,
+                                   name: str,
+                                   identities: set[authz.Identity],
                                    roles: authz.UserRoles = None,
                                    rpc_capabilities: authz.RPCCapabilities = None,
                                    pubsub_capabilities: authz.PubsubCapabilities = None,
@@ -61,10 +59,17 @@ class AuthorizationManager(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user(self, *, identity: str, protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                             roles: authz.UserRoles = None, rpc_capabilities: authz.RPCCapabilities = None,
-                             pubsub_capabilities: authz.PubsubCapabilities = None, comments: str = None,
-                             domain: str = None, address: str = None, **kwargs) -> bool:
+    def create_or_merge_user(self,
+                             *,
+                             identity: str,
+                             protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                             roles: authz.UserRoles = None,
+                             rpc_capabilities: authz.RPCCapabilities = None,
+                             pubsub_capabilities: authz.PubsubCapabilities = None,
+                             comments: str = None,
+                             domain: str = None,
+                             address: str = None,
+                             **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -115,20 +120,19 @@ class AuthService(Service):
     # Authorization
 
     @abstractmethod
-    def is_authorized(self, *, identity: authz.Identity, resource: Any, action: Any, **kwargs) -> bool:
+    def is_authorized(self, *, identity: authz.Identity, resource: Any, action: Any,
+                      **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def create_or_merge_role(self,
-                             *,
-                             name: str,
-                             rpc_capabilities: authz.RPCCapabilities,
-                             pubsub_capabilities: authz.PubsubCapabilities,
-                             **kwargs) -> bool:
+    def create_or_merge_role(self, *, name: str, rpc_capabilities: authz.RPCCapabilities,
+                             pubsub_capabilities: authz.PubsubCapabilities, **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def create_or_merge_user_group(self, *, name: str,
+    def create_or_merge_user_group(self,
+                                   *,
+                                   name: str,
                                    users: set[authz.Identity],
                                    roles: Optional[authz.UserRoles] = None,
                                    rpc_capabilities: Optional[authz.RPCCapabilities] = None,
@@ -145,11 +149,32 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user(self, *, identity: str, protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                             roles: authz.UserRoles = None, rpc_capabilities: authz.RPCCapabilities = None,
-                             pubsub_capabilities: authz.PubsubCapabilities = None, comments: str = None,
-                             domain: str = None, address: str = None, **kwargs) -> bool:
+    def create_or_merge_user(self,
+                             *,
+                             identity: str,
+                             protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                             roles: authz.UserRoles = None,
+                             rpc_capabilities: authz.RPCCapabilities = None,
+                             pubsub_capabilities: authz.PubsubCapabilities = None,
+                             comments: str = None,
+                             domain: str = None,
+                             address: str = None,
+                             **kwargs) -> bool:
         ...
+
+    @abstractmethod
+    def client_connected(self, *, credentials: Credentials):
+        """
+        The client_connected method is called when a client connects to the
+        message bus.
+
+        :param credentials: The credentials of the client that connected.
+        :type credentials: Credentials
+        """
+        ...
+
+    # def add_credential_to_role(credential: Credentials, role: str) -> None:
+    #     ...
 
     @abstractmethod
     def create_protected_topic(self, *, topic_name_pattern: str) -> bool:

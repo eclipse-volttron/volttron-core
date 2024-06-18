@@ -144,4 +144,7 @@ class HealthService(Service, Agent):
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
         # Start subscribing to heartbeat topic to get updates from the health subsystem.
-        self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
+        # TODO: We need pubsub to use this method.
+        #
+        #self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
+        pass
