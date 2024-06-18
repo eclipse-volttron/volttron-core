@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from abc import ABC, abstractmethod
 
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
@@ -46,9 +46,9 @@ class AuthorizationManager(Service):
     @abstractmethod
     def create_or_merge_user_group(self, *, name: str,
                                    users: set[authz.Identity],
-                                   roles: set[authz.role_name],
-                                   rpc_capabilities: authz.RPCCapabilities,
-                                   pubsub_capabilities: authz.PubsubCapabilities,
+                                   roles: authz.UserRoles = None,
+                                   rpc_capabilities: authz.RPCCapabilities = None,
+                                   pubsub_capabilities: authz.PubsubCapabilities = None,
                                    **kwargs) -> bool:
         ...
 
@@ -61,15 +61,10 @@ class AuthorizationManager(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user(self, *, identity: str,
-                                   protected_rpcs: set[authz.vipid_dot_rpc_method],
-                                   roles: set[authz.role_name],
-                                   rpc_capabilities: authz.RPCCapabilities,
-                                   pubsub_capabilities: authz.PubsubCapabilities,
-                                   comments: str | None,
-                                   domain: str | None,
-                                   address: str | None,
-                                   **kwargs) -> bool:
+    def create_or_merge_user(self, *, identity: str, protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                             roles: authz.UserRoles = None, rpc_capabilities: authz.RPCCapabilities = None,
+                             pubsub_capabilities: authz.PubsubCapabilities = None, comments: str = None,
+                             domain: str = None, address: str = None, **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -135,9 +130,9 @@ class AuthService(Service):
     @abstractmethod
     def create_or_merge_user_group(self, *, name: str,
                                    users: set[authz.Identity],
-                                   roles: set[authz.role_name],
-                                   rpc_capabilities: authz.RPCCapabilities,
-                                   pubsub_capabilities: authz.PubsubCapabilities,
+                                   roles: Optional[authz.UserRoles] = None,
+                                   rpc_capabilities: Optional[authz.RPCCapabilities] = None,
+                                   pubsub_capabilities: Optional[authz.PubsubCapabilities] = None,
                                    **kwargs) -> bool:
         ...
 
@@ -150,15 +145,10 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user(self, *, identity: authz.Identity,
-                                   protected_rpcs: set[authz.vipid_dot_rpc_method],
-                                   roles: set[authz.role_name],
-                                   rpc_capabilities: authz.RPCCapabilities,
-                                   pubsub_capabilities: authz.PubsubCapabilities,
-                                   comments: str | None,
-                                   domain: str | None,
-                                   address: str | None,
-                                   **kwargs) -> bool:
+    def create_or_merge_user(self, *, identity: str, protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                             roles: authz.UserRoles = None, rpc_capabilities: authz.RPCCapabilities = None,
+                             pubsub_capabilities: authz.PubsubCapabilities = None, comments: str = None,
+                             domain: str = None, address: str = None, **kwargs) -> bool:
         ...
 
     @abstractmethod
