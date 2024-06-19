@@ -1,5 +1,5 @@
 # .github/workflows/run-sbom.yml
-name: Generate SBOM and VDR
+name: Generate SBOM and Build Wheel
 
 on:
   push:
