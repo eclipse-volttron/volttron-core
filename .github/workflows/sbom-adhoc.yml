@@ -13,11 +13,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      
+      - name: Install Poetry
+        run: |
+          curl -sSL https://install.python-poetry.org | python3 -
+          export PATH="$HOME/.local/bin:$PATH"
+      
       - name: Collect SBOM Artifact
         run: |
           mkdir -p ./bom_reports 
           cp bom.* ./bom_reports/ 
           cp ./reports/* ./bom_reports/
+      
+      - name: Install Dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
       
       - name: Build Wheel
         run: poetry build -vvv 
@@ -29,13 +48,13 @@ jobs:
           path: ./reports
           
       - name: Upload SBOM Artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: sbom
-            path: ./bom.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: ./bom.json
       
       - name: Upload dist Artifact
-          uses: actions/upload-artifact@v4
-          with:
-            name: dist/
-            path: ./dist/
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: ./dist/
