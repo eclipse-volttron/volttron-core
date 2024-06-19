@@ -12,19 +12,19 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Download Artifact A
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v2
         with:
           name: artifact-a
-          path: ./artifacts  # Specify a directory to download artifacts to
-          
+          path: ./artifacts
+
       - name: Print Artifact A Content
         run: cat ./artifacts/artifact_a.txt
 
       - name: Download Artifact B
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v2
         with:
           name: artifact-b
-          path: ./artifacts  # Specify a directory to download artifacts to
-          
+          path: ./artifacts
+
       - name: Print Artifact B Content
         run: cat ./artifacts/artifact_b.txt
