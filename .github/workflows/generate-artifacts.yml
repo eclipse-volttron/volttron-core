@@ -14,7 +14,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
-      # Replace with your build steps to generate artifacts
       - name: Generate Artifact A
         run: echo "This is Artifact A" > artifact_a.txt
         # Assume artifact_a.txt is generated in the root directory
@@ -24,16 +23,18 @@ jobs:
         # Assume artifact_b.txt is generated in the root directory
 
       - name: Upload Artifact A
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: artifact-a
           path: artifact_a.txt
+          retention-days: 5
 
       - name: Upload Artifact B
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: artifact-b
           path: artifact_b.txt
+          retention-days: 5
 
       - name: Dispatch Artifacts Event
         uses: peter-evans/repository-dispatch@v1

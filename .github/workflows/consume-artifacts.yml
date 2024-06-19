@@ -15,21 +15,16 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: artifact-a
-      - shell: bash
-        run: |
-          cat artifact_a.txt  # path
+          path: ./artifacts  # Specify a directory to download artifacts to
+          
+      - name: Print Artifact A Content
+        run: cat ./artifacts/artifact_a.txt
 
       - name: Download Artifact B
         uses: actions/download-artifact@v4
         with:
           name: artifact-b
-      - shell: bash
-        run: |
-          cat artifact_b.txt  # path
-
-
-      - name: Print Artifact A Content
-        run: cat ${{ github.event.client_payload.artifact_a_path }}
-
+          path: ./artifacts  # Specify a directory to download artifacts to
+          
       - name: Print Artifact B Content
-        run: cat ${{ github.event.client_payload.artifact_b_path }}
+        run: cat ./artifacts/artifact_b.txt
