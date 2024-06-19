@@ -1,12 +1,14 @@
 # .github/workflows/sbom-adhoc.yml
-# a template demo adhoc action after running sbom check
-name: Create Release
+# A template demo adhoc action after running sbom check
+name: Adhoc SBOM Action
 
 on:
   workflow_run:
     workflows: ["Generate SBOM and VDR"]
     types:
       - completed
+    status:
+      - success
 
 jobs:
   adhoc-sbom:
