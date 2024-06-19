@@ -5,6 +5,8 @@ on:
     branches:
       - main
 
+  types: [opened, synchronize, reopened]
+
 jobs:
   generate-artifacts:
     runs-on: ubuntu-latest
