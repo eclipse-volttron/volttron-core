@@ -2,15 +2,19 @@
 # A template demo adhoc action after running sbom check
 name: Adhoc SBOM Action
 
+# on:
+#   workflow_run:
+#     workflows: [Generate SBOM and VDR]  # Note: no quotes, space is fine
+#     types:
+#       - completed
+#     status:
+#       - success
+#     # branches:   # This needs to be default branch?
+#     #   - '**'
+
 on:
-  workflow_run:
-    workflows: [Generate SBOM and VDR]  # Note: no quotes, space is fine
-    types:
-      - completed
-    status:
-      - success
-    # branches:   # This needs to be default branch?
-    #   - '**'
+  repository_dispatch:
+    types: [sbom-generated]
 
 jobs:
   adhoc-sbom:
@@ -32,47 +36,26 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           export PATH="$HOME/.local/bin:$PATH"
       
-      - name: Collect SBOM Artifact
-        run: |
-          # mkdir -p ./bom_reports 
-          # cp ./bom.* ./bom_reports/ 
-          # cp ./reports/* ./bom_reports/
-          TIMEOUT=10
-          while [ $TIMEOUT -gt 0 ]; do
-            if [ -f "./bom.vdr.json" ]; then
-              # cp ./bom.vdr.json ./reports/bom.vdr.json
-              mkdir -p ./bom_reports 
-              cp ./bom.* ./bom_reports/ 
-              cp ./reports/* ./bom_reports/
-              echo "VDR file generated and moved to reports directory."
-              break
-            fi
-            echo "Waiting for bom.vdr.json..."
-            sleep 1
-            TIMEOUT=$((TIMEOUT-1))
-          done
-          if [ $TIMEOUT -eq 0 ]; then
-            echo "Timeout reached. No VDR file generated."
-          fi
+      
       
       - name: Install Dependencies
         run: |
           poetry install --no-interaction --no-ansi
+
+      - name: Collect SBOM Artifact
+        run: |
+          mkdir -p ./bom_reports 
+          cp -r ${{ github.event.client_payload.bom-reports-path }}/* ./bom_reports/
       
       - name: Build Wheel
         run: poetry build -vvv 
 
-      - name: Upload VDR Artifact
+      - name: Upload SBOM and VDR Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: vdr
-          path: ./reports
-          
-      - name: Upload SBOM Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: ./bom.json
+          name: bom-artifacts
+          path: ./bom_reports/
+    
       
       - name: Upload dist Artifact
         uses: actions/upload-artifact@v4
