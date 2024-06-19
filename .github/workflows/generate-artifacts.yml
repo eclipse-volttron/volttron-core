@@ -24,13 +24,13 @@ jobs:
         # Assume artifact_b.txt is generated in the root directory
 
       - name: Upload Artifact A
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: artifact-a
           path: artifact_a.txt
 
       - name: Upload Artifact B
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: artifact-b
           path: artifact_b.txt
