@@ -9,6 +9,8 @@ on:
       - completed
     status:
       - success
+    branches:
+      - '**'
 
 jobs:
   adhoc-sbom:
