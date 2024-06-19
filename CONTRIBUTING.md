@@ -59,7 +59,7 @@ Excessive branching and merging can make git history confusing. With that in min
 Submit your pull request when ready. Three checks will be kicked off automatically.
 
 - IP Validation: Checks that all committers signed the Eclipse CLA and signed their commits.
-- Continuous integration: [GitHub Actions][github] that run pytests and CodeQL.
+- Continuous integration: [GitHub Actions][github-actions] that run pytests and CodeQL.
 - The standard GitHub check that the pull request has no conflicts with the base branch.
 
 Make sure all the checks pass. One of the committers will take a look and provide feedback or merge your contribution.
@@ -70,8 +70,8 @@ That's it! Thanks for contributing to VOLTTRON!
 [semver]:          http://semver.org/
 [squash]:          https://medium.com/@slamflipstrom/a-beginners-guide-to-squashing-commits-with-git-rebase-8185cf6e62ec
 [rebase]:          https://github.com/edx/edx-platform/wiki/How-to-Rebase-a-Pull-Request
-[github]:          https://github.com/volttron-core/volttron/actions/actions
+[github-actions]:  https://github.com/eclipse-volttron/volttron-core/actions
 [imperative-mood]: https://github.com/git/git/blob/master/Documentation/SubmittingPatches
 [github-issue]:    https://help.github.com/articles/closing-issues-via-commit-messages/
 [good-commit]:     https://cbea.ms/git-commit/
-[mailing-list]:    https://volttron.org/contact
+[mailing-list]:    https://accounts.eclipse.org/mailing-list/volttron-dev

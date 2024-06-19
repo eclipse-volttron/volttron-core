@@ -1,40 +1,34 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Installable Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
+from gevent import monkey
+
+from volttron.services.auth import AuthFile
+from volttron.services.auth.auth_service import AuthException, AuthEntry
+
+monkey.patch_all()
+import gevent
+import gevent.event
 
 import argparse
 import collections
@@ -50,9 +44,6 @@ import tarfile
 import tempfile
 from typing import List
 from datetime import timedelta, datetime
-
-import gevent
-import gevent.event
 
 # TODO Requests dependency
 # import requests
@@ -80,6 +71,7 @@ import gevent.event
 # from volttron.utils.rmq_setup import check_rabbit_status
 # from volttron.platform.agent.utils import is_secure_mode, wait_for_volttron_shutdown
 from volttron.client.commands.install_agents import add_install_agent_parser
+from volttron.client.commands.connection import ControlConnection
 
 from volttron.utils import ClientContext as cc, get_address
 from volttron.utils import jsonapi
@@ -100,8 +92,6 @@ from volttron.client.known_identities import (
 
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.client.vip.agent.errors import Unreachable, VIPError
-
-from .connection import ControlConnection
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -154,14 +144,24 @@ def escape(pattern):
     )
 
 
-def filter_agents(agents, patterns, opts):
-    by_name, by_tag, by_uuid = opts.by_name, opts.by_tag, opts.by_uuid
+def filter_agents(agents: List[AgentMeta], patterns: List[str], opts: argparse.Namespace):
+    """
+    Filters a given list of agent details based on the provided pattern and user options. User options specify
+    what attributes of the agent metadata needs to match the pattern passed. For example should the pattern be applied
+    to the agent's tag or agent's name
+
+    :param agents: List of AgentMeta object that contains agents name, tag, uuid, vip_id, and agent_user
+    :param patterns: List of patterns to match
+    :param opts: command line options that specify what attribute of the agent should be matched against the pattern
+    :return: yields the pattern and the List of AgentMeta that matched the pattern
+    """
+    by_name, by_tag, by_uuid, by_all_tagged = opts.by_name, opts.by_tag, opts.by_uuid, opts.by_all_tagged
     for pattern in patterns:
         regex, _ = escape(pattern)
         result = set()
 
         # if no option is selected, try matching based on uuid
-        if not (by_uuid or by_name or by_tag):
+        if not (by_uuid or by_name or by_tag or by_all_tagged):
             reobj = re.compile(regex)
             matches = [agent for agent in agents if reobj.match(agent.uuid)]
             if len(matches) == 1:
@@ -179,6 +179,9 @@ def filter_agents(agents, patterns, opts):
                 result.update(agent for agent in agents if reobj.match(agent.name))
             if by_tag:
                 result.update(agent for agent in agents if reobj.match(agent.tag or ""))
+            if by_all_tagged:
+                result.update(
+                    agent for agent in agents if reobj.match(agent.tag))
         yield pattern, result
 
 
@@ -188,13 +191,32 @@ def filter_agent(agents, pattern, opts):
 
 def backup_agent_data(output_filename, source_dir):
     with tarfile.open(output_filename, "w:gz") as tar:
-        tar.add(source_dir, arcname=os.path.sep)    # os.path.basename(source_dir))
+        tar.add(source_dir, arcname=os.path.sep)  # os.path.basename(source_dir))
 
 
 def restore_agent_data_from_tgz(source_file, output_dir):
     # Open tarfile
     with tarfile.open(source_file, mode="r:gz") as tar:
-        tar.extractall(output_dir)
+        def is_within_directory(directory, target):
+            
+            abs_directory = os.path.abspath(directory)
+            abs_target = os.path.abspath(target)
+        
+            prefix = os.path.commonprefix([abs_directory, abs_target])
+            
+            return prefix == abs_directory
+        
+        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+        
+            for member in tar.getmembers():
+                member_path = os.path.join(path, member.name)
+                if not is_within_directory(path, member_path):
+                    raise Exception("Attempted Path Traversal in Tar File")
+        
+            tar.extractall(path, members, numeric_owner=numeric_owner) 
+            
+        
+        safe_extract(tar, output_dir)
 
 
 def get_agent_data_dir_by_uuid(opts, agent_uuid):
@@ -217,7 +239,7 @@ def tag_agent(opts):
             msg = "agent not found"
         _stderr.write("{}: error: {}: {}\n".format(opts.command, msg, opts.agent))
         return 10
-    (agent, ) = agents
+    (agent,) = agents
     if opts.tag:
         _stdout.write("Tagging {} {}\n".format(agent.uuid, agent.name))
         opts.connection.call("tag_agent", agent.uuid, opts.tag)
@@ -258,7 +280,6 @@ def _calc_min_uuid_length(agents):
 
 
 def list_agents(opts):
-
     def get_priority(agent):
         return opts.aip.agent_priority(agent.uuid) or ""
 
@@ -596,25 +617,26 @@ def update_health_cache(opts):
 
 
 def status_agents(opts):
-    agents = {agent.uuid: agent for agent in _list_agents(opts)}
+    all_agents = {agent.uuid: agent for agent in _list_agents(opts)}
     status = {}
-    for details in opts.connection.call("status_agents", get_agent_user=True):
+    agents_with_status = opts.connection.call("status_agents", get_agent_user=True)
+    for details in agents_with_status:
         if cc.is_secure_mode():
             (uuid, name, agent_user, stat, identity) = details
         else:
             (uuid, name, stat, identity) = details
             agent_user = ""
         try:
-            agent = agents[uuid]
-            agents[uuid] = agent._replace(agent_user=agent_user)
+            agent = all_agents[uuid]
+            all_agents[uuid] = agent._replace(agent_user=agent_user)
         except KeyError:
-            agents[uuid] = agent = Agent(name,
-                                         None,
-                                         uuid,
-                                         vip_identity=identity,
-                                         agent_user=agent_user)
+            all_agents[uuid] = agent = AgentMeta(name,
+                                             None,
+                                             uuid,
+                                             vip_identity=identity,
+                                             agent_user=agent_user)
         status[uuid] = stat
-    agents = list(agents.values())
+    all_agents = list(all_agents.values())
 
     def get_status(agent):
         try:
@@ -644,7 +666,10 @@ def status_agents(opts):
         except (VIPError, gevent.Timeout):
             return ""
 
-    _show_filtered_agents_status(opts, get_status, get_health, agents)
+    def get_priority(agent):
+        return opts.connection.call("agent_priority", agent.uuid)
+
+    _show_filtered_agents_status(opts, get_status, get_health, get_priority, all_agents)
 
 
 def agent_health(opts):
@@ -675,57 +700,115 @@ def clear_status(opts):
 
 
 def enable_agent(opts):
-    agents = _list_agents(opts.aip)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
-        for agent in match:
-            _stdout.write("Enabling {} {} with priority {}\n".format(agent.uuid, agent.name,
-                                                                     opts.priority))
-            opts.aip.prioritize_agent(agent.uuid, opts.priority)
+    if opts.json:
+        result_dict = {"enabled": True, "priority": opts.priority}
+    else:
+        result_dict = {"str_prefix": "Enabling", "str_suffix": f"with priority {opts.priority}"}
+
+    enable_disable_agent(opts, result_dict)
 
 
 def disable_agent(opts):
-    agents = _list_agents(opts.aip)
+    if opts.json:
+        result_dict = {"disabled": True}
+    else:
+        result_dict = {"str_prefix": "Disabling"}
+
+    enable_disable_agent(opts, result_dict)
+
+
+def enable_disable_agent(opts, result_info):
+    """
+    Enable or disable agent based on command set in opts.command and pattern set in opts
+    :param opts: options that include the enable/disable command, any optional pattern and the agent attribute that
+     should be matched against the given pattern
+    :param result_info: dictionary of additional information to be added to result
+    """
+    agents = _list_agents(opts)
+    results = []
     for pattern, match in filter_agents(agents, opts.pattern, opts):
         if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
+            if opts.json:
+                results.append({"command": opts.command, "error": f"agent not found {pattern}"})
+            else:
+                _stderr.write(f"{opts.command}: error: agent not found: {pattern}\n")
         for agent in match:
-            priority = opts.aip.agent_priority(agent.uuid)
-            if priority is not None:
-                _stdout.write("Disabling {} {}\n".format(agent.uuid, agent.name))
-                opts.aip.prioritize_agent(agent.uuid, None)
+            if opts.json:
+                result = {"uuid": agent.uuid, "name": agent.name}
+                result.update(result_info)
+                results.append(result)
+            else:
+                _stdout.write(f"{result_info.get('str_prefix', '')} {agent.uuid} {agent.name} "
+                              f"{result_info.get('str_suffix', '')}\n")
+            opts.connection.call("prioritize_agent", agent.uuid, None)
+    if opts.json:
+        if len(results) == 1:
+            _stdout.write(f"{jsonapi.dumps(results[0], indent=2)}\n")
+        else:
+            _stdout.write(f"{jsonapi.dumps(results, indent=2)}\n")
 
 
 def start_agent(opts):
-    call = opts.connection.call
-    agents = _list_agents(opts)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
-        for agent in match:
-            pid, status = call("agent_status", agent.uuid)
-            if pid is None or status is not None:
-                _stdout.write("Starting {} {}\n".format(agent.uuid, agent.name))
-                call("start_agent", agent.uuid)
+    act_on_agent("start_agent", opts)
 
 
 def stop_agent(opts):
-    call = opts.connection.call
-    agents = _list_agents(opts)
-    for pattern, match in filter_agents(agents, opts.pattern, opts):
-        if not match:
-            _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
-        for agent in match:
-            pid, status = call("agent_status", agent.uuid)
-            if pid and status is None:
-                _stdout.write("Stopping {} {}\n".format(agent.uuid, agent.name))
-                call("stop_agent", agent.uuid)
+    act_on_agent("stop_agent", opts)
 
 
 def restart_agent(opts):
     stop_agent(opts)
     start_agent(opts)
+
+
+def act_on_agent(action: str, opts: argparse.Namespace):
+    """
+    Starts or stops agents that match the given criteria
+
+    :param action: "start_agent" or "stop_agent"
+    :param opts: contains the patterns to match and the agent attribute/metadata that should be matched against the
+                 given pattern
+    """
+    call = opts.connection.call
+    agents = _list_agents(opts)
+    pattern_to_use = opts.pattern
+
+    if not opts.by_all_tagged and not opts.pattern:
+        raise ValueError("Missing argument. Command requires at least one argument.")
+
+    # prefilter all agents and update regex pattern for only tagged agents
+    if opts.by_all_tagged and not opts.pattern:
+        agents, pattern_to_use = [a for a in agents if a.tag is not None], '*'
+
+    for pattern, match in filter_agents(agents, pattern_to_use, opts):
+        if not match:
+            _stderr.write(f"{opts.command}: error: agent not found: {pattern}\n")
+        for agent in match:
+            pid, status = call("agent_status", agent.uuid)
+            _call_action_on_agent(agent, pid, status, call,  action)
+
+
+def _call_action_on_agent(agent: AgentMeta, pid, status, call, action):
+    """
+    Calls server side method to start or stop agent and writes the corresponding message to stdout
+
+    :param agent: Agent metadata data containing uuid, name, vip_id, agent priority
+    :param pid: pid of Agent process
+    :param status: Status of the start or stop process
+    :param call: method that makes the rpc call to corresponding server side method
+    :param action: start_agent or stop_agent
+    """
+    if action == "start_agent":
+        if pid is None or status is not None:
+            _stdout.write(f"Starting {agent.uuid} {agent.name}\n")
+            call(action, agent.uuid)
+            return
+
+    if action == "stop_agent":
+        if pid and status is None:
+            _stdout.write(f"Stopping {agent.uuid} {agent.name}\n")
+            call(action, agent.uuid)
+            return
 
 
 def run_agent(opts):
@@ -885,19 +968,18 @@ def list_auth(opts, indices=None):
 
 
 def _ask_for_auth_fields(
-    domain=None,
-    address=None,
-    user_id=None,
-    capabilities=None,
-    roles=None,
-    groups=None,
-    mechanism="CURVE",
-    credentials=None,
-    comments=None,
-    enabled=True,
-    **kwargs,
+        domain=None,
+        address=None,
+        user_id=None,
+        capabilities=None,
+        roles=None,
+        groups=None,
+        mechanism="CURVE",
+        credentials=None,
+        comments=None,
+        enabled=True,
+        **kwargs,
 ):
-
     class Asker(object):
 
         def __init__(self):
@@ -1303,7 +1385,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
-def _show_filtered_agents_status(opts, status_callback, health_callback, agents=None):
+def _show_filtered_agents_status(opts, status_callback, health_callback, priority_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1350,7 +1432,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
         identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
         if cc.is_secure_mode():
             user_width = max(3, max(len(agent.agent_user or "") for agent in agents))
-            fmt = "{} {:{}} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
             _stderr.write(
                 fmt.format(
                     "UUID",
@@ -1362,10 +1444,11 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                     tag_width,
                     "AGENT_USER",
                     user_width,
+                    "PRIORITY",
                     "STATUS",
                     "HEALTH",
                 ))
-            fmt = "{} {:{}} {:{}} {:{}} {:{}} {:<15} {:<}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {:<8} {:<15} {:<}\n"
             for agent in agents:
                 status_str = status_callback(agent)
                 agent_health_dict = health_callback(agent)
@@ -1380,11 +1463,12 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                         tag_width,
                         agent.agent_user if status_str.startswith("running") else "",
                         user_width,
+                        priority_callback(agent) or "",
                         status_str,
                         health_callback(agent),
                     ))
         else:
-            fmt = "{} {:{}} {:{}} {:{}} {:>6} {:>15}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
             _stderr.write(
                 fmt.format(
                     "UUID",
@@ -1394,10 +1478,11 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                     identity_width,
                     "TAG",
                     tag_width,
+                    "PRIORITY",
                     "STATUS",
                     "HEALTH",
                 ))
-            fmt = "{} {:{}} {:{}} {:{}} {:<15} {:<}\n"
+            fmt = "{:<6} {:{}} {:{}} {:{}} {:<8} {:<15} {:<}\n"
             for agent in agents:
                 _stdout.write(
                     fmt.format(
@@ -1408,6 +1493,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
                         identity_width,
                         agent.tag or "",
                         tag_width,
+                        priority_callback(agent) or "",
                         status_callback(agent),
                         health_callback(agent),
                     ))
@@ -1430,7 +1516,6 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, agents=
 
 
 def get_agent_publickey(opts):
-
     def get_key(agent):
         return opts.aip.get_agent_keystore(agent.uuid).public
 
@@ -1468,7 +1553,7 @@ def add_config_to_store(opts):
     file_contents = opts.infile.read()
 
     call(
-        "manage_store",
+        "set_config",
         opts.identity,
         opts.name,
         file_contents,
@@ -1480,14 +1565,14 @@ def delete_config_from_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
     if opts.delete_store:
-        call("manage_delete_store", opts.identity)
+        call("delete_store", opts.identity)
         return
 
     if opts.name is None:
         _stderr.write("ERROR: must specify a configuration when not deleting entire store\n")
         return
 
-    call("manage_delete_config", opts.identity, opts.name)
+    call("delete_config", opts.identity, opts.name)
 
 
 def list_store(opts):
@@ -1495,9 +1580,9 @@ def list_store(opts):
     call = opts.connection.call
     results = []
     if opts.identity is None:
-        results = call("manage_list_stores")
+        results = call("list_stores")
     else:
-        results = call("manage_list_configs", opts.identity)
+        results = call("list_configs", opts.identity)
 
     for item in results:
         _stdout.write(item + "\n")
@@ -1506,7 +1591,7 @@ def list_store(opts):
 def get_config(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
-    results = call("manage_get", opts.identity, opts.name, raw=opts.raw)
+    results = call("get_config", opts.identity, opts.name, raw=opts.raw)
 
     if opts.raw:
         _stdout.write(results)
@@ -1527,7 +1612,7 @@ def edit_config(opts):
         raw_data = ""
     else:
         try:
-            results = call("manage_get_metadata", opts.identity, opts.name)
+            results = call("get_metadata", opts.identity, opts.name)
             config_type = results["type"]
             raw_data = results["data"]
         except RemoteError as e:
@@ -1563,7 +1648,7 @@ def edit_config(opts):
             return
 
         call(
-            "manage_store",
+            "set_config",
             opts.identity,
             opts.name,
             new_raw_data,
@@ -2097,22 +2182,25 @@ def main():
         "--name",
         dest="by_name",
         action="store_true",
-        help="filter/search by agent name",
+        help="filter/search by agent name. value passed should be quoted if it contains a regular expression",
     )
     filterable.add_argument(
         "--tag",
         dest="by_tag",
         action="store_true",
-        help="filter/search by tag name",
+        help="filter/search by tag name. value passed should be quoted if it contains a regular expression",
+    )
+    filterable.add_argument(
+        "--all-tagged", dest="by_all_tagged", action="store_true",
+        help="filter/search by all tagged agents"
     )
     filterable.add_argument(
         "--uuid",
         dest="by_uuid",
         action="store_true",
-        help="filter/search by UUID (default)",
+        help="filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
     )
-    filterable.set_defaults(by_name=False, by_tag=False, by_uuid=False)
-
+    filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
     parser = config.ArgumentParser(
         prog=os.path.basename(sys.argv[0]),
         add_help=False,
@@ -2202,18 +2290,7 @@ def main():
     peers = add_parser("peerlist", help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
 
-    list_ = add_parser("list", parents=[filterable], help="list installed agent")
-    list_.add_argument("pattern", nargs="*", help="UUID or name of agent")
-    list_.add_argument(
-        "-n",
-        dest="min_uuid_len",
-        type=int,
-        metavar="N",
-        help="show at least N characters of UUID (0 to show all)",
-    )
-    list_.set_defaults(func=list_agents, min_uuid_len=1)
-
-    status = add_parser("status", parents=[filterable], help="show status of agents")
+    status = add_parser("status", aliases=("list",), parents=[filterable], help="show status of agents")
     status.add_argument("pattern", nargs="*", help="UUID or name of agent")
     status.add_argument(
         "-n",
@@ -2260,16 +2337,16 @@ def main():
     disable.add_argument("pattern", nargs="+", help="UUID or name of agent")
     disable.set_defaults(func=disable_agent)
 
-    start = add_parser("start", parents=[filterable], help="start installed agent")
-    start.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    start = add_parser("start", parents=[filterable], help="start installed agent.")
+    start.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     start.set_defaults(func=start_agent)
 
     stop = add_parser("stop", parents=[filterable], help="stop agent")
-    stop.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    stop.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     stop.set_defaults(func=stop_agent)
 
     restart = add_parser("restart", parents=[filterable], help="restart agent")
-    restart.add_argument("pattern", nargs="+", help="UUID or name of agent")
+    restart.add_argument("pattern", nargs="*", help="UUID or name of agent", default='')
     restart.set_defaults(func=restart_agent)
 
     run = add_parser("run", help="start any agent by path")
@@ -2292,7 +2369,7 @@ def main():
         "pattern",
         nargs="*",
         help="Identity of agent, followed by method(s)"
-        "",
+             "",
     )
     rpc_code.add_argument(
         "-v",
@@ -2324,7 +2401,7 @@ def main():
         "--verbose",
         action="store_true",
         help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
-        "is specified, display the doc-string associated with the method.",
+             "is specified, display the doc-string associated with the method.",
     )
 
     rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
@@ -2705,7 +2782,7 @@ def main():
         dest="new_config",
         action="store_true",
         help="Ignore any existing configuration and creates new empty file."
-        " Configuration is not written if left empty. Type defaults to JSON.",
+             " Configuration is not written if left empty. Type defaults to JSON.",
     )
 
     config_store_edit.set_defaults(func=edit_config, config_type="json")
@@ -2941,14 +3018,16 @@ def main():
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)
 
-    with gevent.Timeout(opts.timeout):
-        return opts.func(opts)
-
+    # with gevent.Timeout(opts.timeout):
+    #     return opts.func(opts)
+    # with gevent.Timeout(opts.timeout):
+    #     return opts.func(opts)
+    # sys.exit(0)
     try:
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)
     except gevent.Timeout:
-        _stderr.write("{}: operation timed out\n".format(opts.command))
+        _stderr.write(f"{opts.command} function {opts.func.__name__}: operation timed out\n")
         return 75
     except RemoteError as exc:
         print_tb = exc.print_tb
@@ -2976,12 +3055,18 @@ def main():
         # make sure the connection to the server is closed when this scriopt is about to exit.
         if opts.connection:
             try:
-                opts.connection.server.core.stop()
-            except Unreachable:
-                # its ok for this to fail at this point it might not even be valid.
-                pass
+                opts.connection.kill()
             finally:
                 opts.connection = None
+            # try:
+            #     opts.connection.server.core.stop(timeout=1)
+            # except gevent.Timeout:
+            #     pass
+            # except Unreachable:
+            #     # its ok for this to fail at this point it might not even be valid.
+            #     pass
+            # finally:
+            #     opts.connection = None
 
     if opts.debug:
         print_tb()

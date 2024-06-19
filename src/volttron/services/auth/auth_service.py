@@ -1,40 +1,27 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Installable Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
+
 from __future__ import annotations
 
 __all__ = [
@@ -86,6 +73,7 @@ import volttron.types.server_config as server_config
 # from .vip.socket import encode_key, BASE64_ENCODED_CURVE_KEY_LEN
 
 _log = logging.getLogger(__name__)
+_log.setLevel(logging.WARN)
 
 _dump_re = re.compile(r"([,\\])")
 _load_re = re.compile(r"\\(.)|,")
@@ -113,31 +101,32 @@ class AuthException(Exception):
     pass
 
 
-class AuthService(ServiceInterface, Agent):
+class AuthService(ServiceInterface):
 
-    def __init__(self, server_config: server_config.ServerConfig, *args, **kwargs):
+    def __init__(self, server_config, **kwargs):
         #auth_file, protected_topics_file, setup_mode, aip, *args, **kwargs):
         self.allow_any = kwargs.pop("allow_any", False)
 
-        super(AuthService, self).__init__(*args, **kwargs)
+        super(AuthService, self).__init__(**kwargs)
 
+        self._server_config = server_config
         # This agent is started before the router so we need
         # to keep it from blocking.
         self.core.delay_running_event_set = False
         self._certs = None
         if cc.get_messagebus() == "rmq":
             self._certs = Certs()
-        self.auth_file_path = str(server_config.auth_file)
+        self.auth_file_path = str(self._server_config.auth_file)
         self.auth_file = AuthFile(self.auth_file_path)
-        self.aip = server_config.aip
+        self.aip = self._server_config.aip
         self.zap_socket = None
         self._zap_greenlet = None
         self.auth_entries = []
         self._is_connected = False
-        self._protected_topics_file_path = str(server_config.protected_topics_file)
-        self._protected_topics_file = str(server_config.protected_topics_file)
+        self._protected_topics_file_path = str(self._server_config.protected_topics_file)
+        self._protected_topics_file = str(self._server_config.protected_topics_file)
         self._protected_topics_for_rmq = ProtectedPubSubTopics()
-        self._setup_mode = server_config.opts.setup_mode
+        self._setup_mode = self._server_config.opts.setup_mode
         self._auth_pending = []
         self._auth_denied = []
         self._auth_approved = []
@@ -146,6 +135,17 @@ class AuthService(ServiceInterface, Agent):
             return defaultdict(set)
 
         self._user_to_permissions = topics()
+        entry = AuthEntry(
+            credentials=self.core.publickey,
+            user_id=self.core.identity,
+            capabilities=[{
+                "edit_config_store": {
+                    "identity": self.core.identity
+                }
+            }],
+            comments="Automatically added by init of auth service"
+        )
+        AuthFile().add(entry, overwrite=True)
 
     @Core.receiver("onsetup")
     def setup_zap(self, sender, **kwargs):
@@ -1165,7 +1165,7 @@ class AuthFile(object):
 
     @property
     def version(self):
-        return {"major": 1, "minor": 2}
+        return {"major": 1, "minor": 3}
 
     def _check_for_upgrade(self):
         allow_list, deny_list, groups, roles, version = self._read()
@@ -1301,6 +1301,10 @@ class AuthFile(object):
             version["minor"] = 1
         if version["major"] == 1 and version["minor"] == 1:
             allow_list = upgrade_1_1_to_1_2(allow_list)
+        if version["major"] == 1 and version["minor"] == 2:
+            # on start a new entry for config.store should have got created automatically
+            # so just update version
+            version["minor"] = 3
 
         allow_entries, deny_entries = self._get_entries(allow_list, deny_list)
         self._write(allow_entries, deny_entries, groups, roles)
