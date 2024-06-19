@@ -23,6 +23,10 @@ packages = [
     { include = "volttron", from = "src" }
 ]
 
+include = [
+    "bom_reports/**/*"
+]
+
 [tool.poetry.dependencies]
 python = "^3.8"
 pyzmq = "^22.3.0"

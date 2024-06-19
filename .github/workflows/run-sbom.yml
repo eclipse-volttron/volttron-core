@@ -52,13 +52,19 @@ jobs:
           if [ $TIMEOUT -eq 0 ]; then
             echo "Timeout reached. No VDR file generated."
           fi
-        # Generated files: bom.vdr.json (if VDR is generated)
+        # Generated files: bom.vdr.json (if VDR is generated) and
+        # depscan-bom.json and depscan.html under ./reports/)
 
-      - name: Upload SBOM Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom
-          path: ./bom.json
+      
+      
+      - name: Collect SBOM Artifact
+        run: |
+          mkdir -p ./bom_reports 
+          cp bom.* ./bom_reports/ 
+          cp ./reports/* ./bom_reports/
+      
+      - name: Build Wheel
+        run: poetry build -vvv 
 
       - name: Upload VDR Artifact
         uses: actions/upload-artifact@v4

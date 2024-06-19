@@ -1,0 +1,41 @@
+# .github/workflows/sbom-adhoc.yml
+# a template demo adhoc action after running sbom check
+name: Create Release
+
+on:
+  workflow_run:
+    workflows: ["Generate SBOM and VDR"]
+    types:
+      - completed
+
+jobs:
+  adhoc-sbom:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Collect SBOM Artifact
+        run: |
+          mkdir -p ./bom_reports 
+          cp bom.* ./bom_reports/ 
+          cp ./reports/* ./bom_reports/
+      
+      - name: Build Wheel
+        run: poetry build -vvv 
+
+      - name: Upload VDR Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: vdr
+          path: ./reports
+          
+      - name: Upload SBOM Artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: sbom
+            path: ./bom.json
+      
+      - name: Upload dist Artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: dist/
+            path: ./dist/
