@@ -66,7 +66,7 @@ jobs:
       - name: Dispatch SBOM and VDR
         uses: peter-evans/repository-dispatch@v1
         with:
-          # token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           event-type: sbom-generated
           client-payload: |
             {
