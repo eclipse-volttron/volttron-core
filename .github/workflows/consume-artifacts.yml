@@ -11,6 +11,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - name: Download Artifact A
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact-a
+      - shell: bash
+        run: |
+          cat artifact_a.txt  # path
+
+      - name: Download Artifact B
+        uses: actions/download-artifact@v4
+        with:
+          name: artifact-b
+      - shell: bash
+        run: |
+          cat artifact_b.txt  # path
+
+
       - name: Print Artifact A Content
         run: cat ${{ github.event.client_payload.artifact_a_path }}
 
