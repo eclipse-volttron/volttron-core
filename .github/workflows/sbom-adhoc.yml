@@ -9,7 +9,7 @@ on:
       - completed
     status:
       - success
-    branches:
+    branches:   # This needs to be default branch?
       - '**'
 
 jobs:
