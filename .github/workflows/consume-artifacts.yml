@@ -17,6 +17,15 @@ jobs:
           workflow: Generate Artifacts
           name: artifact-a,artifact-b
           path: ./downloaded-artifacts
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow_conclusion: success
+          repo: ${{ github.repository }}
+          name_is_regexp: false
+          allow_forks: true
+          check_artifacts: false
+          search_artifacts: false
+          skip_unpack: false
+          if_no_artifact_found: fail
 
       - name: Print Artifact A Content
         run: cat ./downloaded-artifacts/artifact_a.txt
