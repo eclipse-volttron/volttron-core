@@ -4,7 +4,7 @@ name: Adhoc SBOM Action
 
 on:
   workflow_run:
-    workflows: ["Generate SBOM and VDR"]
+    workflows: [Generate SBOM and VDR]
     types:
       - completed
     status:
