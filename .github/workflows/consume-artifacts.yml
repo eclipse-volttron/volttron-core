@@ -1,0 +1,18 @@
+name: Consume Artifacts
+
+on:
+  repository_dispatch:
+    types: [artifacts-generated]
+
+jobs:
+  consume-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Print Artifact A Content
+        run: cat ${{ github.event.client_payload.artifact_a_path }}
+
+      - name: Print Artifact B Content
+        run: cat ${{ github.event.client_payload.artifact_b_path }}

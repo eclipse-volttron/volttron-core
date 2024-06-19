@@ -25,6 +25,12 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
+      - name: Collect SBOM Artifact
+        run: |
+          mkdir -p ./bom_reports 
+          # cp -r ${{ github.event.client_payload.bom-reports-path }}/* ./bom_reports/
+          cp ${{ github.event.client_payload.bom-json-path }} ./bom_reports/
       
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -36,17 +42,10 @@ jobs:
           curl -sSL https://install.python-poetry.org | python3 -
           export PATH="$HOME/.local/bin:$PATH"
       
-      
-      
       - name: Install Dependencies
         run: |
           poetry install --no-interaction --no-ansi
 
-      - name: Collect SBOM Artifact
-        run: |
-          mkdir -p ./bom_reports 
-          cp -r ${{ github.event.client_payload.bom-reports-path }}/* ./bom_reports/
-      
       - name: Build Wheel
         run: poetry build -vvv 
 
@@ -55,7 +54,6 @@ jobs:
         with:
           name: bom-artifacts
           path: ./bom_reports/
-    
       
       - name: Upload dist Artifact
         uses: actions/upload-artifact@v4
