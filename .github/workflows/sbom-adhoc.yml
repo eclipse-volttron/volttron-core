@@ -4,13 +4,13 @@ name: Adhoc SBOM Action
 
 on:
   workflow_run:
-    workflows: [Generate SBOM and VDR]
+    workflows: [Generate SBOM and VDR]  # Note: no quotes, space is fine
     types:
       - completed
     status:
       - success
-    branches:   # This needs to be default branch?
-      - '**'
+    # branches:   # This needs to be default branch?
+    #   - '**'
 
 jobs:
   adhoc-sbom:
@@ -34,9 +34,26 @@ jobs:
       
       - name: Collect SBOM Artifact
         run: |
-          mkdir -p ./bom_reports 
-          cp bom.* ./bom_reports/ 
-          cp ./reports/* ./bom_reports/
+          # mkdir -p ./bom_reports 
+          # cp ./bom.* ./bom_reports/ 
+          # cp ./reports/* ./bom_reports/
+          TIMEOUT=10
+          while [ $TIMEOUT -gt 0 ]; do
+            if [ -f "./bom.vdr.json" ]; then
+              # cp ./bom.vdr.json ./reports/bom.vdr.json
+              mkdir -p ./bom_reports 
+              cp ./bom.* ./bom_reports/ 
+              cp ./reports/* ./bom_reports/
+              echo "VDR file generated and moved to reports directory."
+              break
+            fi
+            echo "Waiting for bom.vdr.json..."
+            sleep 1
+            TIMEOUT=$((TIMEOUT-1))
+          done
+          if [ $TIMEOUT -eq 0 ]; then
+            echo "Timeout reached. No VDR file generated."
+          fi
       
       - name: Install Dependencies
         run: |
