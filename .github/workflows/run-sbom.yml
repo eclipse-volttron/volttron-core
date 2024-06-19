@@ -70,7 +70,7 @@ jobs:
           event-type: sbom-generated
           client-payload: |
             {
-              "bom-reports-path": "bom_reports/",
+              "bom-reports-path": "bom_reports/"
             }
 
       
