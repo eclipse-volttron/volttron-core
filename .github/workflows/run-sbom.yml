@@ -4,7 +4,7 @@ name: Generate SBOM and VDR
 on:
   push:
     branches:
-      - main
+      - sbom
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -70,7 +70,8 @@ jobs:
           event-type: sbom-generated
           client-payload: |
             {
-              "bom-reports-path": "bom_reports/"
+              # "bom-reports-path": "bom_reports/"
+              "bom-json-path": "bom.json"
             }
 
       
