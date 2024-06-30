@@ -252,7 +252,7 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
         else:
             raise ValueError("Unknown messagebus detected")
 
-    def send_rmq():
+    def send_through_msg_bus():
         nonlocal wheel, server
 
         sha512 = hashlib.sha512()
@@ -407,37 +407,37 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
 
     task = None
     # if server.core.messagebus == "rmq":
-    #     if wheel_install:
-    #         _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
-    #         task = gevent.spawn(send_rmq)
-    #         # TODO: send config
-    #         agent_package = os.path.basename(path)
-    #     else:
-    #         agent_package = agent
-    #     result = server.vip.rpc.call(
-    #         peer,
-    #         "install_agent_rmq",
-    #         agent_package,
-    #         rmq_send_topic,
-    #         rmq_response_topic,
-    #         vip_identity,
-    #         publickey,
-    #         secretkey,
-    #         force,
-    #         pre_release,
-    #         agent_config
-    #     )
-    # elif server.core.messagebus == "zmq":
     if wheel_install:
-        _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
-        task = gevent.spawn(send_zmq)
+        _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
+        task = gevent.spawn(send_through_msg_bus())
+        # TODO: send config
         agent_package = os.path.basename(path)
-        channel_name = channel.name
     else:
         agent_package = agent
-        channel_name = None
-    result = server.vip.rpc.call(peer, "install_agent", agent_package, channel_name, vip_identity,
-                                 publickey, secretkey, force, pre_release, agent_config)
+    result = server.vip.rpc.call(
+        peer,
+        "install_agent_from_message_bus",
+        agent_package,
+        rmq_send_topic,
+        rmq_response_topic,
+        vip_identity,
+        publickey,
+        secretkey,
+        force,
+        pre_release,
+        agent_config
+    )
+    # elif server.core.messagebus == "zmq":
+    # if wheel_install:
+    #     _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
+    #     task = gevent.spawn(send_through_msg_bus())
+    #     agent_package = os.path.basename(path)
+    #     channel_name = channel.name
+    # else:
+    #     agent_package = agent
+    #     channel_name = None
+    # result = server.vip.rpc.call(peer, "install_agent", agent_package, channel_name, vip_identity,
+    #                              publickey, secretkey, force, pre_release, agent_config)
 
     try:
         if wheel_install:

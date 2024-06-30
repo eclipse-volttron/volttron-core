@@ -77,7 +77,6 @@ CHUNK_SIZE = 4096
 
 @service
 class ControlService(Service, Agent):
-
     class Meta:
         identity = CONTROL
 
@@ -374,16 +373,16 @@ class ControlService(Service, Agent):
         return self._vip_identity_exists(identity)
 
     @RPC.export
-    def install_agent_rmq(self,
-                          agent: str,
-                          topic: str,
-                          response_topic: str,
-                          vip_identity: str = None,
-                          publickey: str = None,
-                          secretkey: str = None,
-                          force: bool = False,
-                          pre_release: bool = False,
-                          agent_config: str = None):
+    def install_agent_from_message_bus(self,
+                                       agent: str,
+                                       topic: str,
+                                       response_topic: str,
+                                       vip_identity: str = None,
+                                       publickey: str = None,
+                                       secretkey: str = None,
+                                       force: bool = False,
+                                       pre_release: bool = False,
+                                       agent_config: str = None):
         """
         Install the agent through the rmq message bus.
         """

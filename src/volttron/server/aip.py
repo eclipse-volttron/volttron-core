@@ -246,8 +246,8 @@ class SecureExecutionEnvironment(object):
 class AIPplatform(Service):
     """Manages the main workflow of receiving and sending agents."""
 
-    def __init__(self, env: ServerOptions, **kwargs):
-        self.env = env
+    def __init__(self, server_opts: ServerOptions, **kwargs):
+        self.server_opts = server_opts
         self.active_agents = {}
         self.vip_id_uuid_map = {}
         self.uuid_vip_id_map = {}
@@ -454,7 +454,7 @@ class AIPplatform(Service):
     # subscribe_address = property(lambda me: me.env.subscribe_address)
     # publish_address = property(lambda me: me.env.publish_address)
 
-    config_dir = property(lambda me: os.path.abspath(me.env.volttron_home))
+    config_dir = property(lambda me: os.path.abspath(me.server_opts.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, "agents"))
     run_dir = property(lambda me: os.path.join(me.config_dir, "run"))
 
@@ -1093,7 +1093,7 @@ class AIPplatform(Service):
         raise ValueError(errmsg)
 
     def check_resources(self, execreqs, agent_user=None):
-        resmon = getattr(self.env, "resmon", None)
+        resmon = getattr(self.server_opts, "resmon", None)
         if resmon:
             return self._check_resources(resmon, execreqs, reserve=False, agent_user=agent_user)
 
