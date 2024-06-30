@@ -44,7 +44,7 @@ class ControlConnection(object):
 
         from pathlib import Path
 
-        from volttron.types.auth import Credentials, PKICredentials
+        from volttron.types.auth import Credentials, VolttronCredentials
         from volttron.utils import jsonapi
         credentials_path = Path(
             cc.get_volttron_home()) / "credentials_store" / f"{CONTROL_CONNECTION}.json"
@@ -53,7 +53,7 @@ class ControlConnection(object):
 
         credjson = jsonapi.load(credentials_path.open("r"))
 
-        credentials = PKICredentials(**credjson)
+        credentials = VolttronCredentials(**credjson)
         options = AgentOptions(heartbeat_autostart=False,
                                volttron_home=cc.get_volttron_home(),
                                enable_store=False)

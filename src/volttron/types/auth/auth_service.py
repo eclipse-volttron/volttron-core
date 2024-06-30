@@ -28,7 +28,7 @@ class AuthzPersistence(ABC):
 class Authenticator(ABC):
 
     @abstractmethod
-    def authenticate(self, *, credentials: Credentials) -> bool:
+    def is_authenticated(self, *, identity: authz.Identity) -> bool:
         ...
 
 
@@ -96,10 +96,6 @@ class AuthorizationManager:
 class AuthService(Service):
 
     # Authentication
-
-    @abstractmethod
-    def authenticate(self, *, credentials: Credentials) -> bool:
-        ...
 
     @abstractmethod
     def has_credentials_for(self, *, identity: str) -> bool:

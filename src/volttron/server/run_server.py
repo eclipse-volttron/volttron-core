@@ -169,6 +169,8 @@ def start_volttron_process(options: ServerOptions):
     else:
         opts.agent_isolation_mode = "False"
 
+    logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
+
     opts.address = [config.expandall(addr) for addr in opts.address]
     opts.local_address = config.expandall(opts.local_address)
     opts.messagebus = config.expandall(opts.messagebus)
@@ -310,6 +312,7 @@ def start_volttron_process(options: ServerOptions):
 
         auth_service: AuthService | None = None
         if options.auth_enabled:
+            from volttron.types.auth import Authenticator
             from volttron.types.auth.auth_service import AuthService
             import importlib
 
@@ -317,7 +320,9 @@ def start_volttron_process(options: ServerOptions):
             # to not use our default auth service and can install their own service to this
             # location.
             loader = importlib.find_loader("volttron.services.auth")
-
+            #loader2.load_module("volttron.zap")
+            #loader2 = importlib.find_loader("volttron.zap")
+            authenticator = service_repo.resolve(Authenticator)
             auth_service = service_repo.resolve(AuthService)
 
         # first service loaded must be the config store
@@ -338,20 +343,13 @@ def start_volttron_process(options: ServerOptions):
             del event
             spawned_greenlets.append(task)
 
-        # Allows registration agents to callbacks for peers
-        notifier = ServicePeerNotifier()
         from volttron.server.decorators import get_messagebus_class
         MessageBusClass = get_messagebus_class()
+        # Allows registration agents to callbacks for peers
+        notifier = ServicePeerNotifier()
 
-        cred_service = service_repo.resolve(CredentialsStore)
-
-        mb = MessageBusClass(opts,
-                             notifier,
-                             tracker,
-                             protected_topics,
-                             external_address_file,
-                             config_store.core.stop,
-                             credentials_store=cred_service)
+        mb = MessageBusClass(opts, notifier, tracker, protected_topics, external_address_file,
+                             config_store.core.stop)
 
         mb.start()
 

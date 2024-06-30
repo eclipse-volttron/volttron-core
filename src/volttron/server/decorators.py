@@ -18,8 +18,8 @@ from volttron.server.containers import service_repo
 from volttron.server.server_options import ServerOptions
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
                                                   CredentialsStore)
-from volttron.types.auth.auth_service import (AuthService, Authenticator,
-                                              AuthorizationManager, Authorizer)
+from volttron.types.auth.auth_service import (AuthService, Authenticator, AuthorizationManager,
+                                              Authorizer)
 from volttron.types.bases import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor,
                                   AgentStarter, Connection, MessageBus, Service)
 from volttron.types.factories import ConnectionBuilder, CoreBuilder
@@ -105,7 +105,7 @@ def factory_registration(registy_name: str,
 factory = factory_registration("factories")
 
 # Allow many so lookup based upon concrete class rather than interface.
-service = factory_registration("service", protocol=Service, singleton=True, allow_many=True)
+service = factory_registration("service", singleton=True, allow_many=True)
 
 credentials_store = factory_registration("credentials_store", protocol=CredentialsStore)
 credentials_creator = factory_registration("credentials_creator", protocol=CredentialsCreator)

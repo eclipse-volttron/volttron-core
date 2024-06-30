@@ -58,6 +58,16 @@ class PKICredentials(PublicCredentials):
         return PKICredentials(identity=identity, publickey=publickey, secretkey=secretkey)
 
 
+@dataclass(frozen=True, kw_only=True)
+class VolttronCredentials(PKICredentials):
+    domain: str = 'VIP'
+    address: str = ''
+
+    @property
+    def type(self):
+        return self.__class__
+
+
 class CredentialsFactory:
 
     @staticmethod
@@ -87,10 +97,10 @@ class CredentialsFactory:
         obj = jsonapi.load(path.open())
 
         # TODO: Handle this better using type within the keystore.json file.
-        if "public" in obj and "secret" in obj:
+        if "publickey" in obj and "secretkey" in obj:
             return PKICredentials.create(identity=identity,
-                                         publickey=obj["public"],
-                                         secretkey=obj["secret"])
+                                         publickey=obj["publickey"],
+                                         secretkey=obj["secretkey"])
         else:
             return Credentials.create(identity=identity)
 
@@ -140,15 +150,12 @@ class CredentialsStore(ABC):
         ...
 
     @abstractmethod
-    def retrieve_credentials(self, *, identity: str) -> Credentials:
+    def retrieve_credentials(self, **kwargs) -> Credentials | None:
         """
-        Retrieve the credentials for an identity.
+        Retrieve credentials based upon passed criteria.
 
-        :param identity: The identity to retrieve credentials for.
-        :type identity: str
-        :return: The stored credentials.
-        :rtype: Credentials
-        :raises: IdentityNotFound: If the identity does not exist, an IdentityNotFound exception MUST be raised.
+        It is up to the implementor to make sure that the passed kwargs are
+        processed correctly and return the correct response.
         """
         ...
 

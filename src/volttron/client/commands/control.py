@@ -2869,7 +2869,6 @@ def main():
     logging.getLogger().setLevel(level=logging.DEBUG)
 
     opts.connection: ControlConnection = ControlConnection(address=opts.vip_address)
-    assert opts.connection.server.core.is_connected()
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)

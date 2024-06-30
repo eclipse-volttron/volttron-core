@@ -68,7 +68,9 @@ if total_count <= logging.DEBUG:
 from volttron.server.run_server import _main
 
 python_path = os.environ.get("PYTHONPATH")
-if python_path not in sys.path:
-    sys.path.insert(0, python_path)
+if python_path:
+    for pth in python_path.split(":"):
+        if pth not in sys.path:
+            sys.path.insert(0, pth)
 
 _main()
