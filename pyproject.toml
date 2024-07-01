@@ -22,6 +22,10 @@ packages = [
     { include = "volttron", from = "src" }
 ]
 
+include = [
+    "bom_reports/**/*"
+]
+
 [tool.poetry.dependencies]
 poetry = "^1.2.2"
 python = "^3.10"
