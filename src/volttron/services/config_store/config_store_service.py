@@ -31,7 +31,6 @@ from csv import DictReader
 from io import StringIO
 
 import gevent
-from deprecated import deprecated
 from gevent.lock import Semaphore
 
 from volttron.client.known_identities import CONFIGURATION_STORE
@@ -170,28 +169,6 @@ class ConfigStoreService(Service, Agent):
             }
 
     @RPC.export
-    @RPC.allow("edit_config_store")
-    @deprecated(reason="Use set_config")
-    def manage_store(self,
-                     identity,
-                     config_name,
-                     raw_contents,
-                     config_type="raw",
-                     trigger_callback=True,
-                     send_update=True):
-        """
-        This method is deprecated and will be removed in VOLTTRON 10. Please use set_config instead
-        """
-        contents = process_raw_config(raw_contents, config_type)
-        self._add_config_to_store(identity,
-                                  config_name,
-                                  raw_contents,
-                                  contents,
-                                  config_type,
-                                  trigger_callback=trigger_callback,
-                                  send_update=send_update)
-
-    @RPC.export
     @RPC.allow('edit_config_store')
     def set_config(self,
                    identity,
@@ -211,32 +188,11 @@ class ConfigStoreService(Service, Agent):
 
     @RPC.export
     @RPC.allow('edit_config_store')
-    @deprecated(reason="Use delete_config")
-    def manage_delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
-        """
-        This method is deprecated and will be removed in VOLTTRON 10. Please use delete_config instead
-        """
-        self.delete(identity,
-                    config_name,
-                    trigger_callback=trigger_callback,
-                    send_update=send_update)
-
-    @RPC.export
-    @RPC.allow('edit_config_store')
     def delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
         self.delete(identity,
                     config_name,
                     trigger_callback=trigger_callback,
                     send_update=send_update)
-
-    @RPC.export
-    @RPC.allow('edit_config_store')
-    @deprecated(reason="Use delete_store")
-    def manage_delete_store(self, identity):
-        """
-        This method is deprecated and will be removed in VOLTTRON 10. Please use delete_store instead
-        """
-        self.delete_store(identity)
 
     @RPC.export
     @RPC.allow('edit_config_store')
@@ -284,40 +240,16 @@ class ConfigStoreService(Service, Agent):
             self.store.pop(identity, None)
 
     @RPC.export
-    @deprecated(reason="Use list_configs")
-    def manage_list_configs(self, identity):
-        """
-        This method is deprecated and will be removed in VOLTTRON 10. Use list_configs instead
-        """
-        return self.list_configs(identity)
-
-    @RPC.export
     def list_configs(self, identity):
         result = list(self.store.get(identity, {}).get("store", {}).keys())
         result.sort()
         return result
 
     @RPC.export
-    @deprecated(reason="Use list_stores")
-    def manage_list_stores(self):
-        """
-        This method is deprecated and will be removed in VOLTTRON 10. Use list_stores instead
-        """
-        return self.list_stores()
-
-    @RPC.export
     def list_stores(self):
         result = list(self.store.keys())
         result.sort()
         return result
-
-    @RPC.export
-    @deprecated(reason="Use get_config")
-    def manage_get(self, identity, config_name, raw=True):
-        """
-        This method is deprecated and will be removed in VOLTTRON 10. Use get_config instead
-        """
-        return self.get_config(identity, config_name, raw)
 
     @RPC.export
     def get_config(self, identity, config_name, raw=True):
@@ -344,13 +276,6 @@ class ConfigStoreService(Service, Agent):
 
         return agent_configs[real_config_name]
 
-    @RPC.export
-    @deprecated(reason="Use get_metadata")
-    def manage_get_metadata(self, identity, config_name):
-        """
-        This method is deprecated and will be removed in VOLTTRON 10. Please use get_metadata instead
-        """
-        return self.get_metadata(identity, config_name)
 
     @RPC.export
     def get_metadata(self, identity, config_name):

@@ -47,8 +47,8 @@ from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
 from volttron.client.vip.agent import Agent
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
-#from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileEntryAlreadyExists)
-from volttron.types.bases import Service
+from volttron.types.auth.auth_service import AuthService
+
 # from wheel.tool import unpack
 from volttron.utils import ClientContext as cc
 from volttron.utils import execute_command, get_utc_seconds_from_epoch
@@ -243,21 +243,19 @@ class SecureExecutionEnvironment(object):
 
 
 @service
-class AIPplatform(Service):
+class AIPplatform:
     """Manages the main workflow of receiving and sending agents."""
 
-    def __init__(self, server_opts: ServerOptions, **kwargs):
+    def __init__(self, server_opts: ServerOptions, auth_service: AuthService | None, **kwargs):
         self.server_opts = server_opts
+        self.auth_service = auth_service
         self.active_agents = {}
         self.vip_id_uuid_map = {}
         self.uuid_vip_id_map = {}
         self.secure_agent_user = cc.is_secure_mode()
-        self.message_bus = cc.get_messagebus()
-
-        # if self.message_bus == 'rmq':
-        #     self.rmq_mgmt = RabbitMQMgmt()
         self.instance_name = cc.get_instance_name()    # get_platform_instance_name()
 
+    # methods for agent isolation mode. Test with next round of changes
     def add_agent_user_group(self):
         user = pwd.getpwuid(os.getuid())
         group_name = "volttron_{}".format(self.instance_name)
@@ -488,7 +486,7 @@ class AIPplatform(Service):
             raise
         return agent_uuid
 
-    def backup_agent_data(self, agent_uuid, publickey, secretkey, vip_identity):
+    def backup_agent_data(self, agent_uuid, vip_identity):
         backup_agent_file = None
         if agent_uuid:
             _log.debug(f"There is an existing agent {agent_uuid}")
@@ -499,14 +497,10 @@ class AIPplatform(Service):
                 with tarfile.open(backup_agent_file, "w:gz") as tar:
                     tar.add(old_agent_data_dir,
                             arcname=os.path.sep)    # os.path.basename(source_dir))
-            # current agent's keystore overrides any keystore data passed
-            keystore = self.__get_agent_keystore__(vip_identity, publickey, secretkey)
-            publickey = keystore.public
-            secretkey = keystore.secret
 
             _log.info('Removing previous version of agent "{}"\n'.format(vip_identity))
-            self.remove_agent(agent_uuid)
-        return backup_agent_file, publickey, secretkey
+            self.remove_agent(agent_uuid, remove_auth=False)
+        return backup_agent_file
 
     @staticmethod
     def restore_agent_data_from_tgz(source_file, output_dir):
@@ -517,8 +511,6 @@ class AIPplatform(Service):
     def install_agent(self,
                       agent,
                       vip_identity=None,
-                      publickey=None,
-                      secretkey=None,
                       agent_config=None,
                       force=False,
                       pre_release=False):
@@ -532,8 +524,7 @@ class AIPplatform(Service):
         agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
         # This should happen before install of source. if force=True then below line will remove agent source when
         # removing last/only instance of an agent
-        backup_agent_file, publickey, secretkey = self.backup_agent_data(
-            agent_uuid, publickey, secretkey, vip_identity)
+        backup_agent_file = self.backup_agent_data(agent_uuid, vip_identity)
 
         agent_name = self.install_agent_source(agent, force, pre_release)
 
@@ -584,15 +575,15 @@ class AIPplatform(Service):
             #     unpacker = auth.VolttronPackageWheelFile(agent_wheel, certsobj=Certs())
             #     unpacker.unpack(dest=agent_path)
 
-            keystore = self.__get_agent_keystore__(final_identity, publickey, secretkey)
+            # will reuse credentials and capabilities if already exists.
+            # Else will create new creds and default capabilities
+            self.auth_service.create_user(identity=final_identity)
 
-            self._authorize_agent_keys(final_identity, keystore.public)
-
-            if self.message_bus == "rmq":
-                rmq_user = cc.get_fq_identity(final_identity, cc.get_instance_name())
-                # rmq_user = get_fq_identity(final_identity,
-                #                            self.instance_name)
-                Certs().create_signed_cert_files(rmq_user, overwrite=False)
+            # if self.message_bus == "rmq":
+            #     rmq_user = cc.get_fq_identity(final_identity, cc.get_instance_name())
+            #     # rmq_user = get_fq_identity(final_identity,
+            #     #                            self.instance_name)
+            #     Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
             if self.secure_agent_user:
                 # When installing, we always create a new user, as anything
@@ -850,7 +841,6 @@ class AIPplatform(Service):
         if agent_uuid not in self.uuid_vip_id_map:
             raise ValueError("invalid agent")
         self.stop_agent(agent_uuid)
-        msg_bus = self.message_bus
         vip_identity = self.uuid_vip_id_map[agent_uuid]
 
         # get list of agent uuid to name mapping
