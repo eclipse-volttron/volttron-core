@@ -403,8 +403,7 @@ class ControlService(Service, Agent):
         self._raise_error_if_identity_exists_without_force(vip_identity, force)
         if not agent.endswith(".whl"):
             # agent passed is package name to install from pypi.
-            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config,
-                                           force, pre_release)
+            return self._aip.install_agent(agent, vip_identity, agent_config, force, pre_release)
 
         # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
         tmpdir = None

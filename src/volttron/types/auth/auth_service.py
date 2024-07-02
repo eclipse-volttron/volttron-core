@@ -59,17 +59,19 @@ class AuthorizationManager:
         ...
 
     @abstractmethod
-    def create_or_merge_user(self,
-                             *,
-                             identity: str,
-                             protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                             roles: authz.UserRoles = None,
-                             rpc_capabilities: authz.RPCCapabilities = None,
-                             pubsub_capabilities: authz.PubsubCapabilities = None,
-                             comments: str = None,
-                             domain: str = None,
-                             address: str = None,
-                             **kwargs) -> bool:
+    def create_or_merge_user_authz(self,
+                                   *,
+                                   identity: str,
+                                   protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                                   roles: authz.UserRoles = None,
+                                   rpc_capabilities: authz.RPCCapabilities = None,
+                                   pubsub_capabilities: authz.PubsubCapabilities = None,
+                                   comments: str = None,
+                                   **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def get_user_capabilities(self, *, identity: str) -> dict:
         ...
 
     @abstractmethod
@@ -81,7 +83,7 @@ class AuthorizationManager:
         ...
 
     @abstractmethod
-    def remove_user(self, identity: authz.Identity):
+    def remove_user_authorization(self, identity: authz.Identity):
         ...
 
     @abstractmethod
@@ -96,6 +98,9 @@ class AuthorizationManager:
 class AuthService(Service):
 
     # Authentication
+    @abstractmethod
+    def create_user(self, *, identity: str, **kwargs) -> bool:
+        ...
 
     @abstractmethod
     def has_credentials_for(self, *, identity: str) -> bool:
@@ -145,17 +150,19 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user(self,
-                             *,
-                             identity: str,
-                             protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                             roles: authz.UserRoles = None,
-                             rpc_capabilities: authz.RPCCapabilities = None,
-                             pubsub_capabilities: authz.PubsubCapabilities = None,
-                             comments: str = None,
-                             domain: str = None,
-                             address: str = None,
-                             **kwargs) -> bool:
+    def create_or_merge_user_authz(self,
+                                   *,
+                                   identity: str,
+                                   protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                                   roles: authz.UserRoles = None,
+                                   rpc_capabilities: authz.RPCCapabilities = None,
+                                   pubsub_capabilities: authz.PubsubCapabilities = None,
+                                   comments: str = None,
+                                   **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def get_user_capabilities(self, *, identity: str) -> dict:
         ...
 
     @abstractmethod
@@ -181,7 +188,7 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def remove_user(self, name: authz.Identity):
+    def remove_user_authorization(self, name: authz.Identity):
         ...
 
     @abstractmethod
