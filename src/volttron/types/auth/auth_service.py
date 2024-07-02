@@ -103,6 +103,10 @@ class AuthService(Service):
         ...
 
     @abstractmethod
+    def remove_user(self, *, identity: str, **kwargs) -> bool:
+        ...
+
+    @abstractmethod
     def has_credentials_for(self, *, identity: str) -> bool:
         ...
 
