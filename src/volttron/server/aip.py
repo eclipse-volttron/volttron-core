@@ -863,7 +863,7 @@ class AIPplatform:
                 _log.warning("Volttron agent user not found at {}".format(user_id_path))
                 _log.warning(user_id_err)
         if remove_auth:
-            self.auth_service.remove_user(identity=vip_identity)
+            self._auth_service.remove_user(identity=vip_identity)
         shutil.rmtree(agent_directory)
         if volttron_agent_user:
             self.remove_agent_user(volttron_agent_user)
