@@ -679,7 +679,7 @@ class PubSub(SubsystemBase):
         args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
         # TODO: Refactor to allow core to send vip messages.
         self.core().socket.send_vip("", "pubsub", args, result.ident, copy=False)
-        #self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
+        # self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
         return result
 
     def publish_by_tags(self,

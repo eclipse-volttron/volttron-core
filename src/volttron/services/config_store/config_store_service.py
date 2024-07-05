@@ -37,7 +37,7 @@ from volttron.client.known_identities import CONFIGURATION_STORE
 from volttron.client.vip.agent import RPC, Agent, Core, Unreachable, VIPError
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
-from volttron.types.bases import Service
+from volttron.types import Service
 from volttron.types.auth import Credentials, CredentialsStore
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import (format_timestamp, get_aware_utc_now, jsonapi, parse_json_config)
@@ -155,7 +155,7 @@ class ConfigStoreService(Service, Agent):
             root, ext = os.path.splitext(store_path)
             agent_identity = os.path.basename(root)
             _log.debug("Processing store for agent {}".format(agent_identity))
-            #store = PersistentDict(filename=store_path, flag="c", format="json")
+            # store = PersistentDict(filename=store_path, flag="c", format="json")
             store = {}
             if os.path.exists(store_path):
                 store = jsonapi.loads(open(store_path).read())
@@ -211,7 +211,7 @@ class ConfigStoreService(Service, Agent):
         agent_name_map.clear()
 
         # Sync will delete the file if the store is empty.
-        #agent_disk_store.async_sync()
+        # agent_disk_store.async_sync()
         if not agent_disk_store and os.path.exists(
                 os.path.join(self.store_path, identity + store_ext)):
             os.remove(os.path.join(self.store_path, identity + store_ext))
@@ -275,7 +275,6 @@ class ConfigStoreService(Service, Agent):
             return agent_disk_store[real_config_name]["data"]
 
         return agent_configs[real_config_name]
-
 
     @RPC.export
     def get_metadata(self, identity, config_name):

@@ -1,9 +1,11 @@
 import copy
 import logging
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from attrs import validators, define, field, fields
 from cattrs import Converter
+
+from volttron.types import Identity
 
 vipid_dot_rpc_method = str
 RPC_CAPABILITIES = "rpc_capabilities"
@@ -198,7 +200,6 @@ def unstructure_roles(instance: Roles):
 
 
 role_name = str
-Identity = str
 PubKey = str
 
 
@@ -467,7 +468,7 @@ class VolttronAuthzMap:
         if rpc_cap_list is None:
             rpc_cap_list = list()
         obj_list = RPCCapabilities(
-            [])  # I don't get a new instance of list in obj if I don't pass []  ?!
+            [])    # I don't get a new instance of list in obj if I don't pass []  ?!
         for rpc_cap in rpc_cap_list:
             if isinstance(rpc_cap, str):
                 obj_list.add_rpc_capability(RPCCapability(rpc_cap))
@@ -482,7 +483,7 @@ class VolttronAuthzMap:
         if pubsub_cap_dict is None:
             pubsub_cap_dict = dict()
         obj_list = PubsubCapabilities(
-            [])  # I don't get a new instance of list in obj if I don't pass []  ?!
+            [])    # I don't get a new instance of list in obj if I don't pass []  ?!
         for topic_pattern, access in pubsub_cap_dict.items():
             obj_list.add_pubsub_capability(PubsubCapability(topic_pattern, access))
         return obj_list
@@ -616,7 +617,7 @@ class VolttronAuthzMap:
         expand_user_caps = False
         role_dict = self.compact_dict.get(ROLES).get(name)
         if role_dict:
-            expand_user_caps = True  # existing role so might have users associated it, updated user_caps
+            expand_user_caps = True    # existing role so might have users associated it, updated user_caps
         VolttronAuthzMap.update_rpc_capabilities(role_dict,
                                                  authz_converter.unstructure(rpc_capabilities))
         VolttronAuthzMap.update_pubsub_capabilities(
@@ -848,7 +849,7 @@ if __name__ == "__main__":
 
     test_users = Users([
         User("volttron.ctl", roles=UserRoles([UserRole("admin")])),
-        # User("hist1", rpc_capabilities=test_rpc_list),
+    # User("hist1", rpc_capabilities=test_rpc_list),
         User("listener1",
              roles=UserRoles(
                  [UserRole(role_name="role1", param_restrictions={"param1": "value1"})]))

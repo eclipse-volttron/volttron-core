@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """Run gevent Greenlets in their own threads.
 
 Supports killing threads and executing callbacks from other threads.

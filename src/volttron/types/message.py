@@ -16,15 +16,3 @@ class Message(object):
             [x for x in value] if isinstance(value, (list, tuple)) else value,
         ) for name, value in self.__dict__.items())
         return "%s(**{%s})" % (self.__class__.__name__, attrs)
-
-
-# @dataclass(frozen=True)
-# class Message(JSONSerializable):
-#     recipient: str = ''
-#     sender: str = ''
-#     peer: str = ''
-#     subsystem: str = ''
-#     id: str = ''
-#     user_id: str = ''
-#     signature: str = 'VIP1'
-#     args: list[any] = field(default_factory=list)

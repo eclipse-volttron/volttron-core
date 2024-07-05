@@ -45,7 +45,6 @@ from urllib.parse import urlparse
 
 from volttron.client.vip.agent.core import Core
 from volttron.client.vip.agent.subsystems.auth import Auth
-from volttron.client.vip.agent.subsystems.channel import Channel
 from volttron.client.vip.agent.subsystems.configstore import ConfigStore
 from volttron.client.vip.agent.subsystems.health import Health
 from volttron.client.vip.agent.subsystems.heartbeat import Heartbeat
@@ -55,11 +54,11 @@ from volttron.client.vip.agent.subsystems.ping import Ping
 from volttron.client.vip.agent.subsystems.pubsub import PubSub
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.client.vip.agent.subsystems.rpc import RPC
-from volttron.types.bases import AbstractAgent
+from volttron.types import AbstractAgent
 
 __all__: List[str] = [
-    "AbstractAgent", "Core", "RPC", "Channel", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat",
-    "Health", "ConfigStore", "Auth", "Query"
+    "AbstractAgent", "Core", "RPC", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health",
+    "ConfigStore", "Auth", "Query"
 ]
 
 _log = logging.getLogger(__name__)

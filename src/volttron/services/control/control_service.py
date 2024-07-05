@@ -35,6 +35,8 @@ from typing import Any, Dict, Optional
 import gevent
 import gevent.event
 
+from volttron.utils import set_agent_identity
+
 from volttron.client.known_identities import CONTROL
 from volttron.client.messaging.health import STATUS_BAD, Status
 from volttron.client.vip.agent import RPC, Agent, Core
@@ -42,7 +44,7 @@ from volttron.client.vip.agent.subsystems.query import Query
 from volttron.server.aip import AIPplatform
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
-from volttron.types.bases import Service
+from volttron.types import Service
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import ClientContext as cc
 from volttron.utils import get_aware_utc_now, jsonapi
@@ -76,7 +78,8 @@ CHUNK_SIZE = 4096
 
 
 @service
-class ControlService(Service, Agent):
+class ControlService(Agent):
+
     class Meta:
         identity = CONTROL
 
@@ -97,25 +100,13 @@ class ControlService(Service, Agent):
         kwargs["enable_store"] = False
 
         agent_monitor_frequency = kwargs.pop("agent-monitor-frequency", 10)
-        super().__init__(credentials=self.retrieve_credentials(),
-                         address=options.service_address,
-                         **kwargs)
+
+        with set_agent_identity(self.Meta.identity):
+            super().__init__(address=options.service_address, **kwargs)
         self._aip = aip
         self._tracker = tracker
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
-
-        if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-                _,
-            ) = self.core._get_keys_from_addr()
-        if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-            ) = self.core._get_keys_from_keystore()
 
     @Core.receiver("onsetup")
     def _setup(self, sender, **kwargs):
@@ -340,7 +331,8 @@ class ControlService(Service, Agent):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(type(uuid).__name__, identity))
-        return self._aip.uuid_vip_id_map[uuid]
+        # TODO: Have an accessor wrapper around this.
+        return self._aip._uuid_vip_id_map[uuid]
 
     @RPC.export
     def get_all_agent_publickeys(self):
@@ -361,7 +353,7 @@ class ControlService(Service, Agent):
         :rtype: dict
         """
         result = {}
-        for vip_identity in self._aip.vip_id_uuid_map:
+        for vip_identity in self._aip._vip_id_uuid_map:
             result[vip_identity] = self._aip.__get_agent_keystore__(vip_identity).public
         return result
 
@@ -635,4 +627,4 @@ class ControlService(Service, Agent):
         function returns the agent uuid of the agent with the passed
         vip identity.  If the identity  doesn't exist then returns None.
         """
-        return self._aip.vip_id_uuid_map.get(vip_identity)
+        return self._aip._vip_id_uuid_map.get(vip_identity)

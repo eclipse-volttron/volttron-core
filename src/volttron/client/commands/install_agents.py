@@ -110,7 +110,6 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
 
 
 def _send_and_intialize_agent(opts, publickey, secretkey):
-
     # Verify and load agent_config up from the opts.  agent_config will
     # be a yaml config file.
     agent_config = opts.agent_config
@@ -414,19 +413,9 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
         agent_package = os.path.basename(path)
     else:
         agent_package = agent
-    result = server.vip.rpc.call(
-        peer,
-        "install_agent_from_message_bus",
-        agent_package,
-        rmq_send_topic,
-        rmq_response_topic,
-        vip_identity,
-        publickey,
-        secretkey,
-        force,
-        pre_release,
-        agent_config
-    )
+    result = server.vip.rpc.call(peer, "install_agent_from_message_bus", agent_package,
+                                 rmq_send_topic, rmq_response_topic, vip_identity, publickey,
+                                 secretkey, force, pre_release, agent_config)
     # elif server.core.messagebus == "zmq":
     # if wheel_install:
     #     _log.debug(f"calling install_agent on {peer} using channel {channel.name}")

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from volttron.types.agent_context import AgentContext
 from volttron.types.auth.auth_credentials import Credentials
-from volttron.types.bases import Connection, CoreLoop
+from volttron.types import Connection, CoreLoop
 
 if TYPE_CHECKING:
     from volttron.client.vip.agent import Agent

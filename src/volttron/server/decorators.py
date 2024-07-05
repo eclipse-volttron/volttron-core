@@ -20,8 +20,8 @@ from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreato
                                                   CredentialsStore)
 from volttron.types.auth.auth_service import (AuthService, Authenticator, AuthorizationManager,
                                               Authorizer)
-from volttron.types.bases import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor,
-                                  AgentStarter, Connection, MessageBus, Service)
+from volttron.types import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor, AgentStarter,
+                            Connection, MessageBus, Service)
 from volttron.types.factories import ConnectionBuilder, CoreBuilder
 from volttron.utils.logs import logtrace
 
@@ -110,8 +110,8 @@ service = factory_registration("service", singleton=True, allow_many=True)
 credentials_store = factory_registration("credentials_store", protocol=CredentialsStore)
 credentials_creator = factory_registration("credentials_creator", protocol=CredentialsCreator)
 
-#core = factory_registration("core", protocol=Core, singleton=False)
-#connection = factory_registration("connection", protocol=Connection | ConnectionBuilder)
+# core = factory_registration("core", protocol=Core, singleton=False)
+# connection = factory_registration("connection", protocol=Connection | ConnectionBuilder)
 messagebus = factory_registration("messagebus", protocol=MessageBus)
 
 agent_starter = factory_registration("agent_starter", protocol=AgentStarter)
@@ -238,7 +238,7 @@ def get_core_instance(credentials: Credentials) -> AbstractCore:
     service_repo.add_instance(Credentials, credentials)
 
     return service_repo.resolve(registerd_cls)
-    #return __get_class_from_factory__(core, name)
+    # return __get_class_from_factory__(core, name)
 
 
 __authorizer__: dict[str, Authorizer] = {}
@@ -336,7 +336,6 @@ __credentials_creator__: dict[str, CredentialsCreator] = {}
 
 @logtrace
 def get_credentials_creator(name=None) -> CredentialsCreator:
-
     creator_item: CredentialsCreator = None
     if name is not None:
         creator_item = __credentials_creator__.get(name, None)

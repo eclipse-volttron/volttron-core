@@ -67,7 +67,6 @@ def start_service(service_name: str):
 
 
 def init_services(config: ServerConfig) -> List[Tuple[str, ServiceInterface]]:
-
     default_kwargs = dict(enable_store=False,
                           address=config.internal_address,
                           heartbeat_autostart=True)

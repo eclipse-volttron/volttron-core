@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """Implementation of JSON-RPC 2.0 with support for bi-directional calls.
 
 See http://www.jsonrpc.org/specification for the complete specification.

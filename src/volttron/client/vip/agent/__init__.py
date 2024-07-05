@@ -31,9 +31,7 @@ import gevent
 
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.agent_context import AgentContext, AgentOptions
-from volttron.types.bases import AbstractAgent
-from volttron.utils import ClientContext as cc
-from volttron.utils import is_valid_identity
+from volttron.types import AbstractAgent
 
 from .core import *
 from .decorators import *
@@ -46,7 +44,7 @@ class Agent(AbstractAgent):
     class Subsystems(object):
 
         def __init__(self, *, owner: Agent, core: Core, options: AgentOptions):
-            #heartbeat_autostart, heartbeat_period, enable_store, enable_web, enable_channel,
+            # heartbeat_autostart, heartbeat_period, enable_store, enable_web, enable_channel,
             #         message_bus, tag_vip_id, tag_refresh_interval):
             self.peerlist = PeerList(core=core)
             self.ping = Ping(core)
@@ -95,7 +93,7 @@ class Agent(AbstractAgent):
         #         if fld in kwargs:
         #             setattr(options, fld, kwargs.pop(fld))
 
-        #raise ValueError("Either credentials or options must be provided.")
+        # raise ValueError("Either credentials or options must be provided.")
 
         #     identity=None,
         #     address=None,
@@ -114,7 +112,7 @@ class Agent(AbstractAgent):
         #     enable_channel=False,
         #     reconnect_interval=None,
         #     version="0.1",
-        #     instance_name=None,
+        #     _instance_name=None,
         #     message_bus=None,
         #     volttron_central_address=None,
         #     volttron_central_instance_name=None,
@@ -150,8 +148,8 @@ class Agent(AbstractAgent):
         context = AgentContext(credentials=credentials, options=options, address=address)
 
         self.core = factory.build(owner=self, context=context)
-        #self.core = get_core_instance(credentials=credentials)
-        #self.core = core_cls(address=address, credentials=credentials, options=options)
+        # self.core = get_core_instance(credentials=credentials)
+        # self.core = core_cls(address=address, credentials=credentials, options=options)
 
         # if not tag_vip_id:
         #     # no value was sent, use what is configured in server config or default returned by cc
@@ -178,59 +176,63 @@ class BasicAgent(object):
         self.core = BasicCore(self)
 
 
-def build_agent(address=None,
-                identity=None,
-                publickey=None,
-                secretkey=None,
-                timeout=10,
-                serverkey=None,
-                agent_class=Agent,
-                volttron_central_address=None,
-                volttron_central_instance_name=None,
-                **kwargs) -> Agent:
-    """Builds a dynamic agent connected to the specifiedd address.
+def build_agent(*, address=None, credentials: Credentials):
+    raise NotImplementedError()
 
-    All key parameters should have been encoded with
-    :py:meth:`volttron.client.vip.socket.encode_key`
 
-    :param str address: VIP address to connect to
-    :param str identity: Agent's identity
-    :param str publickey: Agent's Base64-encoded CURVE public key
-    :param str secretkey: Agent's Base64-encoded CURVE secret key
-    :param str serverkey: Server's Base64-encoded CURVE public key
-    :param class agent_class: Class to use for creating the instance
-    :param int timeout: Seconds to wait for agent to start
-    :param kwargs: Any Agent specific parameters
-    :return: an agent based upon agent_class that has been started
-    :rtype: agent_class
-    """
+# def build_agent(address=None,
+#                 identity=None,
+#                 publickey=None,
+#                 secretkey=None,
+#                 timeout=10,
+#                 serverkey=None,
+#                 agent_class=Agent,
+#                 volttron_central_address=None,
+#                 volttron_central_instance_name=None,
+#                 **kwargs) -> Agent:
+#     """Builds a dynamic agent connected to the specifiedd address.
 
-    address = address if address is not None else get_address()
+#     All key parameters should have been encoded with
+#     :py:meth:`volttron.client.vip.socket.encode_key`
 
-    # This is a fix allows the connect to message bus to be different than
-    # the one that is currently running.
-    if publickey is None or secretkey is None:
-        publickey, secretkey = get_server_keys()
+#     :param str address: VIP address to connect to
+#     :param str identity: Agent's identity
+#     :param str publickey: Agent's Base64-encoded CURVE public key
+#     :param str secretkey: Agent's Base64-encoded CURVE secret key
+#     :param str serverkey: Server's Base64-encoded CURVE public key
+#     :param class agent_class: Class to use for creating the instance
+#     :param int timeout: Seconds to wait for agent to start
+#     :param kwargs: Any Agent specific parameters
+#     :return: an agent based upon agent_class that has been started
+#     :rtype: agent_class
+#     """
 
-    message_bus = cc.get_messagebus()
+#     address = address if address is not None else get_address()
 
-    try:
-        enable_store = kwargs.pop("enable_store")
-    except KeyError:
-        enable_store = False
+#     # This is a fix allows the connect to message bus to be different than
+#     # the one that is currently running.
+#     if publickey is None or secretkey is None:
+#         publickey, secretkey = get_server_keys()
 
-    agent = agent_class(address=address,
-                        identity=identity,
-                        publickey=publickey,
-                        secretkey=secretkey,
-                        serverkey=serverkey,
-                        volttron_central_address=volttron_central_address,
-                        volttron_central_instance_name=volttron_central_instance_name,
-                        message_bus=message_bus,
-                        enable_store=enable_store,
-                        **kwargs)
-    event = gevent.event.Event()
-    gevent.spawn(agent.core.run, event)
-    with gevent.Timeout(timeout):
-        event.wait()
-    return agent
+#     message_bus = cc.get_messagebus()
+
+#     try:
+#         enable_store = kwargs.pop("enable_store")
+#     except KeyError:
+#         enable_store = False
+
+#     agent = agent_class(address=address,
+#                         identity=identity,
+#                         publickey=publickey,
+#                         secretkey=secretkey,
+#                         serverkey=serverkey,
+#                         volttron_central_address=volttron_central_address,
+#                         volttron_central_instance_name=volttron_central_instance_name,
+#                         message_bus=message_bus,
+#                         enable_store=enable_store,
+#                         **kwargs)
+#     event = gevent.event.Event()
+#     gevent.spawn(agent.core.run, event)
+#     with gevent.Timeout(timeout):
+#         event.wait()
+#     return agent

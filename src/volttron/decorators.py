@@ -14,8 +14,8 @@ from volttron.client.vip.agent.core import Core
 from volttron.server.containers import service_repo
 from volttron.types.auth import (AuthService, Authenticator, AuthorizationManager, Authorizer,
                                  Credentials, CredentialsCreator, CredentialsStore)
-from volttron.types.bases import (AgentBuilder, AgentExecutor, AgentStarter, ConnectionBuilder,
-                                  CoreBuilder, MessageBus, Service)
+from volttron.types import (AgentBuilder, AgentExecutor, AgentStarter, ConnectionBuilder,
+                            CoreBuilder, MessageBus, Service)
 # from volttron.types.interfaces import (AgentBuilder, AgentExecutor, AgentStarter, Connection,
 #                                        MessageBus, Service)
 from volttron.utils.logs import logtrace
@@ -73,9 +73,6 @@ def factory_registration(registy_name: str,
         else:
             service_repo.add_factory(cls, cls, kwargs=kwargs)
 
-        if lookup_key is None:
-            print("Lookup key is none!")
-        print(f"Registering {cls.__name__} as a {lookup_key}")
         if lookup_key in register.registry:
             raise ValueError(f"{lookup_key} already in register for {register.name}.")
         register.registry[lookup_key] = cls
@@ -98,8 +95,8 @@ authservice = factory_registration("authservice", interface=AuthService, singlet
 # credentials_store = factory_registration("credentials_store", interface=CredentialsStore)
 # credentials_creator = factory_registration("credentials_creator", interface=CredentialsCreator)
 
-#core = factory_registration("core", interface=Core, singleton=False)
-#connection = factory_registration("connection", interface=Connection | ConnectionBuilder)
+# core = factory_registration("core", interface=Core, singleton=False)
+# connection = factory_registration("connection", interface=Connection | ConnectionBuilder)
 messagebus = factory_registration("messagebus", interface=MessageBus)
 
 agent_starter = factory_registration("agent_starter", interface=AgentStarter)
@@ -224,7 +221,7 @@ def get_core_instance(credentials: Credentials) -> Core:
     service_repo.add_instance(Credentials, credentials)
 
     return service_repo.resolve(registerd_cls)
-    #return __get_class_from_factory__(core, name)
+    # return __get_class_from_factory__(core, name)
 
 
 __authorizer__: dict[str, Authorizer] = {}
@@ -322,7 +319,6 @@ __credentials_creator__: dict[str, CredentialsCreator] = {}
 
 @logtrace
 def get_credentials_creator(name=None) -> CredentialsCreator:
-
     creator_item: CredentialsCreator = None
     if name is not None:
         creator_item = __credentials_creator__.get(name, None)

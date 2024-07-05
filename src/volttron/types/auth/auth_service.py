@@ -1,9 +1,12 @@
 from typing import Any, Optional
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
                                                   CredentialsStore)
-from volttron.types.bases import Service
+
+from volttron.types import Service, Identity
+
 import volttron.types.auth.authz_types as authz
 
 

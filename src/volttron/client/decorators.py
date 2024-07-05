@@ -120,7 +120,7 @@ def get_core_builder(name: Optional[str] = None, **kwargs) -> CoreBuilder:
                 registration=core_builder,
                 name=name)    # __core_builder__ = getattr(module, zmq_core_builder_class)
 
-            #__core_builder__ = importlib.import_module(new_package)
+            # __core_builder__ = importlib.import_module(new_package)
 
         specs = inspect.getargspec(__core_builder__.__init__)
         # for k, v in kwargs.items():
@@ -142,13 +142,19 @@ def get_server_credentials(address: Optional[str] = None) -> Credentials:
     import os
     from pathlib import Path
 
-    from volttron.types.auth import (Credentials, PKICredentials, PublicCredentials)
+    from volttron.types.auth import (Credentials, PKICredentials, PublicCredentials,
+                                     VolttronCredentials)
     from volttron.types.known_host import KnownHostProperties as known_host_properties
+    from volttron.client.known_identities import PLATFORM
     from volttron.utils import jsonapi
 
     # ipc address must mean we are local so use @ symbol to mean so.
     if address is None or address.startswith('ipc'):
         address = "@"
+
+    cred_path = Path(
+        os.environ['VOLTTRON_HOME']).expanduser() / f"credentials_store/{PLATFORM}.json"
+    return VolttronCredentials.load_from_file(cred_path)
 
     new_path = Path(os.environ['VOLTTRON_HOME']) / "known_hosts.json"
     if known_host_properties is None:

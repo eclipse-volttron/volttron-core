@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """VOLTTRON platform™ topic templates.
 
 Templates of standard topics.  Fields in the templates are replaced by

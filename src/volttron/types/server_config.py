@@ -112,7 +112,6 @@ class ServiceConfigs:
                 continue
                 kwargs['options'] = service_repo.resolve(ServerOptions)
             for arg_name, arg_value in params.items():
-                #arg_name, arg_value = arg
                 if arg_name in config and arg_name != 'kwargs':
                     kwargs[arg_name] = config[arg_name]
                 elif arg_name in config.get('kwargs', {}):

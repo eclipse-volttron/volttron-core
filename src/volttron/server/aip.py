@@ -48,24 +48,16 @@ from volttron.client.vip.agent import Agent
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
 from volttron.types.auth.auth_service import AuthService
+from volttron.types.auth.auth_credentials import CredentialsStore
 
 # from wheel.tool import unpack
-from volttron.utils import ClientContext as cc
+from volttron.utils import ClientContext as cc, jsonapi
 from volttron.utils import execute_command, get_utc_seconds_from_epoch
 from volttron.utils.certs import Certs
 from volttron.utils.identities import is_valid_identity
-from volttron.utils.keystore import KeyStore
-
-from ..utils import jsonapi
-
-# from volttron.platform.agent.utils import load_platform_config, \
-#     get_utc_seconds_from_epoch
 
 # TODO route to wheel_wrap
 # from .packages import UnpackedPackage
-
-# from volttron.utils.rmq_mgmt import RabbitMQMgmt
-# from volttron.platform import update_volttron_script_path
 
 _log = logging.getLogger(__name__)
 
@@ -246,19 +238,21 @@ class SecureExecutionEnvironment(object):
 class AIPplatform:
     """Manages the main workflow of receiving and sending agents."""
 
-    def __init__(self, server_opts: ServerOptions, auth_service: AuthService | None, **kwargs):
-        self.server_opts = server_opts
-        self.auth_service = auth_service
-        self.active_agents = {}
-        self.vip_id_uuid_map = {}
-        self.uuid_vip_id_map = {}
-        self.secure_agent_user = cc.is_secure_mode()
-        self.instance_name = cc.get_instance_name()    # get_platform_instance_name()
+    def __init__(self, server_opts: ServerOptions, auth_service: AuthService | None,
+                 credentials_store: CredentialsStore, **kwargs):
+        self._server_opts = server_opts
+        self._auth_service = auth_service
+        self._credentials_store = credentials_store
+        self._active_agents = {}
+        self._vip_id_uuid_map = {}
+        self._uuid_vip_id_map = {}
+        self._secure_agent_user = cc.is_secure_mode()
+        self._instance_name = cc.get_instance_name()    # get_platform_instance_name()
 
     # methods for agent isolation mode. Test with next round of changes
     def add_agent_user_group(self):
         user = pwd.getpwuid(os.getuid())
-        group_name = "volttron_{}".format(self.instance_name)
+        group_name = "volttron_{}".format(self._instance_name)
         try:
             group = grp.getgrnam(group_name)
         except KeyError:
@@ -291,7 +285,7 @@ class AIPplatform:
             volttron_agent_user = "volttron_{}".format(
                 str(get_utc_seconds_from_epoch()).replace(".", ""))
             _log.info("Creating volttron user {}".format(volttron_agent_user))
-            group = "volttron_{}".format(self.instance_name)
+            group = "volttron_{}".format(self._instance_name)
             useradd = ["sudo", "useradd", volttron_agent_user, "-r", "-G", group]
             useradd_process = subprocess.Popen(useradd, stdout=PIPE, stderr=PIPE)
             stdout, stderr = useradd_process.communicate()
@@ -356,7 +350,7 @@ class AIPplatform:
                 os.path.join(
                     cc.get_volttron_home(),
                     "certificates/private",
-                    self.instance_name + "-admin.pem",
+                    self._instance_name + "-admin.pem",
                 ),
             )
 
@@ -409,22 +403,22 @@ class AIPplatform:
         for vip_id in os.listdir(self.install_dir):
             with open(os.path.join(self.install_dir, vip_id, "UUID"), "r") as f:
                 agent_uuid = f.read().strip()
-                self.uuid_vip_id_map[agent_uuid] = vip_id
-                self.vip_id_uuid_map[vip_id] = agent_uuid
+                self._uuid_vip_id_map[agent_uuid] = vip_id
+                self._vip_id_uuid_map[vip_id] = agent_uuid
 
     def finish(self):
-        for exeenv in self.active_agents.values():
+        for exeenv in self._active_agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.send_signal(signal.SIGINT)
-        for exeenv in self.active_agents.values():
+        for exeenv in self._active_agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.terminate()
-        for exeenv in self.active_agents.values():
+        for exeenv in self._active_agents.values():
             if exeenv.process.poll() is None:
                 exeenv.process.kill()
 
     def shutdown(self):
-        for agent_uuid in self.active_agents.keys():
+        for agent_uuid in self._active_agents.keys():
             _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
@@ -437,7 +431,7 @@ class AIPplatform:
             task.kill()
 
     def brute_force_platform_shutdown(self):
-        for agent_uuid in list(self.active_agents.keys()):
+        for agent_uuid in list(self._active_agents.keys()):
             _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         # kill the platform
@@ -452,7 +446,7 @@ class AIPplatform:
     # subscribe_address = property(lambda me: me.env.subscribe_address)
     # publish_address = property(lambda me: me.env.publish_address)
 
-    config_dir = property(lambda me: os.path.abspath(me.server_opts.volttron_home))
+    config_dir = property(lambda me: os.path.abspath(me._server_opts.volttron_home))
     install_dir = property(lambda me: os.path.join(me.config_dir, "agents"))
     run_dir = property(lambda me: os.path.join(me.config_dir, "run"))
 
@@ -546,10 +540,10 @@ class AIPplatform:
 
         final_identity = self._setup_agent_vip_id(agent_name, vip_identity=vip_identity)
 
-        if self.secure_agent_user:
+        if self._secure_agent_user:
             _log.info("Installing secure Volttron agent...")
 
-        uuid_values = self.uuid_vip_id_map.keys()
+        uuid_values = self._uuid_vip_id_map.keys()
 
         while True:
             agent_uuid = str(uuid.uuid4())
@@ -577,23 +571,23 @@ class AIPplatform:
 
             # will reuse credentials and capabilities if already exists.
             # Else will create new creds and default capabilities
-            self.auth_service.create_user(identity=final_identity)
+            self._auth_service.create_user(identity=final_identity)
 
             # if self.message_bus == "rmq":
             #     rmq_user = cc.get_fq_identity(final_identity, cc.get_instance_name())
             #     # rmq_user = get_fq_identity(final_identity,
-            #     #                            self.instance_name)
+            #     #                            self._instance_name)
             #     Certs().create_signed_cert_files(rmq_user, overwrite=False)
 
-            if self.secure_agent_user:
+            if self._secure_agent_user:
                 # When installing, we always create a new user, as anything
                 # that already exists is untrustworthy
                 created_user = self.add_agent_user(self.agent_name(agent_uuid), agent_path)
                 self.set_agent_user_permissions(created_user, agent_uuid, agent_path)
 
             # finally update the vip id uuid maps
-            self.vip_id_uuid_map[final_identity] = agent_uuid
-            self.uuid_vip_id_map[agent_uuid] = final_identity
+            self._vip_id_uuid_map[final_identity] = agent_uuid
+            self._uuid_vip_id_map[agent_uuid] = final_identity
 
             if backup_agent_file is not None:
                 self.restore_agent_data_from_tgz(
@@ -619,7 +613,7 @@ class AIPplatform:
         # identity of that already available.
         agent_uuid = None
         if vip_identity:
-            agent_uuid = self.vip_id_uuid_map.get(vip_identity)
+            agent_uuid = self._vip_id_uuid_map.get(vip_identity)
         if agent_uuid and not force:
             raise ValueError("Identity already exists, but not forced!")
         return agent_uuid
@@ -797,7 +791,7 @@ class AIPplatform:
             pass
 
     def _unauthorize_agent_keys(self, agent_uuid):
-        publickey = self.__get_agent_keystore__(self.uuid_vip_id_map[agent_uuid]).public
+        publickey = self.__get_agent_keystore__(self._uuid_vip_id_map[agent_uuid]).public
         AuthFile().remove_by_credentials(publickey)
 
     def _get_agent_data_dir(self, agent_path):
@@ -812,14 +806,14 @@ class AIPplatform:
 
     def get_agent_data_dir(self, agent_uuid=None, vip_identity=None):
         data_dir = None
-        if vip_identity and vip_identity in self.vip_id_uuid_map.keys():
+        if vip_identity and vip_identity in self._vip_id_uuid_map.keys():
             data_dir = os.path.join(self.install_dir, vip_identity, "data")
-        elif agent_uuid and agent_uuid in self.uuid_vip_id_map.keys():
-            data_dir = os.path.join(self.install_dir, self.uuid_vip_id_map[agent_uuid], "data")
+        elif agent_uuid and agent_uuid in self._uuid_vip_id_map.keys():
+            data_dir = os.path.join(self.install_dir, self._uuid_vip_id_map[agent_uuid], "data")
         return data_dir
 
     def _get_available_agent_identity(self, name_template):
-        all_agent_identities = self.vip_id_uuid_map.keys()
+        all_agent_identities = self._vip_id_uuid_map.keys()
 
         # Provided name template is static
         if name_template == name_template.format(n=0):
@@ -834,14 +828,14 @@ class AIPplatform:
             count += 1
 
     def remove_agent(self, agent_uuid, remove_auth=True):
-        if self.secure_agent_user:
+        if self._secure_agent_user:
             _log.info("Running Volttron agents securely with Unix Users.")
         else:
             _log.info("Not running with secure users.")
-        if agent_uuid not in self.uuid_vip_id_map:
+        if agent_uuid not in self._uuid_vip_id_map:
             raise ValueError("invalid agent")
         self.stop_agent(agent_uuid)
-        vip_identity = self.uuid_vip_id_map[agent_uuid]
+        vip_identity = self._uuid_vip_id_map[agent_uuid]
 
         # get list of agent uuid to name mapping
         uuid_name_map = self.list_agents()
@@ -849,18 +843,18 @@ class AIPplatform:
         # TODO replace when adding rmq in a container addin/plugin
         # if msg_bus == "rmq":
         #     # Delete RabbitMQ user for the agent
-        #     instance_name = self.instance_name
-        #     rmq_user = instance_name + "." + vip_identity
+        #     _instance_name = self._instance_name
+        #     rmq_user = _instance_name + "." + vip_identity
         #     try:
         #         self.rmq_mgmt.delete_user(rmq_user)
         #     except requests.exceptions.HTTPError as e:
         #         _log.error(
         #             f"RabbitMQ user {rmq_user} is not available to delete. Going ahead and removing agent directory"
         #         )
-        self.active_agents.pop(agent_uuid, None)
+        self._active_agents.pop(agent_uuid, None)
         agent_directory = os.path.join(self.install_dir, vip_identity)
         volttron_agent_user = None
-        if self.secure_agent_user:
+        if self._secure_agent_user:
             user_id_path = os.path.join(agent_directory, "USER_ID")
             try:
                 with open(user_id_path, "r") as user_id_file:
@@ -880,14 +874,14 @@ class AIPplatform:
             # so safe to uninstall source
             execute_command(["pip", "uninstall", "-y", agent_name[:agent_name.rfind("-")]])
         # update uuid vip id maps
-        self.uuid_vip_id_map.pop(agent_uuid)
-        self.vip_id_uuid_map.pop(vip_identity)
+        self._uuid_vip_id_map.pop(agent_uuid)
+        self._vip_id_uuid_map.pop(vip_identity)
 
     def agent_name(self, agent_uuid=None, vip_identity=None):
         name = None
         if vip_identity or agent_uuid:
             if not vip_identity:
-                vip_identity = self.uuid_vip_id_map.get(agent_uuid)
+                vip_identity = self._uuid_vip_id_map.get(agent_uuid)
             if vip_identity:
                 agent_path = os.path.join(self.install_dir, vip_identity)
                 with open(os.path.join(agent_path, "NAME")) as uuid_file:
@@ -903,7 +897,7 @@ class AIPplatform:
 
     def list_agents(self):
         agents = {}
-        for vip_identity, agent_uuid in self.vip_id_uuid_map.items():
+        for vip_identity, agent_uuid in self._vip_id_uuid_map.items():
             try:
                 agents[agent_uuid] = self.agent_name(vip_identity=vip_identity)
             except KeyError:
@@ -911,17 +905,20 @@ class AIPplatform:
         return agents
 
     def get_active_agents_meta(self, get_agent_user=False):
-        if self.secure_agent_user and get_agent_user:
+        if self._secure_agent_user and get_agent_user:
             return {
                 agent_uuid: (execenv.name, execenv.agent_user)
-                for agent_uuid, execenv in self.active_agents.items()
+                for agent_uuid, execenv in self._active_agents.items()
             }
         else:
-            return {agent_uuid: execenv.name for agent_uuid, execenv in self.active_agents.items()}
+            return {
+                agent_uuid: execenv.name
+                for agent_uuid, execenv in self._active_agents.items()
+            }
 
     def clear_status(self, clear_all=False):
         remove = []
-        for agent_uuid, execenv in self.active_agents.items():
+        for agent_uuid, execenv in self._active_agents.items():
             if execenv.process.poll() is not None:
                 if clear_all:
                     remove.append(agent_uuid)
@@ -930,20 +927,20 @@ class AIPplatform:
                     if not os.path.exists(path):
                         remove.append(agent_uuid)
         for agent_uuid in remove:
-            self.active_agents.pop(agent_uuid, None)
+            self._active_agents.pop(agent_uuid, None)
 
     def status_agents(self, get_agent_user=False):
-        if self.secure_agent_user and get_agent_user:
+        if self._secure_agent_user and get_agent_user:
             return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid),
-                     self.uuid_vip_id_map[agent_uuid])
+                     self._uuid_vip_id_map[agent_uuid])
                     for agent_uuid, agent in self.get_active_agents_meta().items()]
         else:
             return [(agent_uuid, agent_name, self.agent_status(agent_uuid),
-                     self.uuid_vip_id_map[agent_uuid])
+                     self._uuid_vip_id_map[agent_uuid])
                     for agent_uuid, agent_name in self.get_active_agents_meta().items()]
 
     def tag_agent(self, agent_uuid, tag):
-        tag_file = os.path.join(self.install_dir, self.uuid_vip_id_map[agent_uuid], "TAG")
+        tag_file = os.path.join(self.install_dir, self._uuid_vip_id_map[agent_uuid], "TAG")
         if not tag:
             with ignore_enoent:
                 os.unlink(tag_file)
@@ -969,9 +966,9 @@ class AIPplatform:
 
         if not vip_identity:
             if "/" in agent_uuid or agent_uuid in [".", ".."
-                                                   ] or not self.uuid_vip_id_map.get(agent_uuid):
+                                                   ] or not self._uuid_vip_id_map.get(agent_uuid):
                 raise ValueError("invalid agent")
-            vip_identity = self.uuid_vip_id_map[agent_uuid]
+            vip_identity = self._uuid_vip_id_map[agent_uuid]
 
         tag_file = self.get_subpath(vip_identity, "TAG")
         with ignore_enoent, open(tag_file, "r") as file:
@@ -1009,7 +1006,7 @@ class AIPplatform:
 
         try:
             uuid_passed = uuid.UUID(uuid_or_identity)
-            identity = self.uuid_vip_id_map[uuid_or_identity]
+            identity = self._uuid_vip_id_map[uuid_or_identity]
         except ValueError:
             identity = uuid_or_identity
 
@@ -1083,7 +1080,7 @@ class AIPplatform:
         raise ValueError(errmsg)
 
     def check_resources(self, execreqs, agent_user=None):
-        resmon = getattr(self.server_opts, "resmon", None)
+        resmon = getattr(self._server_opts, "resmon", None)
         if resmon:
             return self._check_resources(resmon, execreqs, reserve=False, agent_user=agent_user)
 
@@ -1113,9 +1110,9 @@ class AIPplatform:
         # get last index of - to split version number from name
         name_no_version = name[0:name.rfind("-")]
 
-        vip_identity = self.uuid_vip_id_map[agent_uuid]
+        vip_identity = self._uuid_vip_id_map[agent_uuid]
         agent_dir = os.path.join(self.install_dir, vip_identity)
-        execenv = self.active_agents.get(agent_uuid)
+        execenv = self._active_agents.get(agent_uuid)
         if execenv and execenv.process.poll() is None:
             _log.warning("request to start already running agent %s", name)
             raise ValueError("agent is already running")
@@ -1162,13 +1159,19 @@ class AIPplatform:
         environ["_LAUNCHED_BY_PLATFORM"] = "1"
 
         environ["AGENT_VIP_IDENTITY"] = vip_identity
+        creds = self._credentials_store.retrieve_credentials(identity=vip_identity)
+        environ["AGENT_CREDENTIALS"] = creds.to_json()
+        # TODO: Perhaps we should do something other than this here?
+        environ["VOLTTRON_PLATFORM_ADDRESS"] = self._server_opts.address[0]
+        # environ["AGENT_CREDENTIALS"] = self._auth.
+
         # environ["VOLTTRON_SERVERKEY"] = KeyStore().public
         # keystore_path = os.path.join(cc.get_volttron_home(), "agents", vip_identity,
         #                              "keystore.json")
         # keystore = KeyStore(keystore_path)
         # environ["AGENT_PUBLICKEY"], environ["AGENT_SECRETKEY"] = keystore.public, keystore.secret
 
-        #module, _, func = module.partition(":")
+        # module, _, func = module.partition(":")
         # if func:
         #     code = '__import__({0!r}, fromlist=[{1!r}]).{1}()'.format(module,
         #                                                               func)
@@ -1177,7 +1180,7 @@ class AIPplatform:
         # argv = [sys.executable, "-m", module]
         agent_user = None
 
-        if self.secure_agent_user:
+        if self._secure_agent_user:
             # TODO: fix agent path and permissions for secure mode
             _log.info("Starting agent securely...")
             user_id_path = os.path.join(agent_dir, "USER_ID")
@@ -1227,7 +1230,7 @@ class AIPplatform:
             stdout=PIPE,
             stderr=PIPE,
         )
-        self.active_agents[agent_uuid] = execenv
+        self._active_agents[agent_uuid] = execenv
         proc = execenv.process
         _log.info("agent %s has PID %s", name, proc.pid)
         gevent.spawn(
@@ -1250,19 +1253,19 @@ class AIPplatform:
         return self.agent_status(agent_uuid)
 
     def agent_status(self, agent_uuid):
-        execenv = self.active_agents.get(agent_uuid)
+        execenv = self._active_agents.get(agent_uuid)
         if execenv is None:
             return (None, None)
         return execenv.process.pid, execenv.process.poll()
 
     def stop_agent(self, agent_uuid):
         try:
-            execenv = self.active_agents[agent_uuid]
+            execenv = self._active_agents[agent_uuid]
             return execenv.stop()
         except KeyError:
             return
 
     def agent_uuid_from_pid(self, pid):
-        for agent_uuid, execenv in self.active_agents.items():
+        for agent_uuid, execenv in self._active_agents.items():
             if execenv.process.pid == pid:
                 return agent_uuid if execenv.process.poll() is None else None

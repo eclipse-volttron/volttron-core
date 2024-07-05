@@ -3,6 +3,7 @@ from __future__ import annotations    # Allows reference to current class
 from abc import ABC, abstractmethod, abstractstaticmethod
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
+import os
 from pathlib import Path
 
 from dataclass_wizard import JSONSerializable
@@ -67,11 +68,49 @@ class VolttronCredentials(PKICredentials):
     def type(self):
         return self.__class__
 
+    @staticmethod
+    def load_from_file(filename: str | Path) -> Credentials:
 
+        if filename is None:
+            raise ValueError(f"filename cannot be None")
+
+        if isinstance(filename, str):
+            filename = Path(filename).expanduser()
+
+        filename = filename.absolute()
+
+        if not filename.exists():
+            raise ValueError(f"filename: {filename} does not exist.")
+
+        obj = jsonapi.loads(filename.read_text())
+
+        return VolttronCredentials.from_dict(obj)
+
+
+# @service
 class CredentialsFactory:
+    # def __init__(self, server_options: ServerOptions):
+    #     server_options.
+    #     CredentialsFactory.CREDENTIAL_STORE = os.environ
 
     @staticmethod
-    def create_from_file(identity: str, path: Path | str) -> Credentials:
+    def load_from_environ() -> Credentials:
+        if credentials := os.environ.get("AGENT_CREDENTIALS"):
+            try:
+                creds = CredentialsFactory.load_credentials_from_file(credentials)
+                return creds
+            except FileNotFoundError:
+
+                # Attempt to load from the environmental variable.
+                obj = jsonapi.loads(credentials)
+
+                creds = VolttronCredentials.from_dict(obj)
+                return creds
+
+        raise ValueError("No AGENT_CREDENTIALS Environmental Variable")
+
+    @staticmethod
+    def load_credentials_from_file(path: Path | str) -> Credentials:
         """
         Create a `Credentials` object from the specified path.
 
@@ -88,17 +127,17 @@ class CredentialsFactory:
         :return: A credentials object or raises an exception.
         :rtype: Credentials
         """
-        if path is str:
+        if isinstance(path, str):
             path = Path(path)
 
         if not path.exists():
-            raise FileNotFoundError(f"Credential file: {path.as_posixs()} not found!")
+            raise FileNotFoundError(f"Credential file: {path} not found!")
 
         obj = jsonapi.load(path.open())
 
         # TODO: Handle this better using type within the keystore.json file.
         if "publickey" in obj and "secretkey" in obj:
-            return PKICredentials.create(identity=identity,
+            return PKICredentials.create(identity=obj["identity"],
                                          publickey=obj["publickey"],
                                          secretkey=obj["secretkey"])
         else:

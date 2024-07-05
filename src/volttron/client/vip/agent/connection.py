@@ -30,8 +30,6 @@ import gevent
 
 from volttron.utils import (ClientContext as cc, get_aware_utc_now)
 
-#from volttron.client import get_home
-#from volttron.client.agent.utils import get_aware_utc_now
 from volttron.client.vip.agent import Agent
 from volttron.client import build_vip_address_string
 
@@ -39,6 +37,8 @@ __version__ = "1.0.3"
 __author__ = "Craig Allwardt <craig.allwardt@pnnl.gov>"
 
 DEFAULT_TIMEOUT = 30
+
+# TODO: Module should not be using here!
 
 
 class Connection(object):

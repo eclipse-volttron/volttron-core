@@ -41,7 +41,7 @@ from urllib.parse import parse_qs, urlsplit, urlunsplit
 import gevent.event
 from gevent.queue import Queue
 
-#from ...vip.zmq_connection import ZMQConnection
+# from ...vip.zmq_connection import ZMQConnection
 import volttron.client as client
 # from volttron.client.agent import utils
 # from volttron.client.agent.utils import load_platform_config, get_platform_instance_name
@@ -50,13 +50,11 @@ import volttron.client as client
 # from volttron.utils.rmq_mgmt import RabbitMQMgmt
 from volttron import utils
 from volttron.types.auth.auth_credentials import Credentials
-from volttron.types.bases import AbstractAgent, AbstractCore, Connection
+from volttron.types import AbstractAgent, AbstractCore, Connection
 from volttron.types.factories import ConnectionBuilder
 from volttron.types.message import Message
-from volttron.utils import ClientContext as cc
 from volttron.utils.logs import logtrace
 
-#from volttron.utils.keystore import KeyStore, KnownHostsStore
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
 from .errors import VIPError
@@ -395,7 +393,7 @@ class BasicCore(AbstractCore):
         return Periodic(period=period, args=args, kwargs=kwargs, wait=wait)
 
     @classmethod
-    def receiver(cls, signal: Signal):
+    def receiver(cls, signal: Signal | str):
 
         def decorate(method):
             annotate(method, set, "core.signals", signal)
@@ -487,16 +485,16 @@ class Core(BasicCore):
         # self.publickey = publickey
         # self.secretkey = secretkey
         # self.serverkey = serverkey
-        #self.reconnect_interval = reconnect_interval
+        # self.reconnect_interval = reconnect_interval
         self._reconnect_attempt = 0
-        # self.instance_name = instance_name
+        # self._instance_name = _instance_name
         # self.messagebus = messagebus
         self.subsystems = {"error": self.handle_error}
 
         self._connection: Connection = connection_factory.build(credentials)
         self.identity = credentials.identity
 
-        #_log.debug("address: %s", address)
+        # _log.debug("address: %s", address)
         _log.debug("identity: %s", self.identity)
         # _log.debug("agent_uuid: %s", agent_uuid)
         # _log.debug("serverkey: %s", serverkey)
@@ -526,7 +524,7 @@ class Core(BasicCore):
 
             self._connection.send_vip("", "agentstop", args=frames, copy=False)
 
-            #self._connection.send_vip_message(message=Message(peer='', subsystem="agentstop", args=frames))
+            # self._connection.send_vip_message(message=Message(peer='', subsystem="agentstop", args=frames))
         super(Core, self).stop(timeout=timeout)
 
     # # This function moved directly from the zmqcore agent.  it is included here because
@@ -634,7 +632,7 @@ def killing(greenlet, *args, **kwargs):
 #         agent_uuid=None,
 #         reconnect_interval=None,
 #         version="0.1",
-#         instance_name=None,
+#         _instance_name=None,
 #         messagebus="zmq",
 #     ):
 #         if volttron_home is None:
@@ -652,7 +650,7 @@ def killing(greenlet, *args, **kwargs):
 #             agent_uuid=agent_uuid,
 #             reconnect_interval=reconnect_interval,
 #             version=version,
-#             instance_name=instance_name,
+#             _instance_name=_instance_name,
 #             messagebus=messagebus,
 #         )
 #         self.context = context or zmq.Context.instance()
@@ -742,7 +740,7 @@ def killing(greenlet, *args, **kwargs):
 #     def loop(self, running_event):
 #         # pre-setup
 #         # self.context.set(zmq.MAX_SOCKETS, 30690)
-#         self.connection = ZMQConnection(self.address, self.identity, self.instance_name, context=self.context)
+#         self.connection = ZMQConnection(self.address, self.identity, self._instance_name, context=self.context)
 #         self.connection.open_connection(zmq.DEALER)
 #         flags = dict(hwm=6000, reconnect_interval=self.reconnect_interval)
 #         self.connection.set_properties(flags)

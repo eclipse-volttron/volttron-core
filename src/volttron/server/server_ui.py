@@ -40,7 +40,7 @@ import shlex as _shlex
 import sys as _sys
 
 # TODO deal with instance setup
-#from volttron.platform.instance_setup import main
+# from volttron.platform.instance_setup import main
 
 
 def expandall(string):

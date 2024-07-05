@@ -117,7 +117,7 @@ class Container:
                 else:
                     resolved = Failure(f"Couldn't resolve {field}")
 
-            #resolved = Failure(f"Couldn't resolve {field}")
+            # resolved = Failure(f"Couldn't resolve {field}")
             # if isinstance(self._resolvable[field], Container.Singleton) or isinstance(
             #         self._resolvable[field], Container.Transient):
             #     _log.debug(f"For k: {k} using: {self._resolvable[field]._value} to resolve (.value) for.")
@@ -257,7 +257,8 @@ class Container:
             self._kwargs = kwargs
             self._container: Container = container
 
-            #self._kwargs = {k: v for k, v in kwargs.items()}
+            # self._kwargs = {k: v for k, v in kwargs.items()}
+
         @property
         def type(self) -> S:
             if not inspect.isclass(self._value):
@@ -300,7 +301,7 @@ class Container:
                 resolved_kwargs: Result[dict, None] = self._container._resolve_arguments(
                     self._value.__init__, **self._kwargs)
 
-                #required_args = get_type_hints(self._value.__init__)
+                # required_args = get_type_hints(self._value.__init__)
 
                 # _log.debug(f"Required args are: {required_args}")
                 # for k, v in required_args.items():
@@ -347,7 +348,7 @@ class Container:
         @property
         def value(self):
             return self._resolve_kwargs(**self._kwargs)
-            #return self._value(**self._kwargs)
+            # return self._value(**self._kwargs)
 
         def _resolve_kwargs(self, **kwargs) -> S:
             # Look for args that can be satisfied by looking up
@@ -391,8 +392,8 @@ class Container:
                     raise ex
             return ret_value
 
-    #def add_singleton_with_many(self, type: T, value: S, **kwargs: dict):
-    #def add_singleton_by_name()
+    # def add_singleton_with_many(self, type: T, value: S, **kwargs: dict):
+    # def add_singleton_by_name()
 
     def add_interface_reference(self, type: T, value: S, **kwargs: dict):
         """

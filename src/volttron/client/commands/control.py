@@ -52,7 +52,6 @@ from volttron.utils import argparser as config
 from volttron.utils import get_address, jsonapi, log_to_file
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
-from volttron.utils.keystore import KeyStore, KnownHostsStore
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -927,6 +926,7 @@ def list_auth(opts, indices=None):
         _stdout.write("No entries in {}\n".format(auth_file.auth_file))
 
 
+# TODO: This needs to be moved to lib-zmq hooks
 def _ask_for_auth_fields(
     domain=None,
     address=None,

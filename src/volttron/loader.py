@@ -66,7 +66,7 @@ def load_dir(package: str, pth: Path):
         if f"{caller_module}.__init__" == new_package:
             _log.debug(f"Skipping {new_package}")
             continue
-        #print(globals())
+        # print(globals())
         if p.absolute().as_posix() not in __loaded__:
             __loaded__.add(p.absolute().as_posix())
             _log.debug(f"Loading {new_package}")
@@ -84,6 +84,6 @@ def load_dir(package: str, pth: Path):
             # for k in list(globals().keys()):
             #     print(k)
 
-            #assert new_package in globals()
+            # assert new_package in globals()
             if p.is_dir():
                 load_dir(new_package, p)

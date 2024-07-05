@@ -27,47 +27,36 @@ from collections import defaultdict
 from datetime import datetime
 
 from volttron.client.known_identities import (CONTROL_CONNECTION, PLATFORM_HEALTH,
-                                              PROCESS_IDENTITIES)
+                                              PROCESS_IDENTITIES, CONTROL)
 from volttron.client.vip.agent import RPC, Agent, Core
 from volttron.server.decorators import service
 # TODO: rmq addition
 # from volttron.utils.rmq_config_params import RMQConfig
 # from volttron.utils.rmq_setup import start_rabbit, RabbitMQStartError
-from volttron.services.auth.auth_service import AuthEntry, AuthFile
-from volttron.types.bases import Service
+# from volttron.services.auth.auth_service import AuthEntry, AuthFile
+from volttron.types import Service
 from volttron.types.service_interface import ServiceInterface
-from volttron.utils import format_timestamp
+from volttron.utils import format_timestamp, set_agent_identity
 from volttron.server.server_options import ServerOptions
 
 _log = logging.getLogger(__name__)
 
 
 @service
-class HealthService(Service, Agent):
+class HealthService(Agent):
 
     class Meta:
         identity = PLATFORM_HEALTH
 
     def __init__(self, options: ServerOptions, **kwargs):
         kwargs["identity"] = self.Meta.identity
-        super().__init__(credentials=self.retrieve_credentials(),
-                         address=options.service_address,
-                         **kwargs)
 
-        # Store the health stats for given peers in a dictionary with
-        # keys being the identity of the connected agent.
-        self._health_dict = defaultdict(dict)
-        entry = AuthEntry(credentials=self.core.publickey,
-                          user_id=self.core.identity,
-                          capabilities=[{
-                              "edit_config_store": {
-                                  "identity": self.core.identity
-                              }
-                          }],
-                          comments="Automatically added on health service init")
-        AuthFile().add(entry, overwrite=True)
+        with set_agent_identity(self.Meta.identity):
+            super().__init__(address=options.service_address, **kwargs)
 
-    def peer_added(self, peer):
+        self._health_dict: dict = {}
+
+    def peer_added(self, peer: str):
         """
         The `peer_added` method should be called whenever an agent is connected to the
         platform.
@@ -109,12 +98,14 @@ class HealthService(Service, Agent):
 
         :return:
         """
+        agents = {}
         # Ignore the connection from control in the health as it will only be around for a short while.
-        agents = {
-            k: v
-            for k, v in self._health_dict.items()
-            if v is dict and not v.get("peer") == CONTROL_CONNECTION
-        }
+        if len(self._health_dict.items()) > 0:
+            agents = {
+                k: v
+                for k, v in self._health_dict.items()
+                if v is dict and not v.get("peer") == CONTROL_CONNECTION
+            }
         _log.debug(f"get_platform_health() -> {agents}")
         return agents
 
@@ -146,5 +137,7 @@ class HealthService(Service, Agent):
         # Start subscribing to heartbeat topic to get updates from the health subsystem.
         # TODO: We need pubsub to use this method.
         #
-        #self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
-        pass
+        # self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
+        pl = self.vip.rpc.call(CONTROL, "peerlist").get()
+        # for peer in pl:
+        #     self._health_dict[peer] =

@@ -53,14 +53,12 @@ from volttron.server.containers import service_repo
 from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
 from volttron.server.server_options import ServerOptions
 from volttron.server.tracking import Tracker
-from volttron.services.auth.auth_service import (AuthEntry, AuthFile, AuthFileUserIdAlreadyExists)
 from volttron.types.auth.auth_service import AuthService
 from volttron.types.events import volttron_home_set_evnt
 from volttron.types.peer import ServicePeerNotifier
 from volttron.types.server_config import ServerConfig, ServiceConfigs
 from volttron.utils import ClientContext as cc
-from volttron.utils import (decode_key, encode_key, get_version, store_message_bus_config)
-from volttron.utils.keystore import KeyStore, KnownHostsStore, get_random_key
+from volttron.utils import (get_version, store_message_bus_config)
 from volttron.utils.persistance import load_create_store
 
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
@@ -110,7 +108,7 @@ def run_server():
         # command line args get preference over same args in config file
         args = args + ["--config", conf]
 
-    #logging.getLogger().setLevel(logging.NOTSET)
+    # logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
 
     # Handle the fact that we don't use store_true and config that requires
@@ -125,7 +123,6 @@ def run_server():
 
 
 def start_volttron_process(options: ServerOptions):
-
     opts = options
     # Change working dir
     os.chdir(opts.volttron_home)
@@ -185,7 +182,7 @@ def start_volttron_process(options: ServerOptions):
     if opts.instance_name:
         store_message_bus_config(opts.messagebus, opts.instance_name)
     else:
-        # if there is no instance_name given get_platform_instance_name will
+        # if there is no _instance_name given get_platform_instance_name will
         # try to retrieve from config or default a value and store it in the config
         cc.get_instance_name()
 
@@ -216,24 +213,28 @@ def start_volttron_process(options: ServerOptions):
                 )
         _log.debug("open file resource limit %d to %d", soft, hard)
 
+    # TODO: Dynamic loading needs to happen instead of this.
+    if opts.auth_enabled:
+        import volttron.services.auth
+
     aip_platform = service_repo.resolve(aip.AIPplatform)
     aip_platform.setup()
     opts.aip = aip_platform
-    #opts.aip = aip.AIPplatform(opts)
-    #opts.aip.setup()
+    # opts.aip = aip.AIPplatform(opts)
+    # opts.aip.setup()
 
     # Check for secure mode/permissions on VOLTTRON_HOME directory
     mode = os.stat(opts.volttron_home).st_mode
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning("insecure mode on directory: %s", opts.volttron_home)
-    # Get or generate encryption key
-    keystore = KeyStore()
-    _log.debug("using key-store file %s", keystore.filename)
-    if not keystore.isvalid():
-        _log.warning("key store is invalid; connections may fail")
-    st = os.stat(keystore.filename)
-    if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-        _log.warning("insecure mode on key file")
+    # # Get or generate encryption key
+    # keystore = KeyStore()
+    # _log.debug("using key-store file %s", keystore.filename)
+    # if not keystore.isvalid():
+    #     _log.warning("key store is invalid; connections may fail")
+    # st = os.stat(keystore.filename)
+    # if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
+    #     _log.warning("insecure mode on key file")
 
     tracker = Tracker()
     protected_topics_file = os.path.join(opts.volttron_home, "protected_topics.json")
@@ -320,13 +321,13 @@ def start_volttron_process(options: ServerOptions):
             # to not use our default auth service and can install their own service to this
             # location.
             loader = importlib.find_loader("volttron.services.auth")
-            #loader2.load_module("volttron.zap")
-            #loader2 = importlib.find_loader("volttron.zap")
+            # loader2.load_module("volttron.zap")
+            # loader2 = importlib.find_loader("volttron.zap")
             authenticator = service_repo.resolve(Authenticator)
             auth_service = service_repo.resolve(AuthService)
 
         # first service loaded must be the config store
-        #config_store = service_configs.get_service_instance("volttron.services.config_store")
+        # config_store = service_configs.get_service_instance("volttron.services.config_store")
         config_store = service_repo.resolve(ConfigStoreService)
 
         # start it up before anything else
@@ -506,7 +507,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         "volttron.loader": logging.WARNING,
         "volttron.server.run_server": logging.INFO,
         "volttron.client.decorators": logging.INFO,
-    #"volttron.messagebus.zmq.socket": logging.INFO
+    # "volttron.messagebus.zmq.socket": logging.INFO
     }
     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 
@@ -882,7 +883,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
 #         autostart=True,
 #         address=[],
 #         local_address=ipc + "vip.socket",
-#         instance_name=None,
+#         _instance_name=None,
 #     # allow_root=False,
 #     # allow_users=None,
 #     # allow_groups=None,
