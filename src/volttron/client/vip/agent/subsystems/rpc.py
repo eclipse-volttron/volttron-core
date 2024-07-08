@@ -35,7 +35,9 @@ from gevent.event import AsyncResult
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
 
+from volttron.auth.auth_exception import AuthException
 from volttron.utils import jsonapi, jsonrpc
+from volttron.client.known_identities import AUTH
 
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..results import ResultsDictionary, counter
@@ -247,32 +249,29 @@ class RPC(SubsystemBase):
         """
         for method_name in self._exports:
             method = self._exports[method_name]
-            caps = annotations(method, set, "rpc.allow_capabilities")
-            if caps:
-                self._exports[method_name] = self._add_auth_check(method, caps)
+            protected_rpcs = self.call(AUTH, "get_protected_rpcs", self.core.identity).get(timeout=10)
+            if method_name in protected_rpcs:
+                self._exports[method_name] = self._add_auth_check(method)
 
-    def _add_auth_check(self, method, required_caps):
+    def _add_auth_check(self, method):
         """
         Adds an authorization check to verify the calling agent has the
         required capabilities.
         """
 
         def checked_method(*args, **kwargs):
-            user = str(self.context.vip_message.user)
-            user_capabilites = self._owner.vip.auth.get_capabilities(user)
-            _log.debug("**user caps is: {}".format(user_capabilites))
-            if user_capabilites:
-                user_capabilities_names = set(user_capabilites.keys())
-            else:
-                user_capabilities_names = set()
-            if required_caps == {""}:
-                pass
-            elif not required_caps.issubset(user_capabilities_names):
-                msg = ("method '{}' requires capabilities {}, but capability {} "
-                       "was provided for user {}").format(method.__name__, required_caps,
-                                                          user_capabilites, user)
-                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, msg)
-            else:
+            calling_user = str(self.context.vip_message.user)
+            method_name = method.__name__
+            args_dict = inspect.getcallargs(method, *args, **kwargs)
+            try:
+                self.call(AUTH, "check_authorization",
+                          identity=calling_user, method_name=f"{self.core.identity}.{method_name}",
+                          method_args=args_dict).get(timeout=10)
+            except AuthException as e:
+                # msg = ("method '{}' requires capabilities {}, but capability {} "
+                #        "was provided for user {}").format(method.__name__, required_caps,
+                #                                           user_capabilites, user)
+                raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, e.args)
                 # Now check if args passed to method are the ones allowed.
 
                 for cap_name, param_dict in user_capabilites.items():

@@ -11,11 +11,16 @@ import volttron.types.auth.authz_types as authz
 
 
 class Authorizer(ABC):
-
-    @abstractmethod
-    def is_authorized(self, *, user: str, resource: Any, action: Any, **kwargs) -> bool:
-        ...
-
+    pass
+    # @abstractmethod
+    # def check_rpc_authorization(self, *, identity: authz.Identity, method_name: authz.vipid_dot_rpc_method,
+    #                             method_args: dict, **kwargs) -> bool:
+    #     ...
+    #
+    # @abstractmethod
+    # def check_pubsub_authorization(self, *, identity: authz.Identity,
+    #                                topic_pattern: str, access: str, **kwargs) -> bool:
+    #     ...
 
 class AuthzPersistence(ABC):
 
@@ -36,6 +41,16 @@ class Authenticator(ABC):
 
 
 class AuthorizationManager:
+
+    @abstractmethod
+    def check_rpc_authorization(self, *, identity: authz.Identity, method_name: authz.vipid_dot_rpc_method,
+                                method_args: dict, **kwargs) -> bool:
+        ...
+
+    @abstractmethod
+    def check_pubsub_authorization(self, *, identity: authz.Identity,
+                                   topic_pattern: str, access: str, **kwargs) -> bool:
+        ...
 
     @abstractmethod
     def create_or_merge_role(self, *, name: str, rpc_capabilities: authz.RPCCapabilities,
@@ -128,8 +143,15 @@ class AuthService(Service):
     # Authorization
 
     @abstractmethod
-    def is_authorized(self, *, identity: authz.Identity, resource: Any, action: Any,
-                      **kwargs) -> bool:
+    def check_rpc_authorization(self, *, identity: authz.Identity, method_name: authz.vipid_dot_rpc_method,
+                                method_args: dict, **kwargs) -> bool:
+        """ should throw AuthException is calling user(identity) is not authorized to access the
+            method_name(vip_id.rpc_method) with the specific arguments method_args"""
+        ...
+
+    @abstractmethod
+    def check_pubsub_authorization(self, *, identity: authz.Identity,
+                                   topic_pattern: str, access: str, **kwargs) -> bool:
         ...
 
     @abstractmethod
