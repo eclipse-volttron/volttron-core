@@ -54,6 +54,7 @@ jobs:
       pull-requests: write  # To create a PR from that branch
 
     uses: kefeimo/github-tooling/.github/workflows/deploy-release.yml@sbom
+    with:
       merge-strategy: ${{ inputs.merge-strategy }}
       release-version: ${{ inputs.release-version }}
       bump-rule: ${{ inputs.bump-rule }}
