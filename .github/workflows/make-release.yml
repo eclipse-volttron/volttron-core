@@ -1,0 +1,65 @@
+name: Make full release
+
+on:
+  workflow_dispatch:
+    inputs:
+      merge-strategy:
+        description: 'Merge strategy and strategy options. Used only in case of merge conflicts'
+        required: false
+        default: ''
+        type: string
+      release-version:
+        description: 'Version number to use. If provided bump-rule will be ignored'
+        required: false
+        default: ''
+        type: string
+      bump-rule:
+        description: 'Bump rule for computing next release version number.'
+        required: false
+        default: 'prerelease'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+          - prepatch
+          - preminor
+          - premajor
+          - prerelease
+      run-tests-wait:
+        description: 'Wait time to run test after merge to main'
+        required: false
+        default: 600
+        type: number
+      publish-to-test-pypi:
+        description: 'Set to true if you want to publish to https://test.pypi.org/legacy/ instead of pypi.org'
+        required: false
+        default: false
+        type: boolean
+      
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LANG: en_US.utf-8
+  LC_ALL: en_US.utf-8
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  call-deploy-release:
+    permissions:
+      contents: write  # To push a branch
+      pull-requests: write  # To create a PR from that branch
+
+    uses: eclipse-volttron/github-tooling/.github/workflows/deploy-release.yml@main
+    with:
+      merge-strategy: ${{ inputs.merge-strategy }}
+      release-version: ${{ inputs.release-version }}
+      bump-rule: ${{ inputs.bump-rule }}
+      run-tests-wait: 600
+      publish-to-test-pypi: false
+    secrets:
+      git-token: ${{ secrets.AUTO_PROJECT_PAT }}
+      pypi-token: ${{ secrets.PYPI_TOKEN }}

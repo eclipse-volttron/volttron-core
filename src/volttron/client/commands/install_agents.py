@@ -1,39 +1,25 @@
 # -*- coding: utf-8 -*- {{{
-# vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
+# ===----------------------------------------------------------------------===
 #
-# Copyright 2020, Battelle Memorial Institute.
+#                 Installable Component of Eclipse VOLTTRON
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# ===----------------------------------------------------------------------===
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
 #
-# This material was prepared as an account of work sponsored by an agency of
-# the United States Government. Neither the United States Government nor the
-# United States Department of Energy, nor Battelle, nor any of their
-# employees, nor any jurisdiction or organization that has cooperated in the
-# development of these materials, makes any warranty, express or
-# implied, or assumes any legal liability or responsibility for the accuracy,
-# completeness, or usefulness or any information, apparatus, product,
-# software, or process disclosed, or represents that its use would not infringe
-# privately owned rights. Reference herein to any specific commercial product,
-# process, or service by trade name, trademark, manufacturer, or otherwise
-# does not necessarily constitute or imply its endorsement, recommendation, or
-# favoring by the United States Government or any agency thereof, or
-# Battelle Memorial Institute. The views and opinions of authors expressed
-# herein do not necessarily state or reflect those of the
-# United States Government or any agency thereof.
-#
-# PACIFIC NORTHWEST NATIONAL LABORATORY operated by
-# BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
-# under Contract DE-AC05-76RL01830
+# ===----------------------------------------------------------------------===
 # }}}
 
 import base64
@@ -91,6 +77,10 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     :param agent_config:
     :return:
     """
+    dist_path = os.path.abspath(os.path.join(opts.install_path, "dist"))
+    # if dist directory exists remove it might have older versions of wheel
+    if os.path.isdir(dist_path):
+        shutil.rmtree(dist_path)
     if os.path.isfile(os.path.join(opts.install_path, "setup.py")):
         if os.path.isfile(os.path.join(opts.install_path, "Pipfile")):
             cmd = ["pipenv", "run", "python3", "setup.py", "bdist_wheel"]
@@ -103,7 +93,6 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
             f"Unable to build file. No setup.py or poetry.lock file exists in {opts.install_path}")
     output = execute_command(cmd, cwd=opts.install_path)
     # wheel should be in dist dir
-    dist_path = os.path.abspath(os.path.join(opts.install_path, "dist"))
     match = glob.glob(os.path.join(dist_path, "*.whl"))
     if match:
         opts.package = match[0]
@@ -117,13 +106,6 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     #
     # if not opts.skip_requirements:
     #     install_requirements(opts.install_path)
-    #
-
-    if not opts.vip_identity:
-        agent_default_id_file = Path(opts.install_path).joinpath("IDENTITY")
-        if agent_default_id_file.is_file():
-            with open(str(agent_default_id_file)) as fin:
-                opts.vip_identity = fin.read().strip()
 
     _send_and_intialize_agent(opts, publickey, secretkey)
 
@@ -160,7 +142,8 @@ def _send_and_intialize_agent(opts, publickey, secretkey):
         publickey,
         secretkey,
         opts.force,
-        config_dict,
+        opts.pre_release,
+        config_dict
     )
 
     if not agent_uuid:
@@ -237,82 +220,54 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     except AttributeError:
         install_path = opts.wheel
 
-    # TODO move to server
-    # if opts.vip_identity:
-    #     # First check to see if we have an identity already if it does and force is specified
-    #     # then we can send things across and it will be handled on the server side.
-    #     if opts.connection.call("identity_exists", opts.vip_identity):
-    #         if not opts.force:
-    #             opts.connection.kill()
-    #             raise InstallRuntimeError("Identity already exists.  Pass --force option to re-install.")
-    pip_download_dir = None
     if os.path.isdir(install_path):
         install_agent_directory(opts, publickey, secretkey)
         if opts.connection is not None:
             opts.connection.kill()
     else:
+        if install_path.endswith(".whl") and not os.path.isfile(install_path):
+            raise InstallRuntimeError(f"Invalid wheel file {install_path}")
         opts.package = opts.install_path
-        if not os.path.exists(opts.package):
-            if os.path.dirname(opts.package) == "":
-                # no path prefix only a name and name is not a local file.
-                # check if you can download from pip
-                pip_download_dir = tempfile.mkdtemp()
-                try:
-                    execute_command([
-                        "pip",
-                        "download",
-                        "--no-deps",
-                        "--dest",
-                        pip_download_dir,
-                        opts.package,
-                    ])
-                    # there should be a single wheel file in dir
-                    opts.package = os.path.join(pip_download_dir, os.listdir(pip_download_dir)[0])
-                except RuntimeError as r:
-                    raise InstallRuntimeError(
-                        f" Invalid wheel {opts.package}. It is not a local wheel file. Error"
-                        f"downloading {opts.package} from pip")
-
-            else:
-                opts.connection.kill()
-                raise FileNotFoundError(f"Invalid file {opts.package}")
         _send_and_intialize_agent(opts, publickey, secretkey)
-        if pip_download_dir:
-            shutil.rmtree(pip_download_dir)
 
 
 def send_agent(
     connection: "ControlConnection",
-    wheel_file: str,
+    agent: str,
     vip_identity: str,
     publickey: str,
     secretkey: str,
     force: bool,
-    agent_config: dict,
+    pre_release: bool,
+    agent_config: dict
 ):
     """
     Send an agent wheel from the client to the server.
 
     The `ControlConnection` uses a protocol to send the wheel across the wire to the 'ControlService`.
     """
-    path = wheel_file
+    path = agent
     peer = connection.peer
     server = connection.server
     _log.debug(f"server type is {type(server)} {type(server.core)}")
 
-    wheel = open(path, "rb")
-    _log.debug(f"Connecting to {peer} to install {path}")
     channel = None
     rmq_send_topic = None
     rmq_response_topic = None
+    wheel_install = False
 
-    if server.core.messagebus == "zmq":
-        channel = server.vip.channel(peer, "agent_sender")
-    elif server.core.messagebus == "rmq":
-        rmq_send_topic = "agent_sender"
-        rmq_response_topic = "request_data"
-    else:
-        raise ValueError("Unknown messagebus detected")
+    if os.path.isfile(agent):
+        wheel_install = True
+        wheel = open(path, "rb")
+        path = agent
+        _log.debug(f"Connecting to {peer} to install {path}")
+        if server.core.messagebus == "zmq":
+            channel = server.vip.channel(peer, "agent_sender")
+        elif server.core.messagebus == "rmq":
+            rmq_send_topic = "agent_sender"
+            rmq_response_topic = "request_data"
+        else:
+            raise ValueError("Unknown messagebus detected")
 
     def send_rmq():
         nonlocal wheel, server
@@ -467,46 +422,61 @@ def send_agent(
             channel.close(linger=0)
             del channel
 
+    task = None
     if server.core.messagebus == "rmq":
-        _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
-        task = gevent.spawn(send_rmq)
-        # TODO: send config
+        if wheel_install:
+            _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
+            task = gevent.spawn(send_rmq)
+            # TODO: send config
+            agent_package = os.path.basename(path)
+        else:
+            agent_package = agent
         result = server.vip.rpc.call(
             peer,
             "install_agent_rmq",
-            os.path.basename(path),
+            agent_package,
             rmq_send_topic,
+            rmq_response_topic,
             vip_identity,
             publickey,
             secretkey,
             force,
-            agent_config,
-            rmq_response_topic,
+            pre_release,
+            agent_config
         )
     elif server.core.messagebus == "zmq":
-        _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
-        task = gevent.spawn(send_zmq)
+        if wheel_install:
+            _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
+            task = gevent.spawn(send_zmq)
+            agent_package = os.path.basename(path)
+            channel_name = channel.name
+        else:
+            agent_package = agent
+            channel_name = None
         result = server.vip.rpc.call(
             peer,
             "install_agent",
-            os.path.basename(path),
-            channel.name,
+            agent_package,
+            channel_name,
             vip_identity,
             publickey,
             secretkey,
             force,
-            agent_config,
+            pre_release,
+            agent_config
         )
-
     else:
         raise ValueError("Unknown messagebus detected!")
-
-    result.rawlink(lambda glt: task.kill(block=False))
-    # Allows larger files to be sent across the message bus without
-    # raising an error.
-    gevent.wait([result], timeout=300)
-    _log.debug("Completed sending of agent across.")
-    _log.debug(f"After wait result is {result}")
+    try:
+        if wheel_install:
+            result.rawlink(lambda glt: task.kill(block=False))
+            # Allows larger files to be sent across the message bus without
+            # raising an error.
+        gevent.wait([result], timeout=300)
+    except gevent.Timeout:
+        print("Install agent timed out")
+    except BaseException as e:
+        print("Install agent failed with exception: {e}")
     return result
 
 
@@ -584,6 +554,11 @@ def add_install_agent_parser(add_parser_fn):
         default=5,
         type=int,
         help="the amount of time to wait and verify that the agent has started up.",
+    )
+    install.add_argument(
+        "--pre-release", "--pre", "--allow-prereleases",
+        action="store_true",
+        help="enables installation of pre-releases and development releases",
     )
 
     install.set_defaults(func=install_agent_vctl, verify_agents=True)
