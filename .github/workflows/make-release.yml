@@ -53,8 +53,7 @@ jobs:
       contents: write  # To push a branch
       pull-requests: write  # To create a PR from that branch
 
-    uses: kefeimo/github-tooling/.github/workflows/deploy-release.yml@issue#31/add_sbom_to_the_release_action
-    with:
+    uses: kefeimo/github-tooling/.github/workflows/deploy-release.yml@sbom
       merge-strategy: ${{ inputs.merge-strategy }}
       release-version: ${{ inputs.release-version }}
       bump-rule: ${{ inputs.bump-rule }}
