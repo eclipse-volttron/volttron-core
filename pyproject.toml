@@ -22,6 +22,10 @@ packages = [
     { include = "volttron", from = "src" }
 ]
 
+include = [
+    "bom_reports/**/*"
+]
+
 [tool.poetry.dependencies]
 poetry = "^1.2.2"
 python = "^3.10"
@@ -35,8 +39,9 @@ psutil = "^5.9.0"
 cryptography = "^36.0.1"
 watchdog-gevent = "^0.1.1"
 pip = "22.2.2"
-pytest-timeout = "^2.1.0"
+pytest-timeout = "*" #"^2.1.0"
 pytest-mock = "^3.10.0"
+deprecated = "^1.2.14"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^6.2.5"
