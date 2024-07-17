@@ -39,7 +39,7 @@ psutil = "^5.9.0"
 cryptography = "^36.0.1"
 watchdog-gevent = "^0.1.1"
 pip = "22.2.2"
-pytest-timeout = "*" #"^2.1.0"
+pytest-timeout = "^1.4.2"  # Compatible with pytest < 7
 pytest-mock = "^3.10.0"
 deprecated = "^1.2.14"
 
