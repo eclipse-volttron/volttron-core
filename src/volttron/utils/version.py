@@ -39,7 +39,7 @@ try:
     # Note this is the wheel prefix or the name attribute in pyproject.toml file.
     # this is the version of the program that is used when the application is installed
     # via a wheel.
-    __version__ = importlib_metadata.version('volttron')
+    __version__ = importlib_metadata.version('volttron-core')
 
 except importlib_metadata.PackageNotFoundError:
     try:
