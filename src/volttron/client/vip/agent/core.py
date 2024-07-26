@@ -180,6 +180,9 @@ class BasicCore(AbstractCore):
         #     )
         self._owner = owner
 
+    def send_vip_message(self, message: Message):
+        self._connection.send_vip_message(message)
+
     def setup(self):
         # Split out setup from __init__ to give oportunity to add
         # subsystems with signals

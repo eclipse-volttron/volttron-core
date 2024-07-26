@@ -24,10 +24,7 @@
 # isort: skip_file
 from __future__ import annotations
 
-import logging as _log
 import os
-
-import gevent
 
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.agent_context import AgentContext, AgentOptions
@@ -49,24 +46,20 @@ class Agent(AbstractAgent):
             self.peerlist = PeerList(core=core)
             self.ping = Ping(core)
             self.rpc = RPC(core=core, owner=owner, peerlist_subsys=self.peerlist)
-            self.hello = Hello(core)
-            # TODO Figure out how to hook up to pubsub.
-            # if message_bus == "rmq":
-            #     self.pubsub = RMQPubSub(core, self.rpc, self.peerlist, owner)
-            # else:
-            #     self.pubsub = PubSub(core, self.rpc, self.peerlist, owner, tag_vip_id, tag_refresh_interval)
-            #     # Available only for ZMQ agents
-            #     if enable_channel:
-            #         self.channel = Channel(core)
-            self.health = Health(owner, core, self.rpc)
-            # self.heartbeat = Heartbeat(
-            #     owner,
-            #     core,
-            #     self.rpc,
-            #     self.pubsub,
-            #     heartbeat_autostart,
-            #     heartbeat_period,
-            # )
+            self.hello = Hello(core=core)
+            self.pubsub = PubSub(core=core,
+                                 peerlist_subsys=self.peerlist,
+                                 rpc_subsys=self.rpc,
+                                 owner=self,
+                                 tag_vip_id=options.tag_vip_id,
+                                 tag_refresh_interval=options.tag_refresh_interval)
+            self.health = Health(owner=owner, core=core, rpc=self.rpc)
+            self.heartbeat = Heartbeat(owner,
+                                       core,
+                                       rpc=self.rpc,
+                                       pubsub=self.pubsub,
+                                       heartbeat_autostart=options.heartbeat_autostart,
+                                       heartbeat_period=options.heartbeat_period)
             if options.enable_store:
                 self.config = ConfigStore(owner, core, self.rpc)
 
