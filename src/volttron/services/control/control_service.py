@@ -26,6 +26,7 @@ import base64
 import hashlib
 import logging.config
 import os
+from pathlib import Path
 import shutil
 import sys
 import tempfile
@@ -49,6 +50,9 @@ from volttron.types.service_interface import ServiceInterface
 from volttron.utils import ClientContext as cc
 from volttron.utils import get_aware_utc_now, jsonapi
 from volttron.utils.scheduling import periodic
+from volttron.types.auth import Credentials
+from volttron.types.agent_context import AgentInstallOptions
+from volttron.types import Identity
 
 # noinspection PyUnresolvedReferences
 # TODO: Fix requests issues
@@ -71,6 +75,7 @@ _stderr = sys.stderr
 
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
+_log.setLevel(logging.DEBUG)
 message_bus = cc.get_messagebus()
 rmq_mgmt = None
 
@@ -364,22 +369,29 @@ class ControlService(Agent):
 
         return self._vip_identity_exists(identity)
 
+    # @RPC.export
+    # def receive_wheel(self, wheel: dict):
+    #     from pathlib import Path
+    #     path = Path(os.curdir).absolute().as_posix()
+    #     with open("wheel.whl", 'wb') as fp:
+    #         fp.write(base64.b64decode(wheel['data']))
+
     @RPC.export
     def install_agent_from_message_bus(self,
                                        agent: str,
                                        topic: str,
                                        response_topic: str,
-                                       vip_identity: str = None,
-                                       publickey: str = None,
-                                       secretkey: str = None,
+                                       credentials: Credentials,
                                        force: bool = False,
                                        pre_release: bool = False,
                                        agent_config: str = None):
         """
         Install the agent through the rmq message bus.
         """
+        if isinstance(credentials, dict):
+            credentials = Credentials.from_dict(credentials)
         peer = self.vip.rpc.context.vip_message.peer
-        protocol_request_size = 8192
+        protocol_request_size = 16
         protocol_message = None
         protocol_headers = None
         response_received = False
@@ -392,10 +404,10 @@ class ControlService(Agent):
             protocol_headers = headers
             response_received = True
 
-        self._raise_error_if_identity_exists_without_force(vip_identity, force)
-        if not agent.endswith(".whl"):
-            # agent passed is package name to install from pypi.
-            return self._aip.install_agent(agent, vip_identity, agent_config, force, pre_release)
+        #self._raise_error_if_identity_exists_without_force(vip_identity, force)
+        # if not agent.endswith(".whl"):
+        #     # agent passed is package name to install from pypi.
+        #     return self._aip.install_agent(agent, vip_identity, agent_config, force, pre_release)
 
         # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
         tmpdir = None
@@ -424,8 +436,8 @@ class ControlService(Agent):
                     response_received = False
 
                     # request a chunk of the file
-                    self.vip.pubsub.publish("pubsub", topic=response_topic,
-                                            message=request_fetch).get(timeout=5)
+                    self.vip.pubsub.publish("pubsub", topic=response_topic, message=request_fetch)
+                    gevent.sleep(1)
                     # chunk binary representation of the bytes read from
                     # the other side of the connection
                     with gevent.Timeout(30):
@@ -476,134 +488,35 @@ class ControlService(Agent):
             shutil.rmtree(tmpdir, ignore_errors=True)
 
     @RPC.export
-    def install_agent(self,
-                      agent: str,
-                      channel_name: str,
-                      vip_identity: str = None,
-                      publickey: str = None,
-                      secretkey: str = None,
-                      force: bool = False,
-                      pre_release: bool = False,
-                      agent_config: str = None):
-        """
-        Installs an agent on the instance.
+    def install_agent(self, install_options: AgentInstallOptions | dict) -> str:
 
-        The installation of an agent through this method involves sending
-        the binary data of the agent file through a channel.  The following
-        example is the protocol for sending the agent across the wire:
+        if isinstance(install_options, dict):
+            options = AgentInstallOptions.from_dict(install_options)
+        else:
+            options = install_options
 
-        Example Protocol:
+        if not options.source.endswith(".whl"):
+            return self._aip.install_agent(agent=options.source,
+                                           vip_identity=options.identity,
+                                           agent_config=options.agent_config,
+                                           force=options.force,
+                                           pre_release=options.allow_prerelease)
 
-        .. code-block:: python
+        wheelhouse = Path("wheelhouse").absolute()
+        wheelhouse.mkdir(exist_ok=True)
+        filepath = wheelhouse / options.source
 
-            # client creates channel to this agent (control)
-            channel = agent.vip.channel('control', 'channel_name')
+        with open(filepath, 'wb') as fp:
+            fp.write(base64.b64decode(options.data))
 
-            # Begin sending data
-            sha512 = hashlib.sha512()
-            while True:
-                request, file_offset, chunk_size = channel.recv_multipart()
+        return self._aip.install_agent(agent=filepath.as_posix(),
+                                       vip_identity=options.identity,
+                                       agent_config=options.agent_config,
+                                       force=options.force,
+                                       pre_release=options.allow_prerelease)
 
-                # Control has all the file. Send hash for it to verify.
-                if request == b'checksum':
-                    channel.send(hash)
-                assert request == b'fetch'
-
-                # send a chunk of the file
-                file_offset = int(file_offset)
-                chunk_size = int(chunk_size)
-                file.seek(file_offset)
-                data = file.read(chunk_size)
-                sha512.update(data)
-                channel.send(data)
-
-            agent_uuid = agent_uuid.get(timeout=10)
-            # close and delete the channel
-            channel.close(linger=0)
-            del channel
-
-        :param:string:filename:
-            The name of the agent packaged file that is being written.
-        :param:string:channel_name:
-            The name of the channel that the agent file will be sent on.
-        :param:string:publickey:
-            Encoded public key the installed agent will use
-        :param:string:secretkey:
-            Encoded secret key the installed agent will use
-        :param:bool:force:
-            If true overwrite currently installed agent with same vip identity. defaults to false
-        :param:dict:agent_config:
-            Optional agent configuration
-        """
-
-        if agent_config is None:
-            agent_config = dict()
-        # TODO ship config
-
-        # at this point if agent_uuid is populated then there is an
-        # identity of that already available.
-        self._raise_error_if_identity_exists_without_force(vip_identity, force)
-
-        if not agent.endswith(".whl"):
-            # agent passed is package name to install from pypi.
-            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config,
-                                           force, pre_release)
-
-        # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
-        peer = self.vip.rpc.context.vip_message.peer
-        channel = self.vip.channel(peer, channel_name)
-        tmpdir = None
-        try:
-            tmpdir = tempfile.mkdtemp()
-            path = os.path.join(tmpdir, os.path.basename(agent))
-            store = open(path, "wb")
-            sha512 = hashlib.sha512()
-
-            try:
-                request_checksum = jsonapi.dumpb(["checksum"])
-                request_fetch = jsonapi.dumpb(["fetch", 1024])
-                while True:
-
-                    # request a chunk of the file
-                    channel.send(request_fetch)
-
-                    # chunk binary representation of the bytes read from
-                    # the other side of the connectoin
-                    with gevent.Timeout(30):
-                        chunk = channel.recv()
-                        if chunk == b"complete":
-                            _log.debug(f"File transfer complete!")
-                            break
-
-                    sha512.update(chunk)
-                    store.write(chunk)
-
-                    with gevent.Timeout(30):
-                        channel.send(request_checksum)
-                        checksum = channel.recv()
-
-                        assert checksum == sha512.digest()
-
-            except AssertionError:
-                _log.warning("Checksum mismatch on received file")
-                raise
-            except gevent.Timeout:
-                _log.warning("Gevent timeout trying to receive data")
-                raise
-            finally:
-                store.close()
-                _log.debug("Closing channel on server")
-                channel.close(linger=0)
-                del channel
-
-            _log.debug("After transferring wheel to us now to do stuff.")
-            agent_uuid = self._aip.install_agent(path, vip_identity, publickey, secretkey,
-                                                 agent_config, force, pre_release)
-            return agent_uuid
-        finally:
-            shutil.rmtree(tmpdir, ignore_errors=True)
-
-    def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
+    def _raise_error_if_identity_exists_without_force(self, vip_identity: str,
+                                                      force: bool) -> Identity:
         """
         This will raise a ValueError if the identity passed exists but
         force was not True when this function is called.

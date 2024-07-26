@@ -59,7 +59,7 @@ _stderr = sys.stderr
 # will be volttron.platform.main or main.py instead of __main__
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 # Allows server side logging.
-# _log.setLevel(logging.DEBUG)
+#_log.setLevel(logging.DEBUG)
 
 message_bus = cc.get_messagebus()
 
@@ -257,7 +257,7 @@ def print_rpc_list(peers, code=False):
         print(f"{peer}")
         for method in peers[peer]:
             if code:
-                print(f"\tself.vip.rpc.call({peer}, {method}).get()")
+                print(f"\tself.vip.__rpc__.call({peer}, {method}).get()")
             else:
                 print(f"\t{method}")
 
@@ -273,10 +273,10 @@ def print_rpc_methods(opts, peer_method_metadata, code=False):
                                                             "No parameters for this method.")
             if code is True:
                 if len(params) == 0:
-                    print(f"self.vip.rpc.call({peer}, {method}).get()")
+                    print(f"self.vip.__rpc__.call({peer}, {method}).get()")
                 else:
                     print(
-                        f"self.vip.rpc.call({peer}, {method}, {[param for param in params]}).get()"
+                        f"self.vip.__rpc__.call({peer}, {method}, {[param for param in params]}).get()"
                     )
                 continue
             else:
@@ -754,7 +754,7 @@ def _call_action_on_agent(agent: AgentMeta, pid, status, call, action):
     :param agent: Agent metadata data containing uuid, name, vip_id, agent priority
     :param pid: pid of Agent process
     :param status: Status of the start or stop process
-    :param call: method that makes the rpc call to corresponding server side method
+    :param call: method that makes the __rpc__ call to corresponding server side method
     :param action: start_agent or stop_agent
     """
     if action == "start_agent":
@@ -817,7 +817,7 @@ def shutdown_agents(opts):
 #             wheel.close()
 #             channel.close(linger=0)
 #
-#     result = connection.vip.rpc.call(
+#     result = connection.vip.__rpc__.call(
 #         peer, "install_agent", os.path.basename(path), channel.name
 #     )
 #     task = gevent.spawn(send)
@@ -1643,15 +1643,15 @@ def edit_config(opts):
 #         return self._server
 
 #     def call(self, method, *args, **kwargs):
-#         return self.server.vip.rpc.call(
+#         return self.server.vip.__rpc__.call(
 #             self.peer, method, *args, **kwargs).get()
 
 #     def call_no_get(self, method, *args, **kwargs):
-#         return self.server.vip.rpc.call(
+#         return self.server.vip.__rpc__.call(
 #             self.peer, method, *args, **kwargs)
 
 #     def notify(self, method, *args, **kwargs):
-#         return self.server.vip.rpc.notify(
+#         return self.server.vip.__rpc__.notify(
 #             self.peer, method, *args, **kwargs)
 
 #     def kill(self, *args, **kwargs):
@@ -2099,6 +2099,7 @@ def get_keys(opts):
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG)
     # Refuse to run as root
     if not getattr(os, "getuid", lambda: -1)():
         sys.stderr.write("%s: error: refusing to run as root to prevent "
@@ -2325,16 +2326,16 @@ def main():
     run.add_argument("directory", nargs="+", help="path to agent directory")
 
     # ====================================================
-    # rpc commands
+    # __rpc__ commands
     # ====================================================
-    rpc_ctl = add_parser("rpc", help="rpc controls")
+    rpc_ctl = add_parser("__rpc__", help="__rpc__ controls")
 
     rpc_subparsers = rpc_ctl.add_subparsers(title="subcommands", metavar="", dest="store_commands")
 
     rpc_code = add_parser(
         "code",
         subparser=rpc_subparsers,
-        help="shows how to use rpc call in other agents",
+        help="shows how to use __rpc__ call in other agents",
     )
 
     rpc_code.add_argument(
@@ -2347,7 +2348,7 @@ def main():
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods",
+        help="list all subsystem __rpc__ methods in addition to the agent's __rpc__ methods",
     )
 
     rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
@@ -2355,7 +2356,7 @@ def main():
     rpc_list = add_parser(
         "list",
         subparser=rpc_subparsers,
-        help="lists all agents and their rpc methods",
+        help="lists all agents and their __rpc__ methods",
     )
 
     rpc_list.add_argument(
@@ -2372,7 +2373,8 @@ def main():
         "-v",
         "--verbose",
         action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
+        help=
+        "list all subsystem __rpc__ methods in addition to the agent's __rpc__ methods. If a method "
         "is specified, display the doc-string associated with the method.",
     )
 

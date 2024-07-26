@@ -36,6 +36,7 @@ import gevent
 import yaml
 
 from volttron.client.vip.agent.results import AsyncResult
+from volttron.types.agent_context import AgentInstallOptions
 
 from volttron.utils import execute_command
 from volttron.utils import jsonapi
@@ -86,7 +87,7 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
         else:
             cmd = ["python3", "setup.py", "bdist_wheel"]
     elif os.path.isfile(os.path.join(opts.install_path, "pyproject.toml")):
-        cmd = ["poetry", "build"]
+        cmd = ["poetry", "build", "-vv"]
     else:
         raise InstallRuntimeError(
             f"Unable to build file. No setup.py or poetry.lock file exists in {opts.install_path}")
@@ -106,10 +107,10 @@ def install_agent_directory(opts, publickey=None, secretkey=None):
     # if not opts.skip_requirements:
     #     install_requirements(opts.install_path)
 
-    _send_and_intialize_agent(opts, publickey, secretkey)
+    _send_and_initialize_agent(opts, publickey, secretkey)
 
 
-def _send_and_intialize_agent(opts, publickey, secretkey):
+def _send_and_initialize_agent(opts, publickey, secretkey):
     # Verify and load agent_config up from the opts.  agent_config will
     # be a yaml config file.
     agent_config = opts.agent_config
@@ -210,15 +211,20 @@ def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
     except AttributeError:
         install_path = opts.wheel
 
-    if os.path.isdir(install_path):
-        install_agent_directory(opts, publickey, secretkey)
-        if opts.connection is not None:
-            opts.connection.kill()
-    else:
-        if install_path.endswith(".whl") and not os.path.isfile(install_path):
-            raise InstallRuntimeError(f"Invalid wheel file {install_path}")
-        opts.package = opts.install_path
-        _send_and_intialize_agent(opts, publickey, secretkey)
+    # if os.path.isdir(install_path):
+    #     install_agent_directory(opts, publickey, secretkey)
+    #     if opts.connection is not None:
+    #         opts.connection.kill()
+    # else:
+    # if install_path.endswith(".whl") and not os.path.isfile(install_path):
+    #     raise InstallRuntimeError(f"Invalid wheel file {install_path}")
+    # opts.package = opts.install_path
+    # _send_and_initialize_agent(opts, publickey, secretkey)
+
+    if install_path.endswith(".whl") and not os.path.isfile(install_path):
+        raise InstallRuntimeError(f"Invalid wheel file {install_path}")
+    opts.package = opts.install_path
+    _send_and_initialize_agent(opts, publickey, secretkey)
 
 
 def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, publickey: str,
@@ -228,31 +234,55 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
 
     The `ControlConnection` uses a protocol to send the wheel across the wire to the 'ControlService`.
     """
+
+    with open(agent, "rb") as fp:
+        agent_data = base64.b64encode(fp.read()).decode("utf-8")
+
+    agent_install = AgentInstallOptions(source=agent,
+                                        identity=vip_identity,
+                                        data=agent_data,
+                                        agent_config=agent_config,
+                                        force=force,
+                                        allow_prerelease=pre_release)
+
+    response = connection.call("install_agent", agent_install.to_dict())
+    return response
+
     path = agent
     peer = connection.peer
     server = connection.server
     _log.debug(f"server type is {type(server)} {type(server.core)}")
 
     channel = None
-    rmq_send_topic = None
-    rmq_response_topic = None
+    send_topic = "sending"
+    response_topic = "responding"
     wheel_install = False
+    transferring = True
+
+    with open(agent, "rb") as fp:
+        meta = dict(data=base64.b64encode(fp.read()).decode("utf-8"))
+
+    result = server.vip.rpc.call(peer, "receive_wheel", wheel=meta).get()
+    # result = server.vip.rpc.call(peer,
+    #                              "install_agent_from_message_bus",
+    #                              agent=agent,
+    #                              topic=send_topic,
+    #                              response_topic=response_topic,
+    #                              credentials=creds.to_dict(),
+    #                              force=force,
+    #                              pre_release=pre_release,
+    #                              agent_config=agent_config)
 
     if os.path.isfile(agent):
         wheel_install = True
         wheel = open(path, "rb")
         path = agent
         _log.debug(f"Connecting to {peer} to install {path}")
-        if server.core.messagebus == "zmq":
-            channel = server.vip.channel(peer, "agent_sender")
-        elif server.core.messagebus == "rmq":
-            rmq_send_topic = "agent_sender"
-            rmq_response_topic = "request_data"
-        else:
-            raise ValueError("Unknown messagebus detected")
+        send_topic = "agent_sender"
+        response_topic = "request_data"
 
     def send_through_msg_bus():
-        nonlocal wheel, server
+        nonlocal wheel, server, transferring
 
         sha512 = hashlib.sha512()
         protocol_message = None
@@ -271,16 +301,18 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
             first = True
             op = None
             size = None
-            _log.debug(f"Subscribing to {rmq_response_topic}")
+            _log.debug(f"Subscribing to {response_topic}")
+            _log.debug(f"Peers: {server.vip.peerlist().get()}")
             server.vip.pubsub.subscribe(
                 peer="pubsub",
-                prefix=rmq_response_topic,
+                prefix=response_topic,
                 callback=protocol_requested,
-            ).get(timeout=5)
+            ).get(timeout=1000)
             gevent.sleep(5)
-            _log.debug(f"Publishing to {rmq_send_topic}")
+            _log.debug(f"Publishing to {send_topic}")
             while True:
                 if first:
+                    transferring = True
                     _log.debug("Waiting for a fetch")
                     # Wait until we get the first request.
                     with gevent.Timeout(30):
@@ -308,7 +340,7 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
                         message = base64.b64encode(chunk).decode("utf-8")
                         server.vip.pubsub.publish(
                             peer="pubsub",
-                            topic=rmq_send_topic,
+                            topic=send_topic,
                             message=message,
                         ).get(timeout=10)
                     else:
@@ -316,7 +348,7 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
                         message = base64.b64encode(b"complete").decode("utf-8")
                         server.vip.pubsub.publish(
                             peer="pubsub",
-                            topic=rmq_send_topic,
+                            topic=send_topic,
                             message=message,
                         ).get(timeout=10)
                         gevent.sleep(10)
@@ -324,7 +356,7 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
                 elif op == "checksum":
                     _log.debug(f"sending checksum {sha512.hexdigest()}")
                     message = base64.b64encode(sha512.digest()).decode("utf-8")
-                    server.vip.pubsub.publish("pubsub", topic=rmq_send_topic,
+                    server.vip.pubsub.publish("pubsub", topic=send_topic,
                                               message=message).get(timeout=10)
 
                 _log.debug("Waiting for next response")
@@ -347,98 +379,117 @@ def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, p
             wheel.close()
             server.vip.pubsub.unsubscribe(
                 peer="pubsub",
-                prefix="rmq_response_topic",
+                prefix=send_topic,
                 callback=protocol_requested,
             )
+            transferring = False
 
-    def send_zmq():
-        nonlocal wheel, channel
-        sha512 = hashlib.sha512()
-        try:
-            first = True
-            op = None
-            size = None
-            while True:
-                if first:
-                    first = False
-                    # Wait for peer to open compliment channel
-                    resp = jsonapi.loadb(channel.recv())
-                    _log.debug(f"Got first response {resp}")
+    from volttron.types.auth import Credentials
 
-                    if len(resp) > 1:
-                        op, size = resp
-                    else:
-                        op = resp[0]
+    creds = Credentials(identity="listener-agent")
 
-                    if op != "fetch":
-                        raise ValueError(f"First channel response must be fetch but was {op}")
+    result = server.vip.rpc.call(peer,
+                                 "install_agent_from_message_bus",
+                                 agent=agent,
+                                 topic=send_topic,
+                                 response_topic=response_topic,
+                                 credentials=creds.to_dict(),
+                                 force=force,
+                                 pre_release=pre_release,
+                                 agent_config=agent_config)
 
-                if op == "fetch":
-                    chunk = wheel.read(size)
-                    if chunk:
-                        _log.debug(f"Op was fetch sending {size}")
-                        sha512.update(chunk)
-                        _log.debug(f"Sending chunk:\n{chunk}")
-                        channel.send(chunk)
-                    else:
-                        _log.debug(f"Op was fetch sending complete")
-                        channel.send(b"complete")
-                        gevent.sleep(10)
-                        break
-                elif op == "checksum":
-                    _log.debug(f"sending checksum {sha512.hexdigest()}")
-                    channel.send(sha512.digest())
+    while transferring:
+        gevent.sleep(1)
 
-                _log.debug("Waiting for next response")
-                # wait for next response
-                resp = jsonapi.loadb(channel.recv())
+    return result.get()
+    # def send_zmq():
+    #     nonlocal wheel, channel
+    #     sha512 = hashlib.sha512()
+    #     try:
+    #         first = True
+    #         op = None
+    #         size = None
+    #         while True:
+    #             if first:
+    #                 first = False
+    #                 # Wait for peer to open compliment channel
+    #                 resp = jsonapi.loadb(channel.recv())
+    #                 _log.debug(f"Got first response {resp}")
 
-                if len(resp) > 1:
-                    op, size = resp
-                else:
-                    op = resp[0]
+    #                 if len(resp) > 1:
+    #                     op, size = resp
+    #                 else:
+    #                     op = resp[0]
 
-        finally:
-            _log.debug("Closing wheel and channel.")
-            wheel.close()
-            channel.close(linger=0)
-            del channel
+    #                 if op != "fetch":
+    #                     raise ValueError(f"First channel response must be fetch but was {op}")
 
-    task = None
-    # if server.core.messagebus == "rmq":
-    if wheel_install:
-        _log.debug(f"calling install_agent on {peer} sending to topic {rmq_send_topic}")
-        task = gevent.spawn(send_through_msg_bus())
-        # TODO: send config
-        agent_package = os.path.basename(path)
-    else:
-        agent_package = agent
-    result = server.vip.rpc.call(peer, "install_agent_from_message_bus", agent_package,
-                                 rmq_send_topic, rmq_response_topic, vip_identity, publickey,
-                                 secretkey, force, pre_release, agent_config)
-    # elif server.core.messagebus == "zmq":
+    #             if op == "fetch":
+    #                 chunk = wheel.read(size)
+    #                 if chunk:
+    #                     _log.debug(f"Op was fetch sending {size}")
+    #                     sha512.update(chunk)
+    #                     _log.debug(f"Sending chunk:\n{chunk}")
+    #                     channel.send(chunk)
+    #                 else:
+    #                     _log.debug(f"Op was fetch sending complete")
+    #                     channel.send(b"complete")
+    #                     gevent.sleep(10)
+    #                     break
+    #             elif op == "checksum":
+    #                 _log.debug(f"sending checksum {sha512.hexdigest()}")
+    #                 channel.send(sha512.digest())
+
+    #             _log.debug("Waiting for next response")
+    #             # wait for next response
+    #             resp = jsonapi.loadb(channel.recv())
+
+    #             if len(resp) > 1:
+    #                 op, size = resp
+    #             else:
+    #                 op = resp[0]
+
+    #     finally:
+    #         _log.debug("Closing wheel and channel.")
+    #         wheel.close()
+    #         channel.close(linger=0)
+    #         del channel
+
+    # task = None
+    # # if server.core.messagebus == "rmq":
     # if wheel_install:
-    #     _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
-    #     task = gevent.spawn(send_through_msg_bus())
+    #     _log.debug(f"calling install_agent on {peer} sending to topic {send_topic}")
+    #     task = gevent.spawn(send_through_msg_bus)
+    #     # TODO: send config
     #     agent_package = os.path.basename(path)
-    #     channel_name = channel.name
     # else:
     #     agent_package = agent
-    #     channel_name = None
-    # result = server.vip.rpc.call(peer, "install_agent", agent_package, channel_name, vip_identity,
-    #                              publickey, secretkey, force, pre_release, agent_config)
+    # result = server.vip.rpc.call(peer, "install_agent_from_message_bus", agent_package,
+    #                              send_topic, response_topic, vip_identity, publickey,
+    #                              secretkey, force, pre_release, agent_config)
+    # # elif server.core.messagebus == "zmq":
+    # # if wheel_install:
+    # #     _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
+    # #     task = gevent.spawn(send_through_msg_bus())
+    # #     agent_package = os.path.basename(path)
+    # #     channel_name = channel.name
+    # # else:
+    # #     agent_package = agent
+    # #     channel_name = None
+    # # result = server.vip.__rpc__.call(peer, "install_agent", agent_package, channel_name, vip_identity,
+    # #                              publickey, secretkey, force, pre_release, agent_config)
 
-    try:
-        if wheel_install:
-            result.rawlink(lambda glt: task.kill(block=False))
-            # Allows larger files to be sent across the message bus without
-            # raising an error.
-        gevent.wait([result], timeout=300)
-    except gevent.Timeout:
-        print("Install agent timed out")
-    except BaseException as e:
-        print("Install agent failed with exception: {e}")
-    return result
+    # try:
+    #     if wheel_install:
+    #         result.rawlink(lambda glt: task.kill(block=False))
+    #         # Allows larger files to be sent across the message bus without
+    #         # raising an error.
+    #     gevent.wait([result], timeout=300)
+    # except gevent.Timeout:
+    #     print("Install agent timed out")
+    # except BaseException as e:
+    #     print("Install agent failed with exception: {e}")
+    # return result
 
 
 # def send_agent(connection, wheel_file, vip_identity, publickey, secretkey, force):
