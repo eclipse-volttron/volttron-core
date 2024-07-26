@@ -27,6 +27,7 @@ import re
 import weakref
 from base64 import b64decode, b64encode
 from collections import defaultdict
+from functools import partial
 
 import gevent
 from gevent.queue import Queue
@@ -34,6 +35,7 @@ from gevent.queue import Queue
 from volttron.client.known_identities import PLATFORM_TAGGING
 from volttron.utils import jsonapi
 from volttron.utils.scheduling import periodic
+from volttron.types.message import Message
 
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..results import ResultsDictionary
@@ -72,10 +74,15 @@ class PubSub(SubsystemBase):
                  owner,
                  tag_vip_id=PLATFORM_TAGGING,
                  tag_refresh_interval=-1):
-        self.core = weakref.ref(core)
-        self.rpc = weakref.ref(rpc_subsys)
-        self.peerlist = weakref.ref(peerlist_subsys)
-        self._owner = owner
+        self.__core__ = weakref.ref(core)
+        self.__rpc__ = weakref.ref(rpc_subsys)
+        self.__peerlist__ = weakref.ref(peerlist_subsys)
+        self.__owner__ = owner
+
+        self._create_message_for_router = partial(Message.create_message,
+                                                  peer="",
+                                                  user=self.__core__().identity,
+                                                  subsystem="pubsub")
 
         def platform_subscriptions():
             return defaultdict(subscriptions)
@@ -95,19 +102,21 @@ class PubSub(SubsystemBase):
         self._my_subscriptions_by_tags = defaultdict(platform_subscriptions)
 
         core.register("pubsub", self._handle_subsystem, self._handle_error)
-        self.vip_socket = None
+        # self.vip_socket = None
         self._results = ResultsDictionary()
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
         self.tag_refresh_interval = tag_refresh_interval
         self.tag_vip_id = tag_vip_id
+        self._connection = core.connection
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            self.vip_socket = self.core().socket
+
+            #self.vip_socket = self.core().socket
 
             def subscribe(member):    # pylint: disable=redefined-outer-name
                 for peer, bus, prefix, all_platforms, queue in annotations(
@@ -238,7 +247,9 @@ class PubSub(SubsystemBase):
 
         sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions_prefix_and_tag))
         frames = ["synchronize", "connected", sync_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self.__core__().send_vip_message(message)
 
     def list(
         self,
@@ -277,7 +288,9 @@ class PubSub(SubsystemBase):
             ))
 
         frames = ["list", list_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self.__core__().send_vip_message(message=message)
         return result
 
     def _add_subscription(self, subscription_type, prefix, callback, bus="", all_platforms=False):
@@ -302,7 +315,10 @@ class PubSub(SubsystemBase):
         result = next(self._results)
         sub_msg = jsonapi.dumpb(dict(prefix=prefix, bus=bus, all_platforms=all_platforms))
         frames = ["subscribe", sub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self.__core__().connection.send_vip_message(message=message)
+        #
+        # self._connection.send_vip_message(message=message)
         return result
 
     @dualmethod
@@ -531,7 +547,9 @@ class PubSub(SubsystemBase):
         subscriptions[platform] = dict(prefix=topics, bus=bus)
         unsub_msg = jsonapi.dumpb(subscriptions)
         frames = ["unsubscribe", unsub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self._connection.send_vip_message(message=message)
         return result
 
     def unsubscribe(self, peer, prefix, callback, bus="", all_platforms=False, **kwargs):
@@ -648,7 +666,8 @@ class PubSub(SubsystemBase):
         return success_list, failure_list
 
     def publish(self, peer: str, topic: str, headers=None, message=None, bus="", **kwargs):
-        """Publish a message to a given topic via a peer.
+        """
+        Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus.
         If peer is None, use self. Adds volttron platform version
@@ -677,9 +696,9 @@ class PubSub(SubsystemBase):
 
         result = next(self._results)
         args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
-        # TODO: Refactor to allow core to send vip messages.
-        self.core().socket.send_vip("", "pubsub", args, result.ident, copy=False)
-        # self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
+        message = self._create_message_for_router(msg_id=result.ident, args=args)
+        _log.debug(f"**********************************************Sending: {message}")
+        self.__core__().connection.send_vip_message(message=message)
         return result
 
     def publish_by_tags(self,
@@ -750,6 +769,8 @@ class PubSub(SubsystemBase):
         """
         op = message.args[0]
 
+        _log.debug(f"Processing {self.__core__().identity}: op: {op}, message: {message}")
+
         if op == "request_response":
             result = None
             try:
@@ -801,6 +822,7 @@ class PubSub(SubsystemBase):
     def _process_loop(self):
         """Incoming message processing loop"""
         for msg in self._event_queue:
+            _log.debug(f"Handling pubsub message: {msg}")
             self._process_incoming_message(msg)
 
     def _handle_error(self, sender, message, error, **kwargs):

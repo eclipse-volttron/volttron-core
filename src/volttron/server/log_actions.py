@@ -24,6 +24,7 @@
 
 import argparse
 import logging
+import os
 
 from volttron.utils.logs import AgentFormatter
 
@@ -34,12 +35,15 @@ def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandle
     """
     handler = handler_class(file_)
     handler.setLevel(level)
-    handler.setFormatter(
-        AgentFormatter(
-            fmt="%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"))
+    if "VOLTTRON_SERVER" in os.environ:
+        format_str = "%(asctime)s %(composite_name)s(%(lineno)d) SERVER %(levelname)s: %(message)s"
+    else:
+        format_str = "%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"
+    handler.setFormatter(AgentFormatter(fmt=format_str))
     root = logging.getLogger()
     if root.level < level:
         root.setLevel(level)
+    root.handlers.clear()
     root.addHandler(handler)
 
 

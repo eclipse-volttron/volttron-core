@@ -202,7 +202,7 @@ class RPC(SubsystemBase):
         self.peer_list = {}
 
         def export(member):    # pylint: disable=redefined-outer-name
-            for name in annotations(member, set, "rpc.exports"):
+            for name in annotations(member, set, "__rpc__.exports"):
                 self._exports[name] = member
 
         inspect.getmembers(owner, export)
@@ -249,9 +249,9 @@ class RPC(SubsystemBase):
         """
         for method_name in self._exports:
             method = self._exports[method_name]
-            protected_rpcs = self.call(AUTH, "get_protected_rpcs", self.core.identity).get(timeout=10)
-            if method_name in protected_rpcs:
-                self._exports[method_name] = self._add_auth_check(method)
+            caps = annotations(method, set, "__rpc__.allow_capabilities")
+            if caps:
+                self._exports[method_name] = self._add_auth_check(method, caps)
 
     def _add_auth_check(self, method):
         """
@@ -423,11 +423,11 @@ class RPC(SubsystemBase):
     def export(cls, name=None):    # pylint: disable=no-self-argument
         if name is not None and not isinstance(name, str):
             method, name = name, name.__name__
-            annotate(method, set, "rpc.exports", name)
+            annotate(method, set, "__rpc__.exports", name)
             return method
 
         def decorate(method):
-            annotate(method, set, "rpc.exports", name)
+            annotate(method, set, "__rpc__.exports", name)
             return method
 
         return decorate
@@ -527,7 +527,7 @@ class RPC(SubsystemBase):
             cap = set([capabilities])
         else:
             cap = set(capabilities)
-        # Necessary if you have provided an alias for the rpc method.
+        # Necessary if you have provided an alias for the __rpc__ method.
         if isinstance(method, str):
             if method in self._exports:
                 self._exports[method] = self._add_auth_check(self._exports[method], cap)
@@ -559,10 +559,10 @@ class RPC(SubsystemBase):
 
         def decorate(method):
             if isinstance(capabilities, str):
-                annotate(method, set, "rpc.allow_capabilities", capabilities)
+                annotate(method, set, "__rpc__.allow_capabilities", capabilities)
             else:
                 for cap in capabilities:
-                    annotate(method, set, "rpc.allow_capabilities", cap)
+                    annotate(method, set, "__rpc__.allow_capabilities", cap)
             return method
 
         return decorate

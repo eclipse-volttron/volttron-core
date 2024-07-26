@@ -114,59 +114,29 @@ def vip_main(agent_class, version: str = "0.1", **kwargs):
 
         config = os.environ.pop("AGENT_CONFIG", {})
         identity = os.environ.pop("AGENT_VIP_IDENTITY", None)
-        # credentials = os.environ.get("AGENT_CREDENTIALS_FILE", None)
         address = os.environ.pop("VOLTTRON_PLATFORM_ADDRESS", None)
 
         creds = CredentialsFactory.load_from_environ()
         del os.environ["AGENT_CREDENTIALS"]
 
-        # TODO: Make required for all agents.  Handle it through vctl and aip.
         if not os.environ.get("_LAUNCHED_BY_PLATFORM"):
             if not creds:
                 raise ValueError(
                     "Please set AGENT_CREDENTIALS to the credentials to connect to the server.")
+            if not address:
+                raise ValueError(
+                    "Please set VOLTTRON_PLATFORM_ADDRESS to the address for connecting to the server."
+                )
 
         if identity != creds.identity:
             raise ValueError("AGENT_VIP_IDENTITY and identity from credentials do not match!")
 
         if identity is not None:
             if not is_valid_identity(identity):
-                _log.warning("Deprecation warining")
+                _log.warning("Deprecation warning")
                 _log.warning(f"All characters in {identity} are not in the valid set.")
 
-        # TODO: Change how we get the address.
-        # address = get_address()
-        # agent_uuid = os.environ.get("AGENT_UUID")
-        volttron_home = cc.get_volttron_home()
-
         agent = agent_class(credentials=creds, config_path=config, address=address, **kwargs)
-        # TODO Bring back certs
-        # from volttron.client.certs import Certs
-        # certs = Certs()
-        # if agent_class.__name__ == "Agent":
-        #     agent = agent_class(config_path=config,
-        #                         identity=identity,
-        #                         address=address,
-        #                         agent_uuid=agent_uuid,
-        #                         volttron_home=volttron_home,
-        #                         version=version,
-        #                         message_bus=message_bus,
-        #                         publickey=publickey,
-        #                         secretkey=secretkey,
-        #                         serverkey=serverkey,
-        #                         **kwargs)
-        # else:
-        #     agent = agent_class(config_path=config,
-        #                         identity=identity,
-        #                         address=address,
-        #                         agent_uuid=agent_uuid,
-        #                         volttron_home=volttron_home,
-        #                         version=version,
-        #                         message_bus=message_bus,
-        #                         publickey=publickey,
-        #                         secretkey=secretkey,
-        #                         serverkey=serverkey,
-        #                         **kwargs)
 
         try:
             run = agent.run

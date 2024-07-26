@@ -320,7 +320,7 @@ def start_volttron_process(options: ServerOptions):
             # Use volttron.services.auth to load the main auth service.  A user may choose
             # to not use our default auth service and can install their own service to this
             # location.
-            loader = importlib.find_loader("volttron.services.auth")
+            loader = importlib.util.find_spec("volttron.services.auth")
             # loader2.load_module("volttron.zap")
             # loader2 = importlib.find_loader("volttron.zap")
             authenticator = service_repo.resolve(Authenticator)
@@ -443,6 +443,7 @@ def start_volttron_process(options: ServerOptions):
         # if health_service is not None:
         #     notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
 
+        _log.debug("Finished Startup of Platform.")
         # Auto-start agents now that all services are up
         if opts.autostart:
             for name, error in opts.aip.autostart():

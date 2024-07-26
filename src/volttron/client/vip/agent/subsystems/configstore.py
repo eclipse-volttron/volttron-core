@@ -259,6 +259,7 @@ class ConfigStore(SubsystemBase):
             if config_name == "config":
                 continue
             self._process_callbacks_one_config(config_name, action, all_map)
+        _log.debug("Finished processing callbacks.")
 
     def _process_callbacks_one_config(self, config_name, action, name_map):
         callbacks = set()

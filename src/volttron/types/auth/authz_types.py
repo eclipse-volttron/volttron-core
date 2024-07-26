@@ -330,7 +330,7 @@ def unstructure_user_groups(instance: UserGroups):
     }
     i.e. instead of list of dict with
                   name:<value>, users:<list>, roles:<list>, rpc_capabilities: <list>, pubsub_capabilities: <list>
-    generate dict with key as group name and values as users, roles, rpc, pubsub capabilities and skipping none
+    generate dict with key as group name and values as users, roles, __rpc__, pubsub capabilities and skipping none
     """
     _groups_dict = dict()
     for _g in instance.user_groups:
@@ -516,7 +516,7 @@ class VolttronAuthzMap:
                             # not a role that is currently updated, skip to next role
                             continue
                         param_restriction = user_role[user_role_name]
-                        # add param restriction dict to role's rpc capbailities before merging with
+                        # add param restriction dict to role's __rpc__ capbailities before merging with
                         # user capabilities
                         role_rpc_caps = copy.deepcopy(
                             roles.get(user_role_name).get(RPC_CAPABILITIES))
@@ -530,14 +530,14 @@ class VolttronAuthzMap:
                                 d = {key: value}
                                 value.update(param_restriction)
                             role_rpc_caps_params.append(d)
-                        # Update user authz with role's rpc cap
+                        # Update user authz with role's __rpc__ cap
                         cls.update_rpc_capabilities(user_authz, role_rpc_caps_params)
                     else:
                         user_role_name = user_role
                         if not roles.get(user_role_name):
                             # not a role that is currently updated, skip to next role
                             continue
-                        # Update user authz with role's rpc cap
+                        # Update user authz with role's __rpc__ cap
                         cls.update_rpc_capabilities(
                             user_authz,
                             roles.get(user_role_name).get(RPC_CAPABILITIES))
@@ -558,7 +558,7 @@ class VolttronAuthzMap:
             authz_dict[list_type] = copy.deepcopy(new_caps_list)
             return
 
-        # Both current and new rpc capabilities are not empty.
+        # Both current and new __rpc__ capabilities are not empty.
         # Merge
         for new_cap in new_caps_list:
             if isinstance(new_cap, dict):
@@ -607,8 +607,9 @@ class VolttronAuthzMap:
                              rpc_capabilities: RPCCapabilities = None,
                              pubsub_capabilities: PubsubCapabilities = None) -> bool:
         if not rpc_capabilities and not pubsub_capabilities:
-            raise ValueError(f"Role {name} should have non empty capabilities - rpc capabilities, "
-                             "pubsub capabilities or both")
+            raise ValueError(
+                f"Role {name} should have non empty capabilities - __rpc__ capabilities, "
+                "pubsub capabilities or both")
         if not self.compact_dict.get(ROLES):
             self.compact_dict[ROLES] = dict()
         if name not in self.compact_dict.get(ROLES):
