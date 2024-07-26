@@ -35,7 +35,7 @@
 # isort: skip_file
 from __future__ import annotations
 
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABC, abstractmethod
 import os
 
 from gevent.subprocess import Popen
@@ -43,6 +43,7 @@ from gevent.subprocess import Popen
 from pathlib import Path
 
 Identity = str
+Tag = str
 
 
 class AbstractAgent(ABC):
@@ -128,7 +129,8 @@ class AgentStarter(ABC):
 
 class Connection(ABC):
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def connected(self) -> bool:
         ...
 
@@ -149,7 +151,7 @@ class Connection(ABC):
         ...
 
     @abstractmethod
-    def recieve_vip_message(self) -> Message:
+    def receive_vip_message(self) -> Message:
         ...
 
 
