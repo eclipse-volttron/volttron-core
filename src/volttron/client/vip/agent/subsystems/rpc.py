@@ -46,8 +46,9 @@ from .base import SubsystemBase
 __all__ = ["RPC"]
 
 _ROOT_PACKAGE_PATH = (os.path.dirname(__import__(__name__.split(".", 1)[0]).__path__[-1]) + os.sep)
+from volttron.client.logs import get_logger
 
-_log = logging.getLogger(__name__)
+_log = get_logger()
 
 
 def _isregex(obj):

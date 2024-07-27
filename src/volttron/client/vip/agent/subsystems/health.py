@@ -37,7 +37,9 @@ way.
 __docformat__ = "reStructuredText"
 __version__ = "1.1"
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 class Health(SubsystemBase):

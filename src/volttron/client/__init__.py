@@ -43,6 +43,7 @@ for module, fn in patches:
 import logging
 from urllib.parse import urlparse
 
+from volttron.client.logs import get_logger
 from volttron.client.vip.agent.core import Core
 from volttron.client.vip.agent.subsystems.auth import Auth
 from volttron.client.vip.agent.subsystems.configstore import ConfigStore
@@ -55,13 +56,14 @@ from volttron.client.vip.agent.subsystems.pubsub import PubSub
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.client.vip.agent.subsystems.rpc import RPC
 from volttron.types import AbstractAgent
+from volttron.client.logs import setup_logging
 
 __all__: List[str] = [
     "AbstractAgent", "Core", "RPC", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health",
-    "ConfigStore", "Auth", "Query"
+    "ConfigStore", "Auth", "Query", "setup_logging"
 ]
 
-_log = logging.getLogger(__name__)
+_log = get_logger()
 
 
 def build_vip_address_string(vip_root, serverkey, publickey, secretkey):

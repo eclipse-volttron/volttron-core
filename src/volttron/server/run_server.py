@@ -50,7 +50,7 @@ from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL
 from volttron.server import aip
 from volttron.server import server_argparser as config
 from volttron.server.containers import service_repo
-from volttron.server.log_actions import (LogLevelAction, configure_logging, log_to_file)
+from volttron.server.logs import (LogLevelAction, configure_logging, log_to_file)
 from volttron.server.server_options import ServerOptions
 from volttron.server.tracking import Tracker
 from volttron.types.auth.auth_service import AuthService
@@ -496,11 +496,9 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     :return: The argument parser.
     :rtype: argparse.ArgumentParser
     """
-    import coloredlogs
 
     from volttron.server.server_options import ServerOptions
     from volttron.types.events import volttron_home_set_evnt
-    from volttron.utils.logs import setup_logging
 
     default_levels_for_modules = {
         "volttron.server.decorators": logging.WARNING,

@@ -30,7 +30,9 @@ import logging
 
 from volttron.utils import get_version
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 __version__ = get_version()
 

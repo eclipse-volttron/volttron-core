@@ -53,7 +53,6 @@ from volttron.types.auth.auth_credentials import Credentials
 from volttron.types import AbstractAgent, AbstractCore, Connection
 from volttron.types.factories import ConnectionBuilder
 from volttron.types.message import Message
-from volttron.utils.logs import logtrace
 
 from .decorators import annotate, annotations, dualmethod
 from .dispatch import Signal
@@ -61,7 +60,9 @@ from .errors import VIPError
 
 __all__: list[str] = ["BasicCore", "Core", "killing"]
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 class Periodic(object):    # pylint: disable=invalid-name

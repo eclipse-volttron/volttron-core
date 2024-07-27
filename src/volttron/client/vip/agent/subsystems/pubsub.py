@@ -46,8 +46,9 @@ __all__ = ["PubSub"]
 min_compatible_version = "3.0"
 max_compatible_version = ""
 
-# utils.setup_logging()
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 def encode_peer(peer):

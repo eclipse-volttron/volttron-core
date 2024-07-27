@@ -29,9 +29,10 @@ from volttron.client.known_identities import CONTROL, CONTROL_CONNECTION
 from volttron.client.vip.agent import Agent as BaseAgent
 from volttron.types.agent_context import AgentContext, AgentOptions
 from volttron.utils import ClientContext as cc
-from volttron.utils.logs import logtrace
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 class ControlConnection(object):
@@ -73,21 +74,18 @@ class ControlConnection(object):
             event.wait()
         return self._server
 
-    @logtrace
     def call(self, method, *args, **kwargs):
         _log.debug(f"Calling {self.peer} method: {method} with args {args}")
         assert self.server
         assert self.server.vip.rpc
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs).get(timeout=20)
 
-    @logtrace
     def call_no_get(self, method, *args, **kwargs):
         return self.server.vip.rpc.call(self.peer, method, *args, **kwargs)
 
     def notify(self, method, *args, **kwargs):
         return self.server.vip.rpc.notify(self.peer, method, *args, **kwargs)
 
-    @logtrace
     def kill(self, *args, **kwargs):
         if self._greenlet is not None:
             self._greenlet.kill(*args, **kwargs)

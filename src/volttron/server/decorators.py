@@ -23,7 +23,6 @@ from volttron.types.auth.auth_service import (AuthService, Authenticator, Author
 from volttron.types import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor, AgentStarter,
                             Connection, MessageBus, Service)
 from volttron.types.factories import ConnectionBuilder, CoreBuilder
-from volttron.utils.logs import logtrace
 
 _log = logging.getLogger(__name__)
 
@@ -178,7 +177,6 @@ def __get_class_from_factory__(registration, name: str = None):
 __messagebus__: dict[str, object] = {}
 
 
-@logtrace
 def get_messagebus_instance(name=None) -> MessageBus:
     return __get_create_instance_from_factory__(__messagebus__, messagebus, name)
 
@@ -186,7 +184,6 @@ def get_messagebus_instance(name=None) -> MessageBus:
 __messagebus_core__: dict[str, object] = {}
 
 
-@logtrace
 def get_messagebus_core(name=None) -> object:
     return __get_create_instance_from_factory__(__messagebus_core__, core, name)
 
@@ -194,7 +191,6 @@ def get_messagebus_core(name=None) -> object:
 __messagebus_connection__: dict[str, object] = {}
 
 
-@logtrace
 def get_messagebus_core(name=None) -> object:
     """
     Return a messagebus connection instance.
@@ -207,7 +203,6 @@ def get_messagebus_core(name=None) -> object:
     return __get_create_instance_from_factory__(__messagebus_connection__, connection, name)
 
 
-@logtrace
 def get_messagebus_class(name: str = None) -> type:
     """
     Return a registered messagebus class.
@@ -222,7 +217,6 @@ def get_messagebus_class(name: str = None) -> type:
     return __get_class_from_factory__(messagebus, name)
 
 
-@logtrace
 def get_core_instance(credentials: Credentials) -> AbstractCore:
     """
     Return a registered core class.
@@ -244,7 +238,6 @@ def get_core_instance(credentials: Credentials) -> AbstractCore:
 __authorizer__: dict[str, Authorizer] = {}
 
 
-@logtrace
 def get_authorizer(name: str = None,
                    authorization_manager: AuthorizationManager = None) -> Authorizer:
     authorizer_instance: Authorizer = None
@@ -271,7 +264,6 @@ def get_authorizer(name: str = None,
 __authenticator__: dict[str, Authenticator] = {}
 
 
-@logtrace
 def get_authenticator(name: str = None,
                       credentials_creator: CredentialsCreator = None) -> Authenticator:
     authenticatoritem: Authenticator = None
@@ -296,7 +288,6 @@ def get_authenticator(name: str = None,
 __credentials_store__: dict[str, CredentialsStore] = {}
 
 
-@logtrace
 def get_credentials_store(name: str = None) -> CredentialsStore:
     credentials_store_item: CredentialsStore = None
     if name is not None:
@@ -312,7 +303,6 @@ def get_credentials_store(name: str = None) -> CredentialsStore:
 __authorization_manager__: dict[str, AuthorizationManager] = {}
 
 
-@logtrace
 def get_authorization_manager(name: str = None) -> AuthorizationManager:
     auth_manager: AuthorizationManager = None
     if name is not None:
@@ -326,7 +316,6 @@ def get_authorization_manager(name: str = None) -> AuthorizationManager:
     return auth_manager
 
 
-@logtrace
 def get_authservice_class(name=None) -> type:
     return __get_class_from_factory__(authservice, name)
 
@@ -334,7 +323,6 @@ def get_authservice_class(name=None) -> type:
 __credentials_creator__: dict[str, CredentialsCreator] = {}
 
 
-@logtrace
 def get_credentials_creator(name=None) -> CredentialsCreator:
     creator_item: CredentialsCreator = None
     if name is not None:
@@ -348,22 +336,18 @@ def get_credentials_creator(name=None) -> CredentialsCreator:
     return creator_item
 
 
-@logtrace
 def get_services() -> dict[str, type]:
     return service.registry
 
 
-@logtrace
 def get_services_without_requires() -> list[type]:
     return list(filter(lambda x: not hasattr(x.Meta, "requires"), service.registry.values()))
 
 
-@logtrace
 def get_services_with_requires() -> list[type]:
     return list(filter(lambda x: hasattr(x.Meta, "requires"), service.registry.values()))
 
 
-@logtrace
 def get_service_class(identity: str) -> type:
     return service.registry[identity]
 
@@ -371,14 +355,12 @@ def get_service_class(identity: str) -> type:
 __service_instances__: dict[str, object] = {}
 
 
-@logtrace
 def get_service_instance(identity: str) -> object:
     return __get_create_instance_from_factory__(instances=__service_instances__,
                                                 registration=service,
                                                 name=identity)
 
 
-@logtrace
 def get_service_startup_order() -> list[str]:
     ordered: list[str] = ["platform.config"]
 

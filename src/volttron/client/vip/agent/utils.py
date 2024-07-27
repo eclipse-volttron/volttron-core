@@ -28,7 +28,9 @@ from volttron.utils import get_address
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.client.vip.agent.connection import Connection
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 host_store = KnownHostsStore()
 

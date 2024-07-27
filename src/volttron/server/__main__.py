@@ -35,12 +35,23 @@
 # BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
 # }}}
-
-import logging
+"""
+This is the main entry point to the VOLTTRON server. The first thing that
+should happen is setting up of logging and verbosity for the server.  After
+that we hand off to the run_server method, which will start the server process.
+"""
+import logging.config
 import os
+from pathlib import Path
 import sys
 
-total_count = 0
+import yaml
+
+from volttron.server.logs import get_default_logging_config
+
+total_count: int = 0
+logging_config: Path | str | None = None
+
 for arg in sys.argv:
     vcount = 0
 
@@ -48,22 +59,39 @@ for arg in sys.argv:
         vcount = arg.count("v")
     elif arg == "--verbose":
         vcount = 1
+    elif arg == "--log-config" or arg == "-L":
+        # Find the index of the log configuration so we can replace the
+        # file with absolute path.
+        try:
+            index = sys.argv.index("--log-config")
+        except ValueError:
+            index = sys.argv.index("-L")
+
+        # Get the logging config file and verify it's existence.
+        logging_config = Path(sys.argv[index + 1])
+        if not logging_config.exists():
+            sys.stderr.write(f"Invalid --log-config file passed {logging_config}")
+            sys.exit(10)
+
+        # Finally set the logging parameter to the absolute path
+        sys.argv[index + 1] = logging_config.absolute().as_posix()
+
     total_count += vcount
 
-try:
-    import coloredlogs
+logging.config.dictConfig(get_default_logging_config(level=total_count))
 
-    total_count = logging.WARNING - 10 * total_count
-    coloredlogs.install(level=total_count)
-except ImportError:
-    pass
+if logging_config:
+    with open(logging_config, 'rt') as f:
+        cfg = yaml.safe_load(f.read())
 
-from volttron.utils.logs import enable_trace, setup_logging
+    logging.config.dictConfig(cfg)
 
-setup_logging(total_count)
+# from volttron.utils.logs import enable_trace, setup_logging
 
-if total_count <= logging.DEBUG:
-    enable_trace()
+# setup_logging(total_count)
+
+# if total_count <= logging.DEBUG:
+#     enable_trace()
 
 from volttron.server.run_server import _main
 
