@@ -92,6 +92,9 @@ def get_default_loggers_config() -> dict:
         "volttron.server": {
             "level": "WARNING"
         },
+        "volttron.services": {
+            "level": "INFO"
+        },
         "volttron.client": {
             "level": "INFO"
         }
