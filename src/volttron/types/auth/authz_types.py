@@ -607,9 +607,8 @@ class VolttronAuthzMap:
                              rpc_capabilities: RPCCapabilities = None,
                              pubsub_capabilities: PubsubCapabilities = None) -> bool:
         if not rpc_capabilities and not pubsub_capabilities:
-            raise ValueError(
-                f"Role {name} should have non empty capabilities - __rpc__ capabilities, "
-                "pubsub capabilities or both")
+            raise ValueError(f"Role {name} should have non empty capabilities - rpc capabilities, "
+                             "pubsub capabilities or both")
         if not self.compact_dict.get(ROLES):
             self.compact_dict[ROLES] = dict()
         if name not in self.compact_dict.get(ROLES):

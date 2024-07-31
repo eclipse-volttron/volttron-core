@@ -35,7 +35,7 @@ from gevent.event import AsyncResult
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
 
-from volttron.auth.auth_exception import AuthException
+#from volttron.auth.auth_exception import AuthException
 from volttron.utils import jsonapi, jsonrpc
 from volttron.client.known_identities import AUTH
 
@@ -265,8 +265,10 @@ class RPC(SubsystemBase):
             method_name = method.__name__
             args_dict = inspect.getcallargs(method, *args, **kwargs)
             try:
-                self.call(AUTH, "check_authorization",
-                          identity=calling_user, method_name=f"{self.core.identity}.{method_name}",
+                self.call(AUTH,
+                          "check_authorization",
+                          identity=calling_user,
+                          method_name=f"{self.core.identity}.{method_name}",
                           method_args=args_dict).get(timeout=10)
             except AuthException as e:
                 # msg = ("method '{}' requires capabilities {}, but capability {} "

@@ -51,8 +51,6 @@ from volttron.utils.time import (format_timestamp, process_timestamp, parse_time
 from volttron.utils.version import get_version
 from volttron.types import Identity
 
-from volttron.client.logs import setup_logging
-
 _log = logging.getLogger(__name__)
 
 
@@ -92,7 +90,7 @@ def load_config(default_configuration: str | Path | dict | None) -> dict:
     :rtype: dict
     """
 
-    if default_configuration is None:
+    if default_configuration is None or default_configuration == "":
         return {}
 
     if isinstance(default_configuration, dict):

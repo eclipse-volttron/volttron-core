@@ -1,5 +1,7 @@
 import logging
 from logging import Logger
+import sys
+import os
 
 
 def get_logger() -> Logger:
@@ -43,6 +45,18 @@ def get_default_client_log_config(level=logging.DEBUG) -> dict:
     }
 
 
+class JsonFormatter(logging.Formatter):
+
+    def format(self, record):
+        dct = record.__dict__.copy()
+        dct["msg"] = record.getMessage()
+        dct.pop("args")
+        exc_info = dct.pop("exc_info", None)
+        if exc_info:
+            dct["exc_text"] = "".join(traceback.format_exception(*exc_info))
+        return jsonapi.dumps(dct)
+
+
 class AgentFormatter(logging.Formatter):
 
     def __init__(self, fmt=None, datefmt=None):
@@ -66,6 +80,8 @@ class AgentFormatter(logging.Formatter):
 
 
 def setup_logging(level=logging.DEBUG, console=False):
+    from volttron.utils.commands import isapipe
+
     root = logging.getLogger()
     if not root.handlers:
         handler = logging.StreamHandler()

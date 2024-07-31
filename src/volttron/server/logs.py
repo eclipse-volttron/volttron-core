@@ -26,8 +26,6 @@ import argparse
 import logging
 import os
 
-from volttron.client.logs import AgentFormatter
-
 # -*- coding: utf-8 -*- {{{
 # ===----------------------------------------------------------------------===
 #
@@ -62,6 +60,7 @@ import traceback
 import warnings
 
 from volttron.utils import jsonapi
+from volttron.client.logs import AgentFormatter
 
 try:
     HAS_SYSLOG = True
