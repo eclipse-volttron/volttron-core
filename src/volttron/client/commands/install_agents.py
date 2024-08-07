@@ -58,16 +58,16 @@ _stdout = sys.stdout
 _stderr = sys.stderr
 
 
-def install_requirements(agent_source):
-    req_file = os.path.join(agent_source, "requirements.txt")
-
-    if os.path.exists(req_file):
-        _log.info(f"Installing requirements for agent from {req_file}.")
-        cmds = ["pip", "install", "-r", req_file]
-        try:
-            execute_command(cmds, logger=_log, err_prefix="Error installing requirements")
-        except InstallRuntimeError:
-            sys.exit(1)
+# def install_requirements(agent_source):
+#     req_file = os.path.join(agent_source, "requirements.txt")
+#
+#     if os.path.exists(req_file):
+#         _log.info(f"Installing requirements for agent from {req_file}.")
+#         cmds = ["pip", "install", "-r", req_file]
+#         try:
+#             execute_command(cmds, logger=_log, err_prefix="Error installing requirements")
+#         except InstallRuntimeError:
+#             sys.exit(1)
 
 
 def install_agent_directory(opts, publickey=None, secretkey=None):

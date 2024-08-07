@@ -343,7 +343,7 @@ class AIPplatform:
         #  VOLTTRON 8.0 once CSR is implemented for
         #  federation and shovel. The below lines can be removed then
         if self.message_bus == "rmq":
-            os.chmod(os.path.join(cc.get_volttron_home, "certificates/private"), 0o755)
+            os.chmod(os.path.join(cc.get_volttron_home(), "certificates/private"), 0o755)
             self.set_acl_for_path(
                 "r",
                 volttron_agent_user,
@@ -520,18 +520,12 @@ class AIPplatform:
         # removing last/only instance of an agent
         backup_agent_file = self.backup_agent_data(agent_uuid, vip_identity)
 
-        agent_name = self.install_agent_source(agent, force, pre_release)
+        agent_name, site_package_dir = self.install_agent_source(agent, force, pre_release)
 
         # get default vip_identity if vip_identity is not passed
         # default value will be in "agent_name-default-vip-id" file in site-packages dir
         if vip_identity is None:
-            # get site-packages dir using agent's package name
-            # installed package name is agent_name without version. Version is at the end. ex. agent-name-0.2.1
-            installed_package_name = agent_name[0:agent_name.rfind("-")]
-            cmd = [sys.executable, "-m", "pip", "show", installed_package_name]
-            response = execute_command(cmd)
-            site_package_dir = re.search(".*\nLocation: (.*)", response).groups()[0].strip()
-            # get default vip id
+            # get default vip id if one is specified in src
             default_vip_id_file = os.path.join(site_package_dir, f"{agent_name}-default-vip-id")
             _log.info(f"Default vip id file is {default_vip_id_file}")
             if os.path.isfile(default_vip_id_file):
@@ -621,88 +615,62 @@ class AIPplatform:
     def install_agent_source(self, agent: str, force: bool = False, pre_release: bool = False):
         _log.info(f"AGENT_WHEEL: {agent}")
 
-        if force:
-            cmd = [sys.executable, "-m", "pip", "install", "--force-reinstall"]
-        else:
-            cmd = [sys.executable, "-m", "pip", "install"]
-
+        cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "add"]
+        # TODO - no --force-reinstall for poetry. will have to uninstall and reinstall
+        # if force:
+        #     cmd.append("--force-reinstall")
         if pre_release:
-            cmd.append("--pre")
+            cmd.append("--allow-prereleases")
 
         cmd.append(agent)
         _log.debug(f"Executing agent install command : {cmd}")
         response = execute_command(cmd)
+        # if above cmd returned non-zero code it would throw exception.
+        # if we are here we succeeded installing some compatible version of the package.
+        # Now find agent name and version installed
         agent_name = None
-        last_line = response.strip().split("\n")[-1]
-        _log.debug(f"last line of response {last_line}")
-        find_success = re.match("Successfully installed (.*)", last_line)
+        if agent.endswith(".whl") and os.path.isfile(agent):
+            agent_name = self._construct_package_name_from_agent_wheel(agent)
+        else:
+            # this is a pypi package.
+            # if vctl install got source dir, it would have got built into a whl before getting shipped to server
+            # it could be just a package-name(ex. volttron-listner)
+            # or package-name with version constraints- ex. volttron-agent@latest, volttron-agent>=1.0.0
+            # so match till we hit a character that is NOT alpha numeric character or  _ or -
+            m = re.match("[\w\-]+", agent)
+            if m:
+                agent_name = m[0]
+        if agent_name is None:
+            # ideally we should never get here! if we get here we haven't handled some specific input format.
+            raise RuntimeError(f"Something went wrong when installing {agent}. "
+                               f"Unable to parse agent name of the package.\n"
+                               f"Agent install command used: {' '.join(cmd)} \n"
+                               f"Command completed with exit code 0 and stdout "
+                               f"response {response}")
 
-        if find_success:
-            _log.debug(f"Successfully installed package: {find_success}")
-            # if successfully installed packages includes the agent then agent_name should be returned.
-            agent_name = self._get_agent_name_on_success(
-                find_success, self._construct_package_name_from_agent_wheel(agent))
+        # now get the version installed, because poetry add could have been for volttron-agent@latest.
+        # we need to find the specific version installed
+        cmd = ["pip", "show", agent_name]
+        response = execute_command(cmd)
+        version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
+        site_package_dir = re.search(".*\nLocation: (.*)", response).groups()[0].strip()
+        if site_package_dir is None:
+            # we should not get here unless pip changed format of pip show output.
+            raise RuntimeError(f"Unable to find installed location of {agent} based on pip show command")
+        if version is None:
+            # we should not get here unless pip changed format of pip show output.
+            raise RuntimeError(f"Unable to find installed version of {agent} based on pip show command")
 
-        # agent was not installed. Check if agent package already exists
-        if not agent_name:
-            # output in this case depends on whether you install from pypi or wheel
-            if agent.endswith(".whl") and os.path.isfile(agent):
-                # format :
-                # {package name} is already installed with the same version as the provided wheel.
-                agent_name = self._parse_wheel_install_response(response, agent)
-            else:
-                # install from pypi - output will have format
-                # Requirement already satisfied: {name} in ./.venv/lib/python3.8/site-packages ({version})
-                agent_name = self._parse_pypi_install_response(response, agent)
-        return agent_name
+        return agent_name + "-" + version, site_package_dir
 
     @staticmethod
     def _construct_package_name_from_agent_wheel(agent_wheel):
         agent_name = agent_wheel
         if agent_wheel.endswith(".whl"):
             wheel = agent_wheel.split("/")[-1]
-            agent_name = wheel.replace("-py3-none-any.whl", "").replace("_", "-")
+            agent_name_with_version = wheel.replace("-py3-none-any.whl", "").replace("_", "-")
+            agent_name = agent_name_with_version[:agent_name_with_version.rfind("-")]
         return agent_name
-
-    @staticmethod
-    def _get_agent_name_on_success(find_success, agent_package):
-        _log.info(f"searching for: {agent_package} in response of successful pip install")
-        for package in find_success.groups()[0].split():
-            # search for the agent name that we want. agent_package might not have version number
-            _log.debug(f"package: {package}")
-            if package.startswith(agent_package):
-                return package
-        # List of successfully installed packages does not include agent package. maybe we installed only
-        # some missing dependencies but agent package already exists. Return none
-        return None
-
-    @staticmethod
-    def _parse_wheel_install_response(response, agent_wheel):
-        groups = None
-        result = re.search(
-            ".*\n(.*) is already installed with the same version as the provided wheel", response)
-        if result:
-            groups = result.groups()
-        if groups:
-            find_already_installed = groups[0].strip()
-            cmd = ["pip", "show", find_already_installed]
-            response = execute_command(cmd)
-            version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
-            return find_already_installed + "-" + version
-        raise ValueError(f"Couldn't install {agent_wheel}\n{response}")
-
-    @staticmethod
-    def _parse_pypi_install_response(response, package_name):
-        _log.info(f"Parsing pypi install response {response}")
-        line = response.split('\r\n')[0]
-        match = re.match(f"Requirement already satisfied: {package_name}.*\\((.*)\\)", line)
-        groups = None
-        if match:
-            groups = match.groups()
-        if groups:
-            version = groups[0].strip()
-            return package_name + "-" + version
-        raise ValueError(f"Couldn't install {package_name}\n{response}")
 
     def _setup_agent_vip_id(self, agent_name, vip_identity=None):
         # agent_path = os.path.join(self.install_dir, agent_name)
