@@ -50,7 +50,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
     :param cmds:list of commands to pass to subprocess.run
     :param env: environment to run the command with
     :param cwd: working directory for the command
-    :param logger: a logger to use if errors occure
+    :param logger: a logger to use if errors occur
     :param err_prefix: an error prefix to allow better tracing through the error message
     :return: stdout string if successful
 

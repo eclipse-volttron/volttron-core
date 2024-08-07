@@ -216,7 +216,7 @@ class RPC(SubsystemBase):
         core.onsetup.connect(setup, self)
         core.ondisconnected.connect(self._disconnected)
         core.onconnected.connect(self._connected)
-        self._iterate_exports()
+        #self._iterate_exports()
 
     def _connected(self, sender, **kwargs):
         self._isconnected = True
@@ -524,48 +524,48 @@ class RPC(SubsystemBase):
             if exc.errno == ENOTSOCK:
                 _log.debug("Socket send on non-socket %r", self.core().identity)
 
-    @dualmethod
-    def allow(self, method, capabilities):
-        if isinstance(capabilities, str):
-            cap = set([capabilities])
-        else:
-            cap = set(capabilities)
-        # Necessary if you have provided an alias for the __rpc__ method.
-        if isinstance(method, str):
-            if method in self._exports:
-                self._exports[method] = self._add_auth_check(self._exports[method], cap)
-            else:
-                _log.error("Method alias is not in RPC export list.")
-        else:
-            self._exports[method.__name__] = self._add_auth_check(method, cap)
-
-    @allow.classmethod
-    def allow(cls, capabilities):
-        """
-        Decorator specifies required agent capabilities to call a method.
-
-        This is designed to be used with the export decorator:
-
-        .. code-block:: python
-
-            @RPC.export
-            @RPC.allow('can_read_status')
-            def get_status():
-                ...
-
-        Multiple capabilities can be provided in a list:
-        .. code-block:: python
-
-            @RPC.allow(['can_read_status', 'can_call_my_methods'])
-
-        """
-
-        def decorate(method):
-            if isinstance(capabilities, str):
-                annotate(method, set, "__rpc__.allow_capabilities", capabilities)
-            else:
-                for cap in capabilities:
-                    annotate(method, set, "__rpc__.allow_capabilities", cap)
-            return method
-
-        return decorate
+    # @dualmethod
+    # def allow(self, method, capabilities):
+    #     if isinstance(capabilities, str):
+    #         cap = set([capabilities])
+    #     else:
+    #         cap = set(capabilities)
+    #     # Necessary if you have provided an alias for the __rpc__ method.
+    #     if isinstance(method, str):
+    #         if method in self._exports:
+    #             self._exports[method] = self._add_auth_check(self._exports[method], cap)
+    #         else:
+    #             _log.error("Method alias is not in RPC export list.")
+    #     else:
+    #         self._exports[method.__name__] = self._add_auth_check(method, cap)
+    #
+    # @allow.classmethod
+    # def allow(cls, capabilities):
+    #     """
+    #     Decorator specifies required agent capabilities to call a method.
+    #
+    #     This is designed to be used with the export decorator:
+    #
+    #     .. code-block:: python
+    #
+    #         @RPC.export
+    #         @RPC.allow('can_read_status')
+    #         def get_status():
+    #             ...
+    #
+    #     Multiple capabilities can be provided in a list:
+    #     .. code-block:: python
+    #
+    #         @RPC.allow(['can_read_status', 'can_call_my_methods'])
+    #
+    #     """
+    #
+    #     def decorate(method):
+    #         if isinstance(capabilities, str):
+    #             annotate(method, set, "__rpc__.allow_capabilities", capabilities)
+    #         else:
+    #             for cap in capabilities:
+    #                 annotate(method, set, "__rpc__.allow_capabilities", cap)
+    #         return method
+    #
+    #     return decorate
