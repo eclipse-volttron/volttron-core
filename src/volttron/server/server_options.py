@@ -63,6 +63,7 @@ class ServerOptions:
     config_file: Path = None
     initialized: bool = False
     service_address: str = None
+    poetry_project_path: Path = None
 
     # services: list[ServiceData] = field(default_factory=list)
 
@@ -77,6 +78,9 @@ class ServerOptions:
 
         if self.volttron_home is None:
             self.volttron_home = Path(os.environ.get("VOLTTRON_HOME", "~/.volttron")).expanduser()
+
+        if self.poetry_project_path is None:
+            self.poetry_project_path = self.volttron_home
 
         # Should be the only location where we create VOLTTRON_HOME
         if not self.volttron_home.is_dir():
@@ -117,10 +121,17 @@ class ServerOptions:
         """
         address = set(opts.address)
         opts.address = list(address)
+
         if isinstance(opts, dict):
+            dev_mode = opts.pop("dev_mode")
             self.__dict__.update(opts)
         else:
-            self.__dict__.update(opts.__dict__)
+            d = opts.__dict__
+            dev_mode = d.pop("dev_mode")
+            self.__dict__.update(d)
+
+        if dev_mode:
+            self.poetry_project_path = Path(os.path.abspath(os.curdir))
 
     def store(self, file: Path = None):
         """
@@ -141,8 +152,8 @@ class ServerOptions:
             try:
                 # Don't save volttron_home within the config file.
                 if field.name not in ('volttron_home', 'services', 'config_file', 'initialized',
-                                      'service_address'):
-                    # More than one address can be present so we must be careful
+                                      'service_address', "poetry_project_path"):
+                    # More than one address can be present, so we must be careful
                     # with it.
                     if field.name == 'address':
                         found = set()

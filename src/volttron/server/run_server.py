@@ -57,7 +57,7 @@ from volttron.types.auth.auth_service import AuthService
 from volttron.types.events import volttron_home_set_evnt
 from volttron.types.peer import ServicePeerNotifier
 from volttron.types.server_config import ServerConfig, ServiceConfigs
-from volttron.utils import ClientContext as cc
+from volttron.utils import ClientContext as cc, execute_command
 from volttron.utils import (get_version, store_message_bus_config)
 from volttron.utils.persistance import load_create_store
 
@@ -112,14 +112,34 @@ def run_server():
     opts = parser.parse_args(args)
 
     # Handle the fact that we don't use store_true and config that requires
-    # inverse.  This is not a switch but a mode of operation so we change
+    # inverse.  This is not a switch but a mode of operation, so we change
     # from the string to a boolean value here.
     opts.agent_isolation_mode = opts.agent_isolation_mode != 'False'
-
+    dev_mode = opts.dev_mode
     # Update the server options with the command line parameter options.
     server_options.update(opts)
     server_options.store()
+
+    # create poetry project and poetry lock file in VOLTTRON_HOME
+    if dev_mode:
+        if not os.path.isfile(server_options.poetry_project_path/"pyproject.toml"):
+            raise ValueError("VOLTTRON is run with --dev but unable to fund pyproject.toml is current directory - "
+                             f"{server_options.poetry_project_path}")
+    else:
+        setup_poetry_project(server_options.poetry_project_path)
+
     start_volttron_process(server_options)
+
+
+def setup_poetry_project(volttron_home):
+    toml = os.path.join(volttron_home, "pyproject.toml")
+    if not os.path.isfile(toml):
+        cmd = [sys.executable, "-m", "poetry", "init", "--directory", volttron_home,
+               "--name", "volttron", "--author", "volttron <volttron@pnnl.gov>", "--quiet"]
+        execute_command(cmd)
+    cmd = [sys.executable, "-m", "pip", "list", "--format", "freeze", "|", "grep", "-v", "volttron==",
+           "|", "xargs", "poetry", "add", "--directory", volttron_home]
+    execute_command(cmd)
 
 
 def start_volttron_process(options: ServerOptions):
@@ -615,6 +635,12 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
                         help=argparse.SUPPRESS)
     parser.add_argument("--auth-disabled", action="store_false", help=argparse.SUPPRESS)
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--dev",
+                        action="store_true",
+                        dest="dev_mode",
+                        help="development mode with poetry environment to build volttron libraries from source/pypi"
+                        )
+
     parser.add_help_argument()
     parser.add_version_argument(version="%(prog)s " + str(get_version()))
 
