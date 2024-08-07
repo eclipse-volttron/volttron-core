@@ -541,7 +541,7 @@ class RPC(SubsystemBase):
         # Necessary if you have provided an alias for the __rpc__ method.
         if isinstance(method, str):
             if method in self._exports:
-                self._exports[method] = self._add_auth_check(self._exports[method])
+                self._exports[method] = self._add_auth_check(self._exports[method], cap)
             else:
                 _log.error("Method alias is not in RPC export list.")
         else:
