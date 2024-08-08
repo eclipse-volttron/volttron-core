@@ -43,6 +43,8 @@ import gevent
 import gevent.event
 
 from volttron.client.commands.connection import ControlConnection
+from volttron.client.commands.rpc_parser import add_rpc_agent_parser
+from volttron.client.commands.auth_parser import add_auth_parser
 from volttron.client.commands.install_agents import add_install_agent_parser
 from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
 from volttron.client.vip.agent.errors import Unreachable, VIPError
@@ -254,156 +256,153 @@ def list_peers(opts):
         sys.stdout.write("{}\n".format(peer))
 
 
-def print_rpc_list(peers, code=False):
-    for peer in peers:
-        print(f"{peer}")
-        for method in peers[peer]:
-            if code:
-                print(f"\tself.vip.rpc.call({peer}, {method}).get()")
-            else:
-                print(f"\t{method}")
+# def print_rpc_list(peers, code=False):
+#     for peer in peers:
+#         print(f"{peer}")
+#         for method in peers[peer]:
+#             if code:
+#                 print(f"\tself.vip.rpc.call({peer}, {method}).get()")
+#             else:
+#                 print(f"\t{method}")
 
+# def print_rpc_methods(opts, peer_method_metadata, code=False):
+#     for peer in peer_method_metadata:
+#         if code is True:
+#             pass
+#         else:
+#             print(f"{peer}")
+#         for method in peer_method_metadata[peer]:
+#             params = peer_method_metadata[peer][method].get("params",
+#                                                             "No parameters for this method.")
+#             if code is True:
+#                 if len(params) == 0:
+#                     print(f"self.vip.rpc.call({peer}, {method}).get()")
+#                 else:
+#                     print(
+#                         f"self.vip.rpc.call({peer}, {method}, {[param for param in params]}).get()"
+#                     )
+#                 continue
+#             else:
+#                 print(f"\t{method}")
+#                 if opts.verbose == True:
+#                     print("\tDocumentation:")
+#                     doc = (peer_method_metadata[peer][method].get(
+#                         "doc", "No documentation for this method.").replace("\n", "\n\t\t"))
+#                     print(f"\t\t{doc}\n")
+#             print("\tParameters:")
+#             if type(params) is str:
+#                 print(f"\t\t{params}")
+#             else:
+#                 for param in params:
+#                     print(f"\t\t{param}:\n\t\t\t{params[param]}")
 
-def print_rpc_methods(opts, peer_method_metadata, code=False):
-    for peer in peer_method_metadata:
-        if code is True:
-            pass
-        else:
-            print(f"{peer}")
-        for method in peer_method_metadata[peer]:
-            params = peer_method_metadata[peer][method].get("params",
-                                                            "No parameters for this method.")
-            if code is True:
-                if len(params) == 0:
-                    print(f"self.vip.rpc.call({peer}, {method}).get()")
-                else:
-                    print(
-                        f"self.vip.rpc.call({peer}, {method}, {[param for param in params]}).get()"
-                    )
-                continue
-            else:
-                print(f"\t{method}")
-                if opts.verbose == True:
-                    print("\tDocumentation:")
-                    doc = (peer_method_metadata[peer][method].get(
-                        "doc", "No documentation for this method.").replace("\n", "\n\t\t"))
-                    print(f"\t\t{doc}\n")
-            print("\tParameters:")
-            if type(params) is str:
-                print(f"\t\t{params}")
-            else:
-                for param in params:
-                    print(f"\t\t{param}:\n\t\t\t{params[param]}")
+# def list_agents_rpc(opts):
+#     conn = opts.connection
+#     try:
+#         peers = sorted(conn.call("peerlist"))
+#     except Exception as e:
+#         print(e)
+#     if opts.by_vip == True or len(opts.pattern) == 1:
+#         peers = [peer for peer in peers if peer in opts.pattern]
+#     elif len(opts.pattern) > 1:
+#         peer = opts.pattern[0]
+#         methods = opts.pattern[1:]
+#         peer_method_metadata = {peer: {}}
+#         for method in methods:
+#             try:
+#                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+#                     peer, f"{method}.inspect").get(timeout=4)
+#             except gevent.Timeout:
+#                 print(f"{peer} has timed out.")
+#             except Unreachable:
+#                 print(f"{peer} is unreachable")
+#             except MethodNotFound as e:
+#                 print(e)
 
+#         # _stdout.write(f"{peer_method_metadata}\n")
+#         print_rpc_methods(opts, peer_method_metadata)
+#         return
+#     peer_methods = {}
+#     for peer in peers:
+#         try:
+#             peer_methods[peer] = conn.server.vip.rpc.call(peer,
+#                                                           "inspect").get(timeout=4)["methods"]
+#         except gevent.Timeout:
+#             print(f"{peer} has timed out")
+#         except Unreachable:
+#             print(f"{peer} is unreachable")
+#         except MethodNotFound as e:
+#             print(e)
 
-def list_agents_rpc(opts):
-    conn = opts.connection
-    try:
-        peers = sorted(conn.call("peerlist"))
-    except Exception as e:
-        print(e)
-    if opts.by_vip == True or len(opts.pattern) == 1:
-        peers = [peer for peer in peers if peer in opts.pattern]
-    elif len(opts.pattern) > 1:
-        peer = opts.pattern[0]
-        methods = opts.pattern[1:]
-        peer_method_metadata = {peer: {}}
-        for method in methods:
-            try:
-                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
-                    peer, f"{method}.inspect").get(timeout=4)
-            except gevent.Timeout:
-                print(f"{peer} has timed out.")
-            except Unreachable:
-                print(f"{peer} is unreachable")
-            except MethodNotFound as e:
-                print(e)
+#     if opts.verbose is True:
+#         print_rpc_list(peer_methods)
+#         # for peer in peer_methods:
+#         #     _stdout.write(f"{peer}:{peer_methods[peer]}\n")
+#     else:
+#         for peer in peer_methods:
+#             peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
+#             # _stdout.write(f"{peer}:{peer_methods[peer]}\n")
+#         print_rpc_list(peer_methods)
 
-        # _stdout.write(f"{peer_method_metadata}\n")
-        print_rpc_methods(opts, peer_method_metadata)
-        return
-    peer_methods = {}
-    for peer in peers:
-        try:
-            peer_methods[peer] = conn.server.vip.rpc.call(peer,
-                                                          "inspect").get(timeout=4)["methods"]
-        except gevent.Timeout:
-            print(f"{peer} has timed out")
-        except Unreachable:
-            print(f"{peer} is unreachable")
-        except MethodNotFound as e:
-            print(e)
+# def list_agent_rpc_code(opts):
+#     conn = opts.connection
+#     try:
+#         peers = sorted(conn.call("peerlist"))
+#     except Exception as e:
+#         print(e)
+#     if len(opts.pattern) == 1:
+#         peers = [peer for peer in peers if peer in opts.pattern]
+#     elif len(opts.pattern) > 1:
+#         peer = opts.pattern[0]
+#         methods = opts.pattern[1:]
+#         peer_method_metadata = {peer: {}}
+#         for method in methods:
+#             try:
+#                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+#                     peer, f"{method}.inspect").get(timeout=4)
+#             except gevent.Timeout:
+#                 print(f"{peer} has timed out.")
+#             except Unreachable:
+#                 print(f"{peer} is unreachable")
+#             except MethodNotFound as e:
+#                 print(e)
 
-    if opts.verbose is True:
-        print_rpc_list(peer_methods)
-        # for peer in peer_methods:
-        #     _stdout.write(f"{peer}:{peer_methods[peer]}\n")
-    else:
-        for peer in peer_methods:
-            peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
-            # _stdout.write(f"{peer}:{peer_methods[peer]}\n")
-        print_rpc_list(peer_methods)
+#         # _stdout.write(f"{peer_method_metadata}\n")
+#         print_rpc_methods(opts, peer_method_metadata, code=True)
+#         return
 
+#     peer_methods = {}
+#     for peer in peers:
+#         try:
+#             peer_methods[peer] = conn.server.vip.rpc.call(peer,
+#                                                           "inspect").get(timeout=4)["methods"]
+#         except gevent.Timeout:
+#             print(f"{peer} has timed out.")
+#         except Unreachable:
+#             print(f"{peer} is unreachable")
+#         except MethodNotFound as e:
+#             print(e)
 
-def list_agent_rpc_code(opts):
-    conn = opts.connection
-    try:
-        peers = sorted(conn.call("peerlist"))
-    except Exception as e:
-        print(e)
-    if len(opts.pattern) == 1:
-        peers = [peer for peer in peers if peer in opts.pattern]
-    elif len(opts.pattern) > 1:
-        peer = opts.pattern[0]
-        methods = opts.pattern[1:]
-        peer_method_metadata = {peer: {}}
-        for method in methods:
-            try:
-                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
-                    peer, f"{method}.inspect").get(timeout=4)
-            except gevent.Timeout:
-                print(f"{peer} has timed out.")
-            except Unreachable:
-                print(f"{peer} is unreachable")
-            except MethodNotFound as e:
-                print(e)
+#     if opts.verbose is True:
+#         pass
+#     else:
+#         for peer in peer_methods:
+#             peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
 
-        # _stdout.write(f"{peer_method_metadata}\n")
-        print_rpc_methods(opts, peer_method_metadata, code=True)
-        return
-
-    peer_methods = {}
-    for peer in peers:
-        try:
-            peer_methods[peer] = conn.server.vip.rpc.call(peer,
-                                                          "inspect").get(timeout=4)["methods"]
-        except gevent.Timeout:
-            print(f"{peer} has timed out.")
-        except Unreachable:
-            print(f"{peer} is unreachable")
-        except MethodNotFound as e:
-            print(e)
-
-    if opts.verbose is True:
-        pass
-    else:
-        for peer in peer_methods:
-            peer_methods[peer] = [method for method in peer_methods[peer] if "." not in method]
-
-    peer_method_metadata = {}
-    for peer in peer_methods:
-        peer_method_metadata[peer] = {}
-        for method in peer_methods[peer]:
-            try:
-                peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
-                    peer, f"{method}.inspect").get(timeout=4)
-            except gevent.Timeout:
-                print(f"{peer} has timed out")
-            except Unreachable:
-                print(f"{peer} is unreachable")
-            except MethodNotFound as e:
-                print(e)
-    print_rpc_methods(opts, peer_method_metadata, code=True)
+#     peer_method_metadata = {}
+#     for peer in peer_methods:
+#         peer_method_metadata[peer] = {}
+#         for method in peer_methods[peer]:
+#             try:
+#                 peer_method_metadata[peer][method] = conn.server.vip.rpc.call(
+#                     peer, f"{method}.inspect").get(timeout=4)
+#             except gevent.Timeout:
+#                 print(f"{peer} has timed out")
+#             except Unreachable:
+#                 print(f"{peer} is unreachable")
+#             except MethodNotFound as e:
+#                 print(e)
+#     print_rpc_methods(opts, peer_method_metadata, code=True)
 
 
 def list_remotes(opts):
@@ -1063,50 +1062,50 @@ def _parse_capabilities(line):
     return result
 
 
-def add_auth(opts):
-    """Add authorization entry.
+# def add_auth(opts):
+#     """Add authorization entry.
 
-    If all options are None, then use interactive 'wizard.'
-    """
-    fields = {
-        "domain": opts.domain,
-        "address": opts.address,
-        "mechanism": opts.mechanism,
-        "credentials": opts.credentials,
-        "user_id": opts.user_id,
-        "groups": _comma_split(opts.groups),
-        "roles": _comma_split(opts.roles),
-        "capabilities": _parse_capabilities(opts.capabilities),
-        "comments": opts.comments,
-    }
+#     If all options are None, then use interactive 'wizard.'
+#     """
+#     fields = {
+#         "domain": opts.domain,
+#         "address": opts.address,
+#         "mechanism": opts.mechanism,
+#         "credentials": opts.credentials,
+#         "user_id": opts.user_id,
+#         "groups": _comma_split(opts.groups),
+#         "roles": _comma_split(opts.roles),
+#         "capabilities": _parse_capabilities(opts.capabilities),
+#         "comments": opts.comments,
+#     }
 
-    if any(fields.values()):
-        # Remove unspecified options so the default parameters are used
-        fields = {k: v for k, v in fields.items() if v}
-        fields["enabled"] = not opts.disabled
-        entry = AuthEntry(**fields)
-    else:
-        # No options were specified, use interactive wizard
-        responses = _ask_for_auth_fields()
-        entry = AuthEntry(**responses)
+#     if any(fields.values()):
+#         # Remove unspecified options so the default parameters are used
+#         fields = {k: v for k, v in fields.items() if v}
+#         fields["enabled"] = not opts.disabled
+#         entry = AuthEntry(**fields)
+#     else:
+#         # No options were specified, use interactive wizard
+#         responses = _ask_for_auth_fields()
+#         entry = AuthEntry(**responses)
 
-    if opts.add_known_host:
-        if entry.address is None:
-            raise ValueError("host (--address) is required when "
-                             "--add-known-host is specified")
-        if entry.credentials is None:
-            raise ValueError("serverkey (--credentials) is required when "
-                             "--add-known-host is specified")
-        opts.host = entry.address
-        opts.serverkey = entry.credentials
-        add_server_key(opts)
+#     if opts.add_known_host:
+#         if entry.address is None:
+#             raise ValueError("host (--address) is required when "
+#                              "--add-known-host is specified")
+#         if entry.credentials is None:
+#             raise ValueError("serverkey (--credentials) is required when "
+#                              "--add-known-host is specified")
+#         opts.host = entry.address
+#         opts.serverkey = entry.credentials
+#         add_server_key(opts)
 
-    auth_file = _get_auth_file(opts.volttron_home)
-    try:
-        auth_file.add(entry, overwrite=False)
-        _stdout.write("added entry {}\n".format(entry))
-    except AuthException as err:
-        _stderr.write("ERROR: %s\n" % str(err))
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     try:
+#         auth_file.add(entry, overwrite=False)
+#         _stdout.write("added entry {}\n".format(entry))
+#     except AuthException as err:
+#         _stderr.write("ERROR: %s\n" % str(err))
 
 
 def _ask_yes_no(question, default="yes"):
@@ -1173,90 +1172,83 @@ def update_auth(opts):
         _stderr.write("ERROR: %s\n" % str(err))
 
 
-def add_role(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
-    if opts.role in roles:
-        _stderr.write('role "{}" already exists\n'.format(opts.role))
-        return
-    roles[opts.role] = list(set(opts.capabilities))
-    auth_file.set_roles(roles)
-    _stdout.write('added role "{}"\n'.format(opts.role))
+# def add_role(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     roles = auth_file.read()[3]
+#     if opts.role in roles:
+#         _stderr.write('role "{}" already exists\n'.format(opts.role))
+#         return
+#     roles[opts.role] = list(set(opts.capabilities))
+#     auth_file.set_roles(roles)
+#     _stdout.write('added role "{}"\n'.format(opts.role))
 
+# def list_roles(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     roles = auth_file.read()[3]
+#     _print_two_columns(roles, "ROLE", "CAPABILITIES")
 
-def list_roles(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
-    _print_two_columns(roles, "ROLE", "CAPABILITIES")
+# def update_role(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     roles = auth_file.read()[3]
+#     if opts.role not in roles:
+#         _stderr.write('role "{}" does not exist\n'.format(opts.role))
+#         return
+#     caps = roles[opts.role]
+#     if opts.remove:
+#         roles[opts.role] = list(set(caps) - set(opts.capabilities))
+#     else:
+#         roles[opts.role] = list(set(caps) | set(opts.capabilities))
+#     auth_file.set_roles(roles)
+#     _stdout.write('updated role "{}"\n'.format(opts.role))
 
+# def remove_role(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     roles = auth_file.read()[3]
+#     if opts.role not in roles:
+#         _stderr.write('role "{}" does not exist\n'.format(opts.role))
+#         return
+#     del roles[opts.role]
+#     auth_file.set_roles(roles)
+#     _stdout.write('removed role "{}"\n'.format(opts.role))
 
-def update_role(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
-    if opts.role not in roles:
-        _stderr.write('role "{}" does not exist\n'.format(opts.role))
-        return
-    caps = roles[opts.role]
-    if opts.remove:
-        roles[opts.role] = list(set(caps) - set(opts.capabilities))
-    else:
-        roles[opts.role] = list(set(caps) | set(opts.capabilities))
-    auth_file.set_roles(roles)
-    _stdout.write('updated role "{}"\n'.format(opts.role))
+# def add_group(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     groups = auth_file.read()[2]
+#     if opts.group in groups:
+#         _stderr.write('group "{}" already exists\n'.format(opts.group))
+#         return
+#     groups[opts.group] = list(set(opts.roles))
+#     auth_file.set_groups(groups)
+#     _stdout.write('added group "{}"\n'.format(opts.group))
 
+# def list_groups(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     groups = auth_file.read()[2]
+#     _print_two_columns(groups, "GROUPS", "ROLES")
 
-def remove_role(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    roles = auth_file.read()[3]
-    if opts.role not in roles:
-        _stderr.write('role "{}" does not exist\n'.format(opts.role))
-        return
-    del roles[opts.role]
-    auth_file.set_roles(roles)
-    _stdout.write('removed role "{}"\n'.format(opts.role))
+# def update_group(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     groups = auth_file.read()[2]
+#     if opts.group not in groups:
+#         _stderr.write('group "{}" does not exist\n'.format(opts.group))
+#         return
+#     roles = groups[opts.group]
+#     if opts.remove:
+#         groups[opts.group] = list(set(roles) - set(opts.roles))
+#     else:
+#         groups[opts.group] = list(set(roles) | set(opts.roles))
+#     auth_file.set_groups(groups)
+#     _stdout.write('updated group "{}"\n'.format(opts.group))
 
-
-def add_group(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
-    if opts.group in groups:
-        _stderr.write('group "{}" already exists\n'.format(opts.group))
-        return
-    groups[opts.group] = list(set(opts.roles))
-    auth_file.set_groups(groups)
-    _stdout.write('added group "{}"\n'.format(opts.group))
-
-
-def list_groups(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
-    _print_two_columns(groups, "GROUPS", "ROLES")
-
-
-def update_group(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
-    if opts.group not in groups:
-        _stderr.write('group "{}" does not exist\n'.format(opts.group))
-        return
-    roles = groups[opts.group]
-    if opts.remove:
-        groups[opts.group] = list(set(roles) - set(opts.roles))
-    else:
-        groups[opts.group] = list(set(roles) | set(opts.roles))
-    auth_file.set_groups(groups)
-    _stdout.write('updated group "{}"\n'.format(opts.group))
-
-
-def remove_group(opts):
-    auth_file = _get_auth_file(opts.volttron_home)
-    groups = auth_file.read()[2]
-    if opts.group not in groups:
-        _stderr.write('group "{}" does not exist\n'.format(opts.group))
-        return
-    del groups[opts.group]
-    auth_file.set_groups(groups)
-    _stdout.write('removed group "{}"\n'.format(opts.group))
+# def remove_group(opts):
+#     auth_file = _get_auth_file(opts.volttron_home)
+#     groups = auth_file.read()[2]
+#     if opts.group not in groups:
+#         _stderr.write('group "{}" does not exist\n'.format(opts.group))
+#         return
+#     del groups[opts.group]
+#     auth_file.set_groups(groups)
+#     _stdout.write('removed group "{}"\n'.format(opts.group))
 
 
 def get_filtered_agents(opts, agents=None):
@@ -2241,6 +2233,8 @@ def main():
         return subparser.add_parser(*args, **kwargs)
 
     add_install_agent_parser(add_parser)
+    add_rpc_agent_parser(add_parser)
+    add_auth_parser(add_parser, filterable=filterable)
 
     tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
@@ -2327,59 +2321,59 @@ def main():
     run = add_parser("run", help="start any agent by path")
     run.add_argument("directory", nargs="+", help="path to agent directory")
 
-    # ====================================================
-    # rpc commands
-    # ====================================================
-    rpc_ctl = add_parser("rpc", help="rpc controls")
+    # # ====================================================
+    # # rpc commands
+    # # ====================================================
+    # rpc_ctl = add_parser("rpc", help="rpc controls")
 
-    rpc_subparsers = rpc_ctl.add_subparsers(title="subcommands", metavar="", dest="store_commands")
+    # rpc_subparsers = rpc_ctl.add_subparsers(title="subcommands", metavar="", dest="store_commands")
 
-    rpc_code = add_parser(
-        "code",
-        subparser=rpc_subparsers,
-        help="shows how to use rpc call in other agents",
-    )
+    # rpc_code = add_parser(
+    #     "code",
+    #     subparser=rpc_subparsers,
+    #     help="shows how to use rpc call in other agents",
+    # )
 
-    rpc_code.add_argument(
-        "pattern",
-        nargs="*",
-        help="Identity of agent, followed by method(s)"
-        "",
-    )
-    rpc_code.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods",
-    )
+    # rpc_code.add_argument(
+    #     "pattern",
+    #     nargs="*",
+    #     help="Identity of agent, followed by method(s)"
+    #     "",
+    # )
+    # rpc_code.add_argument(
+    #     "-v",
+    #     "--verbose",
+    #     action="store_true",
+    #     help="list all subsystem rpc methods in addition to the agent's rpc methods",
+    # )
 
-    rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
+    # rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
 
-    rpc_list = add_parser(
-        "list",
-        subparser=rpc_subparsers,
-        help="lists all agents and their rpc methods",
-    )
+    # rpc_list = add_parser(
+    #     "list",
+    #     subparser=rpc_subparsers,
+    #     help="lists all agents and their rpc methods",
+    # )
 
-    rpc_list.add_argument(
-        "-i",
-        "--vip",
-        dest="by_vip",
-        action="store_true",
-        help="filter by vip identity",
-    )
+    # rpc_list.add_argument(
+    #     "-i",
+    #     "--vip",
+    #     dest="by_vip",
+    #     action="store_true",
+    #     help="filter by vip identity",
+    # )
 
-    rpc_list.add_argument("pattern", nargs="*", help="UUID or name of agent")
+    # rpc_list.add_argument("pattern", nargs="*", help="UUID or name of agent")
 
-    rpc_list.add_argument(
-        "-v",
-        "--verbose",
-        action="store_true",
-        help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
-        "is specified, display the doc-string associated with the method.",
-    )
+    # rpc_list.add_argument(
+    #     "-v",
+    #     "--verbose",
+    #     action="store_true",
+    #     help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
+    #     "is specified, display the doc-string associated with the method.",
+    # )
 
-    rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
+    # rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
 
     # ====================================================
     # certs commands
@@ -2407,265 +2401,265 @@ def main():
     # ====================================================
     # auth commands
     # ====================================================
-    auth_cmds = add_parser("auth", help="manage authorization entries and encryption keys")
+    # auth_cmds = add_parser("auth", help="manage authorization entries and encryption keys")
 
-    auth_subparsers = auth_cmds.add_subparsers(title="subcommands",
-                                               metavar="",
-                                               dest="store_commands")
+    # auth_subparsers = auth_cmds.add_subparsers(title="subcommands",
+    #                                            metavar="",
+    #                                            dest="store_commands")
 
-    auth_add = add_parser("add", help="add new authentication record", subparser=auth_subparsers)
-    auth_add.add_argument("--domain", default=None)
-    auth_add.add_argument("--address", default=None)
-    auth_add.add_argument("--mechanism", default=None)
-    auth_add.add_argument("--credentials", default=None)
-    auth_add.add_argument("--user_id", default=None)
-    auth_add.add_argument("--groups", default=None, help="delimit multiple entries with comma")
-    auth_add.add_argument("--roles", default=None, help="delimit multiple entries with comma")
-    auth_add.add_argument(
-        "--capabilities",
-        default=None,
-        help="delimit multiple entries with comma",
-    )
-    auth_add.add_argument("--comments", default=None)
-    auth_add.add_argument("--disabled", action="store_true")
-    auth_add.add_argument(
-        "--add-known-host",
-        action="store_true",
-        help="adds entry in known host",
-    )
-    auth_add.set_defaults(func=add_auth)
+    # auth_add = add_parser("add", help="add new authentication record", subparser=auth_subparsers)
+    # auth_add.add_argument("--domain", default=None)
+    # auth_add.add_argument("--address", default=None)
+    # auth_add.add_argument("--mechanism", default=None)
+    # auth_add.add_argument("--credentials", default=None)
+    # auth_add.add_argument("--user_id", default=None)
+    # auth_add.add_argument("--groups", default=None, help="delimit multiple entries with comma")
+    # auth_add.add_argument("--roles", default=None, help="delimit multiple entries with comma")
+    # auth_add.add_argument(
+    #     "--capabilities",
+    #     default=None,
+    #     help="delimit multiple entries with comma",
+    # )
+    # auth_add.add_argument("--comments", default=None)
+    # auth_add.add_argument("--disabled", action="store_true")
+    # auth_add.add_argument(
+    #     "--add-known-host",
+    #     action="store_true",
+    #     help="adds entry in known host",
+    # )
+    # auth_add.set_defaults(func=add_auth)
 
-    auth_add_group = add_parser(
-        "add-group",
-        subparser=auth_subparsers,
-        help="associate a group name with a set of roles",
-    )
-    auth_add_group.add_argument("group", metavar="GROUP", help="name of group")
-    auth_add_group.add_argument(
-        "roles",
-        metavar="ROLE",
-        nargs="*",
-        help="roles to associate with the group",
-    )
-    auth_add_group.set_defaults(func=add_group)
+    # auth_add_group = add_parser(
+    #     "add-group",
+    #     subparser=auth_subparsers,
+    #     help="associate a group name with a set of roles",
+    # )
+    # auth_add_group.add_argument("group", metavar="GROUP", help="name of group")
+    # auth_add_group.add_argument(
+    #     "roles",
+    #     metavar="ROLE",
+    #     nargs="*",
+    #     help="roles to associate with the group",
+    # )
+    # auth_add_group.set_defaults(func=add_group)
 
-    auth_add_known_host = add_parser(
-        "add-known-host",
-        subparser=auth_subparsers,
-        help="add server public key to known-hosts file",
-    )
-    auth_add_known_host.add_argument(
-        "--host",
-        required=True,
-        help="hostname or IP address with optional port",
-    )
-    auth_add_known_host.add_argument("--serverkey", required=True)
-    auth_add_known_host.set_defaults(func=add_server_key)
+    # auth_add_known_host = add_parser(
+    #     "add-known-host",
+    #     subparser=auth_subparsers,
+    #     help="add server public key to known-hosts file",
+    # )
+    # auth_add_known_host.add_argument(
+    #     "--host",
+    #     required=True,
+    #     help="hostname or IP address with optional port",
+    # )
+    # auth_add_known_host.add_argument("--serverkey", required=True)
+    # auth_add_known_host.set_defaults(func=add_server_key)
 
-    auth_add_role = add_parser(
-        "add-role",
-        subparser=auth_subparsers,
-        help="associate a role name with a set of capabilities",
-    )
-    auth_add_role.add_argument("role", metavar="ROLE", help="name of role")
-    auth_add_role.add_argument(
-        "capabilities",
-        metavar="CAPABILITY",
-        nargs="*",
-        help="capabilities to associate with the role",
-    )
-    auth_add_role.set_defaults(func=add_role)
+    # auth_add_role = add_parser(
+    #     "add-role",
+    #     subparser=auth_subparsers,
+    #     help="associate a role name with a set of capabilities",
+    # )
+    # auth_add_role.add_argument("role", metavar="ROLE", help="name of role")
+    # auth_add_role.add_argument(
+    #     "capabilities",
+    #     metavar="CAPABILITY",
+    #     nargs="*",
+    #     help="capabilities to associate with the role",
+    # )
+    # auth_add_role.set_defaults(func=add_role)
 
-    auth_keypair = add_parser(
-        "keypair",
-        subparser=auth_subparsers,
-        help="generate CurveMQ keys for encrypting VIP connections",
-    )
-    auth_keypair.set_defaults(func=gen_keypair)
+    # auth_keypair = add_parser(
+    #     "keypair",
+    #     subparser=auth_subparsers,
+    #     help="generate CurveMQ keys for encrypting VIP connections",
+    # )
+    # auth_keypair.set_defaults(func=gen_keypair)
 
-    auth_list = add_parser("list", help="list authentication records", subparser=auth_subparsers)
-    auth_list.set_defaults(func=list_auth)
+    # auth_list = add_parser("list", help="list authentication records", subparser=auth_subparsers)
+    # auth_list.set_defaults(func=list_auth)
 
-    auth_list_groups = add_parser(
-        "list-groups",
-        subparser=auth_subparsers,
-        help="show list of group names and their sets of roles",
-    )
-    auth_list_groups.set_defaults(func=list_groups)
+    # auth_list_groups = add_parser(
+    #     "list-groups",
+    #     subparser=auth_subparsers,
+    #     help="show list of group names and their sets of roles",
+    # )
+    # auth_list_groups.set_defaults(func=list_groups)
 
-    auth_list_known_host = add_parser(
-        "list-known-hosts",
-        subparser=auth_subparsers,
-        help="list entries from known-hosts file",
-    )
-    auth_list_known_host.set_defaults(func=list_known_hosts)
+    # auth_list_known_host = add_parser(
+    #     "list-known-hosts",
+    #     subparser=auth_subparsers,
+    #     help="list entries from known-hosts file",
+    # )
+    # auth_list_known_host.set_defaults(func=list_known_hosts)
 
-    auth_list_roles = add_parser(
-        "list-roles",
-        subparser=auth_subparsers,
-        help="show list of role names and their sets of capabilities",
-    )
-    auth_list_roles.set_defaults(func=list_roles)
+    # auth_list_roles = add_parser(
+    #     "list-roles",
+    #     subparser=auth_subparsers,
+    #     help="show list of role names and their sets of capabilities",
+    # )
+    # auth_list_roles.set_defaults(func=list_roles)
 
-    auth_publickey = add_parser(
-        "publickey",
-        parents=[filterable],
-        subparser=auth_subparsers,
-        help="show public key for each agent",
-    )
-    auth_publickey.add_argument("pattern", nargs="*", help="UUID or name of agent")
-    auth_publickey.add_argument(
-        "-n",
-        dest="min_uuid_len",
-        type=int,
-        metavar="N",
-        help="show at least N characters of UUID (0 to show all)",
-    )
-    auth_publickey.set_defaults(func=get_agent_publickey, min_uuid_len=1)
+    # auth_publickey = add_parser(
+    #     "publickey",
+    #     parents=[filterable],
+    #     subparser=auth_subparsers,
+    #     help="show public key for each agent",
+    # )
+    # auth_publickey.add_argument("pattern", nargs="*", help="UUID or name of agent")
+    # auth_publickey.add_argument(
+    #     "-n",
+    #     dest="min_uuid_len",
+    #     type=int,
+    #     metavar="N",
+    #     help="show at least N characters of UUID (0 to show all)",
+    # )
+    # auth_publickey.set_defaults(func=get_agent_publickey, min_uuid_len=1)
 
-    auth_remove = add_parser(
-        "remove",
-        subparser=auth_subparsers,
-        help="removes one or more authentication records by indices",
-    )
-    auth_remove.add_argument(
-        "indices",
-        nargs="+",
-        type=int,
-        help="index or indices of record(s) to remove",
-    )
-    auth_remove.set_defaults(func=remove_auth)
+    # auth_remove = add_parser(
+    #     "remove",
+    #     subparser=auth_subparsers,
+    #     help="removes one or more authentication records by indices",
+    # )
+    # auth_remove.add_argument(
+    #     "indices",
+    #     nargs="+",
+    #     type=int,
+    #     help="index or indices of record(s) to remove",
+    # )
+    # auth_remove.set_defaults(func=remove_auth)
 
-    auth_remove_group = add_parser(
-        "remove-group",
-        subparser=auth_subparsers,
-        help="disassociate a group name from a set of roles",
-    )
-    auth_remove_group.add_argument("group", help="name of group")
-    auth_remove_group.set_defaults(func=remove_group)
+    # auth_remove_group = add_parser(
+    #     "remove-group",
+    #     subparser=auth_subparsers,
+    #     help="disassociate a group name from a set of roles",
+    # )
+    # auth_remove_group.add_argument("group", help="name of group")
+    # auth_remove_group.set_defaults(func=remove_group)
 
-    auth_remove_known_host = add_parser(
-        "remove-known-host",
-        subparser=auth_subparsers,
-        help="remove entry from known-hosts file",
-    )
-    auth_remove_known_host.add_argument(
-        "host",
-        metavar="HOST",
-        help="hostname or IP address with optional port",
-    )
-    auth_remove_known_host.set_defaults(func=remove_known_host)
+    # auth_remove_known_host = add_parser(
+    #     "remove-known-host",
+    #     subparser=auth_subparsers,
+    #     help="remove entry from known-hosts file",
+    # )
+    # auth_remove_known_host.add_argument(
+    #     "host",
+    #     metavar="HOST",
+    #     help="hostname or IP address with optional port",
+    # )
+    # auth_remove_known_host.set_defaults(func=remove_known_host)
 
-    auth_remove_role = add_parser(
-        "remove-role",
-        subparser=auth_subparsers,
-        help="disassociate a role name from a set of capabilities",
-    )
-    auth_remove_role.add_argument("role", help="name of role")
-    auth_remove_role.set_defaults(func=remove_role)
+    # auth_remove_role = add_parser(
+    #     "remove-role",
+    #     subparser=auth_subparsers,
+    #     help="disassociate a role name from a set of capabilities",
+    # )
+    # auth_remove_role.add_argument("role", help="name of role")
+    # auth_remove_role.set_defaults(func=remove_role)
 
-    auth_serverkey = add_parser(
-        "serverkey",
-        subparser=auth_subparsers,
-        help="show the serverkey for the instance",
-    )
-    auth_serverkey.set_defaults(func=show_serverkey)
+    # auth_serverkey = add_parser(
+    #     "serverkey",
+    #     subparser=auth_subparsers,
+    #     help="show the serverkey for the instance",
+    # )
+    # auth_serverkey.set_defaults(func=show_serverkey)
 
-    auth_update = add_parser(
-        "update",
-        subparser=auth_subparsers,
-        help="updates one authentication record by index",
-    )
-    auth_update.add_argument("index", type=int, help="index of record to update")
-    auth_update.set_defaults(func=update_auth)
+    # auth_update = add_parser(
+    #     "update",
+    #     subparser=auth_subparsers,
+    #     help="updates one authentication record by index",
+    # )
+    # auth_update.add_argument("index", type=int, help="index of record to update")
+    # auth_update.set_defaults(func=update_auth)
 
-    auth_update_group = add_parser(
-        "update-group",
-        subparser=auth_subparsers,
-        help="update group to include (or remove) given roles",
-    )
-    auth_update_group.add_argument("group", metavar="GROUP", help="name of group")
-    auth_update_group.add_argument(
-        "roles",
-        nargs="*",
-        metavar="ROLE",
-        help="roles to append to (or remove from) the group",
-    )
-    auth_update_group.add_argument(
-        "--remove",
-        action="store_true",
-        help="remove (rather than append) given roles",
-    )
-    auth_update_group.set_defaults(func=update_group)
+    # auth_update_group = add_parser(
+    #     "update-group",
+    #     subparser=auth_subparsers,
+    #     help="update group to include (or remove) given roles",
+    # )
+    # auth_update_group.add_argument("group", metavar="GROUP", help="name of group")
+    # auth_update_group.add_argument(
+    #     "roles",
+    #     nargs="*",
+    #     metavar="ROLE",
+    #     help="roles to append to (or remove from) the group",
+    # )
+    # auth_update_group.add_argument(
+    #     "--remove",
+    #     action="store_true",
+    #     help="remove (rather than append) given roles",
+    # )
+    # auth_update_group.set_defaults(func=update_group)
 
-    auth_update_role = add_parser(
-        "update-role",
-        subparser=auth_subparsers,
-        help="update role to include (or remove) given capabilities",
-    )
-    auth_update_role.add_argument("role", metavar="ROLE", help="name of role")
-    auth_update_role.add_argument(
-        "capabilities",
-        nargs="*",
-        metavar="CAPABILITY",
-        help="capabilities to append to (or remove from) the role",
-    )
-    auth_update_role.add_argument(
-        "--remove",
-        action="store_true",
-        help="remove (rather than append) given capabilities",
-    )
-    auth_update_role.set_defaults(func=update_role)
+    # auth_update_role = add_parser(
+    #     "update-role",
+    #     subparser=auth_subparsers,
+    #     help="update role to include (or remove) given capabilities",
+    # )
+    # auth_update_role.add_argument("role", metavar="ROLE", help="name of role")
+    # auth_update_role.add_argument(
+    #     "capabilities",
+    #     nargs="*",
+    #     metavar="CAPABILITY",
+    #     help="capabilities to append to (or remove from) the role",
+    # )
+    # auth_update_role.add_argument(
+    #     "--remove",
+    #     action="store_true",
+    #     help="remove (rather than append) given capabilities",
+    # )
+    # auth_update_role.set_defaults(func=update_role)
 
-    auth_remote = add_parser(
-        "remote",
-        subparser=auth_subparsers,
-        help="manage pending RMQ certs and ZMQ credentials",
-    )
-    auth_remote_subparsers = auth_remote.add_subparsers(title="remote subcommands",
-                                                        metavar="",
-                                                        dest="store_commands")
+    # auth_remote = add_parser(
+    #     "remote",
+    #     subparser=auth_subparsers,
+    #     help="manage pending RMQ certs and ZMQ credentials",
+    # )
+    # auth_remote_subparsers = auth_remote.add_subparsers(title="remote subcommands",
+    #                                                     metavar="",
+    #                                                     dest="store_commands")
 
-    auth_remote_list_cmd = add_parser(
-        "list",
-        subparser=auth_remote_subparsers,
-        help="lists approved, denied, and pending certs and credentials",
-    )
-    auth_remote_list_cmd.add_argument("--status", help="Specify approved, denied, or pending")
-    auth_remote_list_cmd.set_defaults(func=list_remotes)
+    # auth_remote_list_cmd = add_parser(
+    #     "list",
+    #     subparser=auth_remote_subparsers,
+    #     help="lists approved, denied, and pending certs and credentials",
+    # )
+    # auth_remote_list_cmd.add_argument("--status", help="Specify approved, denied, or pending")
+    # auth_remote_list_cmd.set_defaults(func=list_remotes)
 
-    auth_remote_approve_cmd = add_parser(
-        "approve",
-        subparser=auth_remote_subparsers,
-        help="approves pending or denied remote connection",
-    )
-    auth_remote_approve_cmd.add_argument(
-        "user_id",
-        help="user_id or identity of pending credential or cert to approve",
-    )
-    auth_remote_approve_cmd.set_defaults(func=approve_remote)
+    # auth_remote_approve_cmd = add_parser(
+    #     "approve",
+    #     subparser=auth_remote_subparsers,
+    #     help="approves pending or denied remote connection",
+    # )
+    # auth_remote_approve_cmd.add_argument(
+    #     "user_id",
+    #     help="user_id or identity of pending credential or cert to approve",
+    # )
+    # auth_remote_approve_cmd.set_defaults(func=approve_remote)
 
-    auth_remote_deny_cmd = add_parser(
-        "deny",
-        subparser=auth_remote_subparsers,
-        help="denies pending or denied remote connection",
-    )
-    auth_remote_deny_cmd.add_argument(
-        "user_id",
-        help="user_id or identity of pending credential or cert to deny",
-    )
-    auth_remote_deny_cmd.set_defaults(func=deny_remote)
+    # auth_remote_deny_cmd = add_parser(
+    #     "deny",
+    #     subparser=auth_remote_subparsers,
+    #     help="denies pending or denied remote connection",
+    # )
+    # auth_remote_deny_cmd.add_argument(
+    #     "user_id",
+    #     help="user_id or identity of pending credential or cert to deny",
+    # )
+    # auth_remote_deny_cmd.set_defaults(func=deny_remote)
 
-    auth_remote_delete_cmd = add_parser(
-        "delete",
-        subparser=auth_remote_subparsers,
-        help="approves pending or denied remote connection",
-    )
-    auth_remote_delete_cmd.add_argument(
-        "user_id",
-        help="user_id or identity of pending credential or cert to delete",
-    )
-    auth_remote_delete_cmd.set_defaults(func=delete_remote)
+    # auth_remote_delete_cmd = add_parser(
+    #     "delete",
+    #     subparser=auth_remote_subparsers,
+    #     help="approves pending or denied remote connection",
+    # )
+    # auth_remote_delete_cmd.add_argument(
+    #     "user_id",
+    #     help="user_id or identity of pending credential or cert to delete",
+    # )
+    # auth_remote_delete_cmd.set_defaults(func=delete_remote)
 
     # ====================================================
     # config commands

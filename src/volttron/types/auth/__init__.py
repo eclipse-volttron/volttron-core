@@ -7,6 +7,13 @@ from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreato
 from volttron.types.auth.auth_service import (AuthService, Authenticator, AuthorizationManager,
                                               Authorizer)
 
+
+class AuthException(Exception):
+    """General exception for any auth error"""
+
+    pass
+
+
 # from .authz_types import AccessRule
 
 __all__: list[str] = [

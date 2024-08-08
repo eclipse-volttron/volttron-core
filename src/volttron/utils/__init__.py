@@ -70,6 +70,24 @@ def set_agent_identity(identity: Identity):
         os.environ[env_key] = identity
 
 
+def monkey_patch():
+    from gevent import monkey
+
+    # At this point these are the only things that need to be patched
+    # and the server and client are working harmoniously with this.
+    patches = [
+        ('ssl', monkey.patch_ssl),
+        ('socket', monkey.patch_socket),
+        ('os', monkey.patch_os),
+    ]
+
+    # patch modules if necessary.  Only if the module hasn't been patched before.
+    # this could happen if the server code uses the client (which it does).
+    for module, fn in patches:
+        if not monkey.is_module_patched(module):
+            fn()
+
+
 def load_config(default_configuration: str | Path | dict | None) -> dict:
     """
     Load the default configuration from a JSON or YAML encoded file.
@@ -135,5 +153,5 @@ __all__: List[str] = [
     "parse_timestamp_string", "execute_command", "get_version", "get_aware_utc_now",
     "get_utc_seconds_from_epoch", "get_address", "wait_for_volttron_startup", "normalize_identity",
     "ClientContext", "format_timestamp", "store_message_bus_config", "is_ip_private",
-    "fix_sqlite3_datetime", "vip_main", "get_module", "get_class", "get_subclasses"
+    "fix_sqlite3_datetime", "vip_main", "get_module", "get_class", "get_subclasses", "monkey_patch"
 ]

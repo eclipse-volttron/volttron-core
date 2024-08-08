@@ -8,12 +8,23 @@ from volttron.types import Identity, Tag
 
 @dataclass
 class AgentOptions:
-    heartbeat_autostart: bool = True
+    heartbeat_autostart: bool = False
+    '''If True, the heartbeat will start automatically'''
+
     heartbeat_period: int = 60
+    '''If the heartbeat is started, this is the period in seconds between heartbeats'''
+
     volttron_home: str = None
+    '''A setting for the volttron home directory, set by the platform if not set'''
+
     agent_uuid: str = None
+    '''An installed agent's uuid'''
+
     enable_store: bool = True
+    '''If True, the agent will have a config store and be able to store configurations'''
+
     reconnect_interval: int = None
+
     version: str = "0.1"
     volttron_central_address: str = None,
     volttron_central_instance_name: str = None,
