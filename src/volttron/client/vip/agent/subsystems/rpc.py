@@ -220,6 +220,7 @@ class RPC(SubsystemBase):
         core.ondisconnected.connect(self._disconnected)
         core.onconnected.connect(self._connected)
         #self._iterate_exports()
+        #self._iterate_exports()
 
     def _connected(self, sender, **kwargs):
         self._isconnected = True
