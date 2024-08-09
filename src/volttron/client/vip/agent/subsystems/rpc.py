@@ -38,7 +38,7 @@ from zmq.green import ENOTSOCK
 #from volttron.auth.auth_exception import AuthException
 from volttron.utils import jsonapi, jsonrpc
 from volttron.client.known_identities import AUTH
-
+from volttron.types.auth import AuthException
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..results import ResultsDictionary, counter
 from .base import SubsystemBase
@@ -64,6 +64,7 @@ class Dispatcher(jsonrpc.Dispatcher):
         self._results = ResultsDictionary()
 
     def serialize(self, json_obj):
+        _log.error("Serializing json_obj: {}".format(json_obj))
         return jsonapi.dumps(json_obj)
 
     def deserialize(self, json_string):
@@ -139,6 +140,8 @@ class Dispatcher(jsonrpc.Dispatcher):
         local.request = request
         local.batch = batch
         try:
+            _log.error("Method is: {}".format(method))
+            _log.error("Calling method %r with args %r and kwargs %r", name, args, kwargs)
             return method(*args, **kwargs)
         except Exception as exc:    # pylint: disable=broad-except
             exc_tb = traceback.format_exc()
@@ -216,7 +219,7 @@ class RPC(SubsystemBase):
         core.onsetup.connect(setup, self)
         core.ondisconnected.connect(self._disconnected)
         core.onconnected.connect(self._connected)
-        #self._iterate_exports()
+
 
     def _connected(self, sender, **kwargs):
         self._isconnected = True
@@ -243,18 +246,18 @@ class RPC(SubsystemBase):
         except KeyError:
             pass
 
-    def _iterate_exports(self):
-        """
-        Iterates over exported methods and adds authorization checks
-        as necessary
-        """
-        for method_name in self._exports:
-            method = self._exports[method_name]
-            caps = annotations(method, set, "__rpc__.allow_capabilities")
-            if caps:
-                self._exports[method_name] = self._add_auth_check(method, caps)
+    # def _iterate_exports(self):
+    #     """
+    #     Iterates over exported methods and adds authorization checks
+    #     as necessary
+    #     """
+    #     for method_name in self._exports:
+    #         method = self._exports[method_name]
+    #         caps = annotations(method, set, "__rpc__.allow_capabilities")
+    #         if caps:
+    #             self._exports[method_name] = self._add_auth_check(method, caps)
 
-    def _add_auth_check(self, method):
+    def _add_auth_check(self, method: str):
         """
         Adds an authorization check to verify the calling agent has the
         required capabilities.
@@ -264,11 +267,15 @@ class RPC(SubsystemBase):
             calling_user = str(self.context.vip_message.user)
             method_name = method.__name__
             args_dict = inspect.getcallargs(method, *args, **kwargs)
+
+            # Remove self from args_dict if it exists to avoid sending the entire object across.
+            # Fixes Issue https://github.com/eclipse-volttron/volttron-core/issues/198
+            remove_self = args_dict.pop("self", None)
             try:
                 self.call(AUTH,
-                          "check_authorization",
+                          "check_rpc_authorization",
                           identity=calling_user,
-                          method_name=f"{self.core.identity}.{method_name}",
+                          method_name=f"{self.core().identity}.{method_name}",
                           method_args=args_dict).get(timeout=10)
             except AuthException as e:
                 # msg = ("method '{}' requires capabilities {}, but capability {} "
@@ -455,6 +462,7 @@ class RPC(SubsystemBase):
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
+        self_ref = kwargs.pop("self", None)
         platform = kwargs.pop("external_platform", "")
         request, result = self._dispatcher.call(method, args, kwargs)
         ident = f"{next(self._counter)}.{hash(result)}"

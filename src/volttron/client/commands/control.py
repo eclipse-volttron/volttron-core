@@ -41,10 +41,12 @@ from typing import List
 
 import gevent
 import gevent.event
+from attrs import define
 
 from volttron.client.commands.connection import ControlConnection
 from volttron.client.commands.rpc_parser import add_rpc_agent_parser
 from volttron.client.commands.auth_parser import add_auth_parser
+from volttron.client.commands.config_store_parser import add_config_store_parser
 from volttron.client.commands.install_agents import add_install_agent_parser
 from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
 from volttron.client.vip.agent.errors import Unreachable, VIPError
@@ -69,7 +71,53 @@ message_bus = cc.get_messagebus()
 
 CHUNK_SIZE = 4096
 
-AgentMeta = collections.namedtuple("Agent", "name tag uuid vip_identity agent_user")
+
+@define
+class AgentMeta:
+    """Meta class for displaying agent details on the command line.
+    """
+
+    name: str
+    """
+    The name of the agent.
+    """
+
+    uuid: str
+    """
+    The uuid of the agent. This is a unique identifier for the agent.
+    """
+
+    identity: str
+    """
+    The vip identity of the agent.
+    """
+
+    agent_user: str = ''
+    """
+    The user that the agent is running as.  This is only available in agent isolation mode.
+    """
+
+    tag: str = ''
+    """
+    A tag associated with the agent.
+    """
+
+    priority: str = '50'
+    """
+    The startup priority of the agent.
+    """
+
+    def console_format(self, as_json=False, with_priority=False):
+        if as_json:
+            return jsonapi.dumps(self.__dict__, indent=2)
+        else:
+            if with_priority:
+                return f"{self.name} {self.uuid} {self.identity} {self.agent_user} {self.tag} {self.priority}"
+            else:
+                return f"{self.name} {self.uuid} {self.identity} {self.agent_user} {self.tag}"
+
+    def __str__(self):
+        return f"{self.name} {self.tag} {self.uuid} {self.vip_identity} {self.agent_user}"
 
 
 def expandall(string):
@@ -84,15 +132,7 @@ def _list_agents(opts) -> List[AgentMeta]:
         List of AgentTuple
     """
     agents = opts.connection.call("list_agents")
-    return [
-        AgentMeta(
-            a["name"],
-            a.get("tag", ""),
-            a["uuid"],
-            a["identity"],
-            a.get("agent_user"),
-        ) for a in agents
-    ]
+    return [AgentMeta(**a) for a in agents]
 
 
 def escape(pattern):
@@ -614,7 +654,7 @@ def status_agents(opts):
         update_health_cache(opts)
 
         try:
-            health_dict = health_cache.get(agent.vip_identity)
+            health_dict = health_cache.get(agent.identity)
 
             if health_dict:
                 if opts.json:
@@ -1388,7 +1428,7 @@ def _show_filtered_agents_status(opts,
     if not opts.json:
         name_width = max(5, max(len(agent.name) for agent in agents))
         tag_width = max(3, max(len(agent.tag or "") for agent in agents))
-        identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
+        identity_width = max(3, max(len(agent.identity or "") for agent in agents))
         if cc.is_secure_mode():
             user_width = max(3, max(len(agent.agent_user or "") for agent in agents))
             fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
@@ -1448,7 +1488,7 @@ def _show_filtered_agents_status(opts,
                         agent.uuid[:n],
                         agent.name,
                         name_width,
-                        agent.vip_identity,
+                        agent.identity,
                         identity_width,
                         agent.tag or "",
                         tag_width,
@@ -2106,15 +2146,6 @@ def main():
 
     global_args = config.ArgumentParser(description="global options", add_help=False)
     global_args.add_argument(
-        "-c",
-        "--config",
-        metavar="FILE",
-        action="parse_config",
-        ignore_unknown=True,
-        sections=[None, "global", "volttron-ctl"],
-        help="read configuration from FILE",
-    )
-    global_args.add_argument(
         "--debug",
         action="store_true",
         help="show tracebacks for errors rather than a brief message",
@@ -2126,15 +2157,14 @@ def main():
         metavar="SECS",
         help="timeout in seconds for remote calls (default: %(default)g)",
     )
-    global_args.add_argument("--msgdebug", help="route all messages to an agent while debugging")
     global_args.add_argument(
-        "--vip-address",
-        metavar="ZMQADDR",
-        help="ZeroMQ URL to bind for VIP connections",
+        "--address",
+        metavar="ADDR",
+        help="URL to bind for VIP connections",
     )
 
     global_args.set_defaults(
-        vip_address=get_address(),
+        address=get_address(),
         timeout=60,
     )
 
@@ -2235,7 +2265,7 @@ def main():
     add_install_agent_parser(add_parser)
     add_rpc_agent_parser(add_parser)
     add_auth_parser(add_parser, filterable=filterable)
-
+    add_config_store_parser(add_parser)
     tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
     group = tag.add_mutually_exclusive_group()
@@ -2321,485 +2351,6 @@ def main():
     run = add_parser("run", help="start any agent by path")
     run.add_argument("directory", nargs="+", help="path to agent directory")
 
-    # # ====================================================
-    # # rpc commands
-    # # ====================================================
-    # rpc_ctl = add_parser("rpc", help="rpc controls")
-
-    # rpc_subparsers = rpc_ctl.add_subparsers(title="subcommands", metavar="", dest="store_commands")
-
-    # rpc_code = add_parser(
-    #     "code",
-    #     subparser=rpc_subparsers,
-    #     help="shows how to use rpc call in other agents",
-    # )
-
-    # rpc_code.add_argument(
-    #     "pattern",
-    #     nargs="*",
-    #     help="Identity of agent, followed by method(s)"
-    #     "",
-    # )
-    # rpc_code.add_argument(
-    #     "-v",
-    #     "--verbose",
-    #     action="store_true",
-    #     help="list all subsystem rpc methods in addition to the agent's rpc methods",
-    # )
-
-    # rpc_code.set_defaults(func=list_agent_rpc_code, min_uuid_len=1)
-
-    # rpc_list = add_parser(
-    #     "list",
-    #     subparser=rpc_subparsers,
-    #     help="lists all agents and their rpc methods",
-    # )
-
-    # rpc_list.add_argument(
-    #     "-i",
-    #     "--vip",
-    #     dest="by_vip",
-    #     action="store_true",
-    #     help="filter by vip identity",
-    # )
-
-    # rpc_list.add_argument("pattern", nargs="*", help="UUID or name of agent")
-
-    # rpc_list.add_argument(
-    #     "-v",
-    #     "--verbose",
-    #     action="store_true",
-    #     help="list all subsystem rpc methods in addition to the agent's rpc methods. If a method "
-    #     "is specified, display the doc-string associated with the method.",
-    # )
-
-    # rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
-
-    # ====================================================
-    # certs commands
-    # ====================================================
-    # cert_cmds = add_parser("certs",
-    #                       help="manage certificate creation")
-
-    # certs_subparsers = cert_cmds.add_subparsers(title='subcommands', metavar='', dest='store_commands')
-
-    # create_ssl_keypair_cmd = add_parser("create-ssl-keypair", subparser=certs_subparsers,
-    #                         help="create a ssl keypair.")
-
-    # create_ssl_keypair_cmd.add_argument("identity",
-    #                                    help="Create a private key and cert for the given identity signed by "
-    #                                         "the root ca of this platform.")
-    # create_ssl_keypair_cmd.set_defaults(func=create_ssl_keypair)
-
-    # export_pkcs12 = add_parser("export-pkcs12", subparser=certs_subparsers,
-    #                          help="create a PKCS12 encoded file containing private and public key from an agent. "
-    #                               "this function is useful to create a java key store using a p12 file.")
-    # export_pkcs12.add_argument("identity", help="identity of the agent to export")
-    # export_pkcs12.add_argument("outfile", help="file to write the PKCS12 file to")
-    # export_pkcs12.set_defaults(func=export_pkcs12_from_identity)
-
-    # ====================================================
-    # auth commands
-    # ====================================================
-    # auth_cmds = add_parser("auth", help="manage authorization entries and encryption keys")
-
-    # auth_subparsers = auth_cmds.add_subparsers(title="subcommands",
-    #                                            metavar="",
-    #                                            dest="store_commands")
-
-    # auth_add = add_parser("add", help="add new authentication record", subparser=auth_subparsers)
-    # auth_add.add_argument("--domain", default=None)
-    # auth_add.add_argument("--address", default=None)
-    # auth_add.add_argument("--mechanism", default=None)
-    # auth_add.add_argument("--credentials", default=None)
-    # auth_add.add_argument("--user_id", default=None)
-    # auth_add.add_argument("--groups", default=None, help="delimit multiple entries with comma")
-    # auth_add.add_argument("--roles", default=None, help="delimit multiple entries with comma")
-    # auth_add.add_argument(
-    #     "--capabilities",
-    #     default=None,
-    #     help="delimit multiple entries with comma",
-    # )
-    # auth_add.add_argument("--comments", default=None)
-    # auth_add.add_argument("--disabled", action="store_true")
-    # auth_add.add_argument(
-    #     "--add-known-host",
-    #     action="store_true",
-    #     help="adds entry in known host",
-    # )
-    # auth_add.set_defaults(func=add_auth)
-
-    # auth_add_group = add_parser(
-    #     "add-group",
-    #     subparser=auth_subparsers,
-    #     help="associate a group name with a set of roles",
-    # )
-    # auth_add_group.add_argument("group", metavar="GROUP", help="name of group")
-    # auth_add_group.add_argument(
-    #     "roles",
-    #     metavar="ROLE",
-    #     nargs="*",
-    #     help="roles to associate with the group",
-    # )
-    # auth_add_group.set_defaults(func=add_group)
-
-    # auth_add_known_host = add_parser(
-    #     "add-known-host",
-    #     subparser=auth_subparsers,
-    #     help="add server public key to known-hosts file",
-    # )
-    # auth_add_known_host.add_argument(
-    #     "--host",
-    #     required=True,
-    #     help="hostname or IP address with optional port",
-    # )
-    # auth_add_known_host.add_argument("--serverkey", required=True)
-    # auth_add_known_host.set_defaults(func=add_server_key)
-
-    # auth_add_role = add_parser(
-    #     "add-role",
-    #     subparser=auth_subparsers,
-    #     help="associate a role name with a set of capabilities",
-    # )
-    # auth_add_role.add_argument("role", metavar="ROLE", help="name of role")
-    # auth_add_role.add_argument(
-    #     "capabilities",
-    #     metavar="CAPABILITY",
-    #     nargs="*",
-    #     help="capabilities to associate with the role",
-    # )
-    # auth_add_role.set_defaults(func=add_role)
-
-    # auth_keypair = add_parser(
-    #     "keypair",
-    #     subparser=auth_subparsers,
-    #     help="generate CurveMQ keys for encrypting VIP connections",
-    # )
-    # auth_keypair.set_defaults(func=gen_keypair)
-
-    # auth_list = add_parser("list", help="list authentication records", subparser=auth_subparsers)
-    # auth_list.set_defaults(func=list_auth)
-
-    # auth_list_groups = add_parser(
-    #     "list-groups",
-    #     subparser=auth_subparsers,
-    #     help="show list of group names and their sets of roles",
-    # )
-    # auth_list_groups.set_defaults(func=list_groups)
-
-    # auth_list_known_host = add_parser(
-    #     "list-known-hosts",
-    #     subparser=auth_subparsers,
-    #     help="list entries from known-hosts file",
-    # )
-    # auth_list_known_host.set_defaults(func=list_known_hosts)
-
-    # auth_list_roles = add_parser(
-    #     "list-roles",
-    #     subparser=auth_subparsers,
-    #     help="show list of role names and their sets of capabilities",
-    # )
-    # auth_list_roles.set_defaults(func=list_roles)
-
-    # auth_publickey = add_parser(
-    #     "publickey",
-    #     parents=[filterable],
-    #     subparser=auth_subparsers,
-    #     help="show public key for each agent",
-    # )
-    # auth_publickey.add_argument("pattern", nargs="*", help="UUID or name of agent")
-    # auth_publickey.add_argument(
-    #     "-n",
-    #     dest="min_uuid_len",
-    #     type=int,
-    #     metavar="N",
-    #     help="show at least N characters of UUID (0 to show all)",
-    # )
-    # auth_publickey.set_defaults(func=get_agent_publickey, min_uuid_len=1)
-
-    # auth_remove = add_parser(
-    #     "remove",
-    #     subparser=auth_subparsers,
-    #     help="removes one or more authentication records by indices",
-    # )
-    # auth_remove.add_argument(
-    #     "indices",
-    #     nargs="+",
-    #     type=int,
-    #     help="index or indices of record(s) to remove",
-    # )
-    # auth_remove.set_defaults(func=remove_auth)
-
-    # auth_remove_group = add_parser(
-    #     "remove-group",
-    #     subparser=auth_subparsers,
-    #     help="disassociate a group name from a set of roles",
-    # )
-    # auth_remove_group.add_argument("group", help="name of group")
-    # auth_remove_group.set_defaults(func=remove_group)
-
-    # auth_remove_known_host = add_parser(
-    #     "remove-known-host",
-    #     subparser=auth_subparsers,
-    #     help="remove entry from known-hosts file",
-    # )
-    # auth_remove_known_host.add_argument(
-    #     "host",
-    #     metavar="HOST",
-    #     help="hostname or IP address with optional port",
-    # )
-    # auth_remove_known_host.set_defaults(func=remove_known_host)
-
-    # auth_remove_role = add_parser(
-    #     "remove-role",
-    #     subparser=auth_subparsers,
-    #     help="disassociate a role name from a set of capabilities",
-    # )
-    # auth_remove_role.add_argument("role", help="name of role")
-    # auth_remove_role.set_defaults(func=remove_role)
-
-    # auth_serverkey = add_parser(
-    #     "serverkey",
-    #     subparser=auth_subparsers,
-    #     help="show the serverkey for the instance",
-    # )
-    # auth_serverkey.set_defaults(func=show_serverkey)
-
-    # auth_update = add_parser(
-    #     "update",
-    #     subparser=auth_subparsers,
-    #     help="updates one authentication record by index",
-    # )
-    # auth_update.add_argument("index", type=int, help="index of record to update")
-    # auth_update.set_defaults(func=update_auth)
-
-    # auth_update_group = add_parser(
-    #     "update-group",
-    #     subparser=auth_subparsers,
-    #     help="update group to include (or remove) given roles",
-    # )
-    # auth_update_group.add_argument("group", metavar="GROUP", help="name of group")
-    # auth_update_group.add_argument(
-    #     "roles",
-    #     nargs="*",
-    #     metavar="ROLE",
-    #     help="roles to append to (or remove from) the group",
-    # )
-    # auth_update_group.add_argument(
-    #     "--remove",
-    #     action="store_true",
-    #     help="remove (rather than append) given roles",
-    # )
-    # auth_update_group.set_defaults(func=update_group)
-
-    # auth_update_role = add_parser(
-    #     "update-role",
-    #     subparser=auth_subparsers,
-    #     help="update role to include (or remove) given capabilities",
-    # )
-    # auth_update_role.add_argument("role", metavar="ROLE", help="name of role")
-    # auth_update_role.add_argument(
-    #     "capabilities",
-    #     nargs="*",
-    #     metavar="CAPABILITY",
-    #     help="capabilities to append to (or remove from) the role",
-    # )
-    # auth_update_role.add_argument(
-    #     "--remove",
-    #     action="store_true",
-    #     help="remove (rather than append) given capabilities",
-    # )
-    # auth_update_role.set_defaults(func=update_role)
-
-    # auth_remote = add_parser(
-    #     "remote",
-    #     subparser=auth_subparsers,
-    #     help="manage pending RMQ certs and ZMQ credentials",
-    # )
-    # auth_remote_subparsers = auth_remote.add_subparsers(title="remote subcommands",
-    #                                                     metavar="",
-    #                                                     dest="store_commands")
-
-    # auth_remote_list_cmd = add_parser(
-    #     "list",
-    #     subparser=auth_remote_subparsers,
-    #     help="lists approved, denied, and pending certs and credentials",
-    # )
-    # auth_remote_list_cmd.add_argument("--status", help="Specify approved, denied, or pending")
-    # auth_remote_list_cmd.set_defaults(func=list_remotes)
-
-    # auth_remote_approve_cmd = add_parser(
-    #     "approve",
-    #     subparser=auth_remote_subparsers,
-    #     help="approves pending or denied remote connection",
-    # )
-    # auth_remote_approve_cmd.add_argument(
-    #     "user_id",
-    #     help="user_id or identity of pending credential or cert to approve",
-    # )
-    # auth_remote_approve_cmd.set_defaults(func=approve_remote)
-
-    # auth_remote_deny_cmd = add_parser(
-    #     "deny",
-    #     subparser=auth_remote_subparsers,
-    #     help="denies pending or denied remote connection",
-    # )
-    # auth_remote_deny_cmd.add_argument(
-    #     "user_id",
-    #     help="user_id or identity of pending credential or cert to deny",
-    # )
-    # auth_remote_deny_cmd.set_defaults(func=deny_remote)
-
-    # auth_remote_delete_cmd = add_parser(
-    #     "delete",
-    #     subparser=auth_remote_subparsers,
-    #     help="approves pending or denied remote connection",
-    # )
-    # auth_remote_delete_cmd.add_argument(
-    #     "user_id",
-    #     help="user_id or identity of pending credential or cert to delete",
-    # )
-    # auth_remote_delete_cmd.set_defaults(func=delete_remote)
-
-    # ====================================================
-    # config commands
-    # ====================================================
-    config_store = add_parser("config", help="manage the platform configuration store")
-
-    config_store_subparsers = config_store.add_subparsers(title="subcommands",
-                                                          metavar="",
-                                                          dest="store_commands")
-
-    config_store_store = add_parser(
-        "store",
-        help="store a configuration",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_store.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_store.add_argument(
-        "name", help="name used to reference the configuration by in the store")
-    config_store_store.add_argument(
-        "infile",
-        nargs="?",
-        type=argparse.FileType("r"),
-        default=sys.stdin,
-        help="file containing the contents of the configuration",
-    )
-    config_store_store.add_argument(
-        "--raw",
-        const="raw",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as raw data",
-    )
-    config_store_store.add_argument(
-        "--json",
-        const="json",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as json",
-    )
-    config_store_store.add_argument(
-        "--csv",
-        const="csv",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as csv",
-    )
-
-    config_store_store.set_defaults(func=add_config_to_store, config_type="json")
-
-    config_store_edit = add_parser(
-        "edit",
-        help="edit a configuration. (nano by default, respects EDITOR env variable)",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_edit.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_edit.add_argument("name",
-                                   help="name used to reference the configuration by in the store")
-    config_store_edit.add_argument(
-        "--editor",
-        dest="editor",
-        help="Set the editor to use to change the file. Defaults to nano if EDITOR is not set",
-        default=os.getenv("EDITOR", "nano"),
-    )
-    config_store_edit.add_argument(
-        "--raw",
-        const="raw",
-        dest="config_type",
-        action="store_const",
-        help="Interpret the configuration as raw data. If the file already exists this is ignored.",
-    )
-    config_store_edit.add_argument(
-        "--json",
-        const="json",
-        dest="config_type",
-        action="store_const",
-        help="Interpret the configuration as json. If the file already exists this is ignored.",
-    )
-    config_store_edit.add_argument(
-        "--csv",
-        const="csv",
-        dest="config_type",
-        action="store_const",
-        help="Interpret the configuration as csv. If the file already exists this is ignored.",
-    )
-    config_store_edit.add_argument(
-        "--new",
-        dest="new_config",
-        action="store_true",
-        help="Ignore any existing configuration and creates new empty file."
-        " Configuration is not written if left empty. Type defaults to JSON.",
-    )
-
-    config_store_edit.set_defaults(func=edit_config, config_type="json")
-
-    config_store_delete = add_parser(
-        "delete",
-        help="delete a configuration",
-        subparser=config_store_subparsers,
-    )
-    config_store_delete.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_delete.add_argument(
-        "name",
-        nargs="?",
-        help="name used to reference the configuration by in the store",
-    )
-    config_store_delete.add_argument(
-        "--all",
-        dest="delete_store",
-        action="store_true",
-        help="delete all configurations in the store",
-    )
-
-    config_store_delete.set_defaults(func=delete_config_from_store)
-
-    config_store_list = add_parser(
-        "list",
-        help="list stores or configurations in a store",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_list.add_argument("identity", nargs="?", help="VIP IDENTITY of the store to list")
-
-    config_store_list.set_defaults(func=list_store)
-
-    config_store_get = add_parser(
-        "get",
-        help="get the contents of a configuration",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_get.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_get.add_argument("name",
-                                  help="name used to reference the configuration by in the store")
-    config_store_get.add_argument("--raw",
-                                  action="store_true",
-                                  help="get the configuration as raw data")
-    config_store_get.set_defaults(func=get_config)
-
     shutdown = add_parser("shutdown", help="stop all agents")
     shutdown.add_argument(
         "--platform",
@@ -2836,8 +2387,8 @@ def main():
                 return 10
 
     conf = os.path.join(volttron_home, "config")
-    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
-        args = ["--config", conf] + args
+    # if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
+    #     args = ["--config", conf] + args
 
     opts = parser.parse_args(args)
 
@@ -2847,7 +2398,7 @@ def main():
         opts.log = config.expandall(opts.log)
     if opts.log_config:
         opts.log_config = config.expandall(opts.log_config)
-    opts.vip_address = config.expandall(opts.vip_address)
+    #opts.vip_address = config.expandall(opts.vip_address)
     if getattr(opts, "show_config", False):
         for name, value in sorted(vars(opts).items()):
             print(name, repr(value))
@@ -2869,7 +2420,7 @@ def main():
 
     # logging.getLogger().setLevel(level=logging.DEBUG)
 
-    opts.connection: ControlConnection = ControlConnection(address=opts.vip_address)
+    opts.connection: ControlConnection = ControlConnection(address=opts.address)
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)

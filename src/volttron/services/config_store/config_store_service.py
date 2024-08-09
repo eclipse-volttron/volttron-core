@@ -37,7 +37,8 @@ from volttron.client.known_identities import CONFIGURATION_STORE
 from volttron.client.vip.agent import RPC, Agent, Core, Unreachable, VIPError
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
-from volttron.types import Service
+from volttron.types import Service, Identity
+from volttron.types.agent_context import AgentOptions
 from volttron.types.auth import Credentials, CredentialsStore
 from volttron.types.service_interface import ServiceInterface
 from volttron.utils import (format_timestamp, get_aware_utc_now, jsonapi, parse_json_config)
@@ -102,7 +103,7 @@ def process_raw_config(config_string, config_type="raw"):
 
 
 @service
-class ConfigStoreService(Service, Agent):
+class ConfigStoreService(Agent):
 
     class Meta:
         identity = CONFIGURATION_STORE
@@ -111,15 +112,19 @@ class ConfigStoreService(Service, Agent):
                  options: ServerOptions,
                  credential_store: CredentialsStore | None = None,
                  **kwargs):
-        kwargs["enable_store"] = False
-        kwargs["identity"] = self.Meta.identity
+        # kwargs["enable_store"] = False
+        # kwargs["identity"] = self.Meta.identity
+        agent_options = AgentOptions(enable_store=False)
 
         if credential_store is not None:
             creds = credential_store.retrieve_credentials(identity=self.Meta.identity)
         else:
             creds = Credentials(identity=self.Meta.identity)
 
-        super().__init__(credentials=creds, address=options.service_address, **kwargs)
+        super().__init__(credentials=creds,
+                         address=options.service_address,
+                         options=agent_options,
+                         **kwargs)
 
         # This agent is started before the router so we need
         # to keep it from blocking.
@@ -305,12 +310,12 @@ class ConfigStoreService(Service, Agent):
 
     #@RPC.allow('edit_config_store')
     @RPC.export
-    def initialize_configs(self, identity):
+    def initialize_configs(self, identity: Identity):
         """
         Called by an Agent at startup to trigger initial configuration state
         push.
         """
-
+        _log.debug("Initializing configurations for agent {}".format(identity))
         # We need to create store and lock if it doesn't exist in case someone
         # tries to add a configuration while we are sending the initial state.
         agent_store = self.store.get(identity)
