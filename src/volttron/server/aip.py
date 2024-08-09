@@ -491,9 +491,6 @@ class AIPplatform:
                 with tarfile.open(backup_agent_file, "w:gz") as tar:
                     tar.add(old_agent_data_dir,
                             arcname=os.path.sep)    # os.path.basename(source_dir))
-
-            _log.info('Removing previous version of agent "{}"\n'.format(vip_identity))
-            self.remove_agent(agent_uuid, remove_auth=False)
         return backup_agent_file
 
     @staticmethod
@@ -516,11 +513,16 @@ class AIPplatform:
             agent_config = dict()
 
         agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
-        # This should happen before install of source. if force=True then below line will remove agent source when
-        # removing last/only instance of an agent
+        # This should happen before install of source.
         backup_agent_file = self.backup_agent_data(agent_uuid, vip_identity)
 
         agent_name, site_package_dir = self.install_agent_source(agent, force, pre_release)
+
+        if agent_uuid:
+            _log.info('Removing previous version of agent "{}"\n'.format(vip_identity))
+            # we are either installing new agent or if using --force. if --force is true src would have got updated
+            # in install_agent_source
+            self.remove_agent(agent_uuid, remove_auth=False, remove_unused_src=False)
 
         # get default vip_identity if vip_identity is not passed
         # default value will be in "agent_name-default-vip-id" file in site-packages dir
@@ -614,20 +616,6 @@ class AIPplatform:
 
     def install_agent_source(self, agent: str, force: bool = False, pre_release: bool = False):
         _log.info(f"AGENT_WHEEL: {agent}")
-
-        cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "add"]
-        # TODO - no --force-reinstall for poetry. will have to uninstall and reinstall
-        # if force:
-        #     cmd.append("--force-reinstall")
-        if pre_release:
-            cmd.append("--allow-prereleases")
-
-        cmd.append(agent)
-        _log.debug(f"Executing agent install command : {cmd}")
-        response = execute_command(cmd)
-        # if above cmd returned non-zero code it would throw exception.
-        # if we are here we succeeded installing some compatible version of the package.
-        # Now find agent name and version installed
         agent_name = None
         if agent.endswith(".whl") and os.path.isfile(agent):
             agent_name = self._construct_package_name_from_agent_wheel(agent)
@@ -640,13 +628,99 @@ class AIPplatform:
             m = re.match("[\w\-]+", agent)
             if m:
                 agent_name = m[0]
+
         if agent_name is None:
             # ideally we should never get here! if we get here we haven't handled some specific input format.
-            raise RuntimeError(f"Something went wrong when installing {agent}. "
-                               f"Unable to parse agent name of the package.\n"
-                               f"Agent install command used: {' '.join(cmd)} \n"
-                               f"Command completed with exit code 0 and stdout "
-                               f"response {response}")
+            raise RuntimeError(f"Unexpected Error: Unable to get agent_name based on {agent}")
+
+        cmd_add = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix()]
+        if pre_release:
+            cmd_add.append("--allow-prereleases")
+        cmd_add.append("add")
+        cmd_add.append(agent)
+
+        current_version = None
+        if force:
+            # check if there is even a current version to uninstall
+            try:
+                cmd = ["pip", "show", agent_name]
+                response = execute_command(cmd)
+                current_version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
+            except RuntimeError as e:
+                # unable to find any existing agent to uninstall so make force = False
+                force = False
+
+        if force and current_version:
+            # act on force=True only if there is a current installed version of the agent
+            # poetry does not provide --force-reinstall.
+            # We essentially have to remove and add. so do a dry run to see nothing will break
+            #
+            try:
+                cmd_dry_run = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(),
+                               "remove", agent_name, "--dry-run"]
+                # we only care about the return code. is return code is non-zero below will raise exception
+                execute_command(cmd_dry_run)
+            except RuntimeError as r:
+                raise RuntimeError(f"Attempting to remove current version of agent {agent_name} using poetry fails "
+                                   f"with following error: {r}")
+
+            try:
+                cmd_dry_run = []
+                cmd_dry_run.extend(cmd_add)
+                cmd_dry_run.append("--dry-run")
+                # we only care about the return code. is return code is non-zero below will raise exception
+                execute_command(cmd_dry_run)
+            except RuntimeError as r:
+                raise RuntimeError(f"Attempt to install {agent_name} using poetry fails with following error:{r}")
+
+            # but that alone won't be enough For ex. if agent to be installed is just a name without version, and there
+            # is already a version of the agent installed, then doing "poetry add agent_name --dry-run"
+            # poetry will simply return "package already exists" it won't check version compatibility or availability
+            # so if you have current version installed from a local wheel and latest version on pypi is not compatible
+            # then dry run with just agent name won't catch the error. (unlike poetry add agent_name@latest --dry-run)
+            # In such case, we should be able to revert to current version - so explicitly find current version and
+            # see if that can be installed from pypi because local wheel might not be there anymore.
+            try:
+                cmd_dry_run = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "add",
+                               f"{agent_name}=={current_version}", "--dry-run"]
+                execute_command(cmd_dry_run)
+            except RuntimeError as r:
+                raise RuntimeError(f"Unable to find currently installed version of {agent_name} ({current_version}) "
+                                   f"in pypi. Aborting --force install of {agent} as we dont have any way of reverting "
+                                   f"to existing version in case of failure. If you are using agent without version "
+                                   f"number. Try using agent_name@latest or agent_name==version to install."
+                                   f"Or manually remove agent and install agent with specific version")
+
+            # No exception. Worst case we can revert so safely uninstall current version.
+            cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "remove",
+                   f"{agent_name}=={current_version}"]
+            execute_command(cmd)
+
+        # finally install agent passed!
+        response = None
+        try:
+            _log.debug(f"Executing agent install command : {cmd_add}")
+            response = execute_command(cmd_add)
+            # if above cmd returned non-zero code it would throw exception.
+            # if we are here we succeeded installing some compatible version of the package.
+            # Now find agent version installed
+        except RuntimeError as e:
+            _log.error("Install agent failed", e)
+            if force and current_version:
+                _log.info("--force was used. Attempting to reinstall agent version that was previously present in env"
+                          f"({agent_name}=={current_version})")
+                try:
+                    cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "add",
+                           f"{agent_name}=={current_version}"]
+                    execute_command(cmd)
+                except RuntimeError as e:
+                    # We are in trouble. we are not able to install give agent version and unable to roll back to the
+                    # version that was already there either!
+                    raise RuntimeError("ERROR: --force was used. we successfully uninstalled current version of agent"
+                                       f"{agent_name}=={current_version}. But there was error installing {agent} and "
+                                       f"we are unable to reinstall current version either. \n", e)
+            else:
+                raise e
 
         # now get the version installed, because poetry add could have been for volttron-agent@latest.
         # we need to find the specific version installed
@@ -795,7 +869,7 @@ class AIPplatform:
                 return test_name
             count += 1
 
-    def remove_agent(self, agent_uuid, remove_auth=True):
+    def remove_agent(self, agent_uuid, remove_auth=True, remove_unused_src=True):
         if self._secure_agent_user:
             _log.info("Running Volttron agents securely with Unix Users.")
         else:
@@ -837,10 +911,12 @@ class AIPplatform:
             self.remove_agent_user(volttron_agent_user)
 
         # check if there are other instances of the same agent.
-        if agent_name not in uuid_name_map.values():
-            # if no other uuid has the same agent name. There was only one instance that we popped earlier
-            # so safe to uninstall source
-            execute_command(["pip", "uninstall", "-y", agent_name[:agent_name.rfind("-")]])
+        if remove_unused_src:
+            if agent_name not in uuid_name_map.values():
+                # if no other uuid has the same agent name. There was only one instance that we popped earlier
+                # so safe to uninstall source
+                execute_command(["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(),
+                                 "remove", agent_name[:agent_name.rfind("-")]])
         # update uuid vip id maps
         self._uuid_vip_id_map.pop(agent_uuid)
         self._vip_id_uuid_map.pop(vip_identity)
