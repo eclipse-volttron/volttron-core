@@ -41,6 +41,7 @@ from typing import List
 
 import gevent
 import gevent.event
+from attrs import define
 
 from volttron.client.commands.connection import ControlConnection
 from volttron.client.commands.rpc_parser import add_rpc_agent_parser
@@ -69,7 +70,27 @@ message_bus = cc.get_messagebus()
 
 CHUNK_SIZE = 4096
 
-AgentMeta = collections.namedtuple("Agent", "name tag uuid vip_identity agent_user")
+
+@define
+class AgentMeta:
+    name: str
+    uuid: str
+    identity: str
+    agent_user: str = ''
+    tag: str = ''
+    priority: str = '50'
+
+    def console_format(self, as_json=False, with_priority=False):
+        if as_json:
+            return jsonapi.dumps(self.__dict__, indent=2)
+        else:
+            if with_priority:
+                return f"{self.name} {self.uuid} {self.identity} {self.agent_user} {self.tag} {self.priority}"
+            else:
+                return f"{self.name} {self.uuid} {self.identity} {self.agent_user} {self.tag}"
+
+    def __str__(self):
+        return f"{self.name} {self.tag} {self.uuid} {self.vip_identity} {self.agent_user}"
 
 
 def expandall(string):
@@ -84,15 +105,7 @@ def _list_agents(opts) -> List[AgentMeta]:
         List of AgentTuple
     """
     agents = opts.connection.call("list_agents")
-    return [
-        AgentMeta(
-            a["name"],
-            a.get("tag", ""),
-            a["uuid"],
-            a["identity"],
-            a.get("agent_user"),
-        ) for a in agents
-    ]
+    return [AgentMeta(**a) for a in agents]
 
 
 def escape(pattern):
@@ -614,7 +627,7 @@ def status_agents(opts):
         update_health_cache(opts)
 
         try:
-            health_dict = health_cache.get(agent.vip_identity)
+            health_dict = health_cache.get(agent.identity)
 
             if health_dict:
                 if opts.json:
@@ -1388,7 +1401,7 @@ def _show_filtered_agents_status(opts,
     if not opts.json:
         name_width = max(5, max(len(agent.name) for agent in agents))
         tag_width = max(3, max(len(agent.tag or "") for agent in agents))
-        identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
+        identity_width = max(3, max(len(agent.identity or "") for agent in agents))
         if cc.is_secure_mode():
             user_width = max(3, max(len(agent.agent_user or "") for agent in agents))
             fmt = "{:<6} {:{}} {:{}} {:{}} {:{}} {} {:>6} {:>15}\n"
@@ -1448,7 +1461,7 @@ def _show_filtered_agents_status(opts,
                         agent.uuid[:n],
                         agent.name,
                         name_width,
-                        agent.vip_identity,
+                        agent.identity,
                         identity_width,
                         agent.tag or "",
                         tag_width,
