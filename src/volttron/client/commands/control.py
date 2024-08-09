@@ -73,12 +73,38 @@ CHUNK_SIZE = 4096
 
 @define
 class AgentMeta:
+    """Meta class for displaying agent details on the command line.
+    """
+
     name: str
+    """
+    The name of the agent.
+    """
+
     uuid: str
+    """
+    The uuid of the agent. This is a unique identifier for the agent.
+    """
+
     identity: str
+    """
+    The vip identity of the agent.
+    """
+
     agent_user: str = ''
+    """
+    The user that the agent is running as.  This is only available in agent isolation mode.
+    """
+
     tag: str = ''
+    """
+    A tag associated with the agent.
+    """
+
     priority: str = '50'
+    """
+    The startup priority of the agent.
+    """
 
     def console_format(self, as_json=False, with_priority=False):
         if as_json:
