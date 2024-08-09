@@ -2146,15 +2146,6 @@ def main():
 
     global_args = config.ArgumentParser(description="global options", add_help=False)
     global_args.add_argument(
-        "-c",
-        "--config",
-        metavar="FILE",
-        action="parse_config",
-        ignore_unknown=True,
-        sections=[None, "global", "volttron-ctl"],
-        help="read configuration from FILE",
-    )
-    global_args.add_argument(
         "--debug",
         action="store_true",
         help="show tracebacks for errors rather than a brief message",
@@ -2166,15 +2157,14 @@ def main():
         metavar="SECS",
         help="timeout in seconds for remote calls (default: %(default)g)",
     )
-    global_args.add_argument("--msgdebug", help="route all messages to an agent while debugging")
     global_args.add_argument(
-        "--vip-address",
-        metavar="ZMQADDR",
-        help="ZeroMQ URL to bind for VIP connections",
+        "--address",
+        metavar="ADDR",
+        help="URL to bind for VIP connections",
     )
 
     global_args.set_defaults(
-        vip_address=get_address(),
+        address=get_address(),
         timeout=60,
     )
 
@@ -2361,145 +2351,6 @@ def main():
     run = add_parser("run", help="start any agent by path")
     run.add_argument("directory", nargs="+", help="path to agent directory")
 
-    # ====================================================
-    # config commands
-    # ====================================================
-    config_store = add_parser("config", help="manage the platform configuration store")
-
-    config_store_subparsers = config_store.add_subparsers(title="subcommands",
-                                                          metavar="",
-                                                          dest="store_commands")
-
-    config_store_store = add_parser(
-        "store",
-        help="store a configuration",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_store.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_store.add_argument(
-        "name", help="name used to reference the configuration by in the store")
-    config_store_store.add_argument(
-        "infile",
-        nargs="?",
-        type=argparse.FileType("r"),
-        default=sys.stdin,
-        help="file containing the contents of the configuration",
-    )
-    config_store_store.add_argument(
-        "--raw",
-        const="raw",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as raw data",
-    )
-    config_store_store.add_argument(
-        "--json",
-        const="json",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as json",
-    )
-    config_store_store.add_argument(
-        "--csv",
-        const="csv",
-        dest="config_type",
-        action="store_const",
-        help="interpret the input file as csv",
-    )
-
-    config_store_store.set_defaults(func=add_config_to_store, config_type="json")
-
-    config_store_edit = add_parser(
-        "edit",
-        help="edit a configuration. (nano by default, respects EDITOR env variable)",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_edit.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_edit.add_argument("name",
-                                   help="name used to reference the configuration by in the store")
-    config_store_edit.add_argument(
-        "--editor",
-        dest="editor",
-        help="Set the editor to use to change the file. Defaults to nano if EDITOR is not set",
-        default=os.getenv("EDITOR", "nano"),
-    )
-    config_store_edit.add_argument(
-        "--raw",
-        const="raw",
-        dest="config_type",
-        action="store_const",
-        help="Interpret the configuration as raw data. If the file already exists this is ignored.",
-    )
-    config_store_edit.add_argument(
-        "--json",
-        const="json",
-        dest="config_type",
-        action="store_const",
-        help="Interpret the configuration as json. If the file already exists this is ignored.",
-    )
-    config_store_edit.add_argument(
-        "--csv",
-        const="csv",
-        dest="config_type",
-        action="store_const",
-        help="Interpret the configuration as csv. If the file already exists this is ignored.",
-    )
-    config_store_edit.add_argument(
-        "--new",
-        dest="new_config",
-        action="store_true",
-        help="Ignore any existing configuration and creates new empty file."
-        " Configuration is not written if left empty. Type defaults to JSON.",
-    )
-
-    config_store_edit.set_defaults(func=edit_config, config_type="json")
-
-    config_store_delete = add_parser(
-        "delete",
-        help="delete a configuration",
-        subparser=config_store_subparsers,
-    )
-    config_store_delete.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_delete.add_argument(
-        "name",
-        nargs="?",
-        help="name used to reference the configuration by in the store",
-    )
-    config_store_delete.add_argument(
-        "--all",
-        dest="delete_store",
-        action="store_true",
-        help="delete all configurations in the store",
-    )
-
-    config_store_delete.set_defaults(func=delete_config_from_store)
-
-    config_store_list = add_parser(
-        "list",
-        help="list stores or configurations in a store",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_list.add_argument("identity", nargs="?", help="VIP IDENTITY of the store to list")
-
-    config_store_list.set_defaults(func=list_store)
-
-    config_store_get = add_parser(
-        "get",
-        help="get the contents of a configuration",
-        subparser=config_store_subparsers,
-    )
-
-    config_store_get.add_argument("identity", help="VIP IDENTITY of the store")
-    config_store_get.add_argument("name",
-                                  help="name used to reference the configuration by in the store")
-    config_store_get.add_argument("--raw",
-                                  action="store_true",
-                                  help="get the configuration as raw data")
-    config_store_get.set_defaults(func=get_config)
-
     shutdown = add_parser("shutdown", help="stop all agents")
     shutdown.add_argument(
         "--platform",
@@ -2536,8 +2387,8 @@ def main():
                 return 10
 
     conf = os.path.join(volttron_home, "config")
-    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
-        args = ["--config", conf] + args
+    # if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
+    #     args = ["--config", conf] + args
 
     opts = parser.parse_args(args)
 
@@ -2547,7 +2398,7 @@ def main():
         opts.log = config.expandall(opts.log)
     if opts.log_config:
         opts.log_config = config.expandall(opts.log_config)
-    opts.vip_address = config.expandall(opts.vip_address)
+    #opts.vip_address = config.expandall(opts.vip_address)
     if getattr(opts, "show_config", False):
         for name, value in sorted(vars(opts).items()):
             print(name, repr(value))
@@ -2569,7 +2420,7 @@ def main():
 
     # logging.getLogger().setLevel(level=logging.DEBUG)
 
-    opts.connection: ControlConnection = ControlConnection(address=opts.vip_address)
+    opts.connection: ControlConnection = ControlConnection(address=opts.address)
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)

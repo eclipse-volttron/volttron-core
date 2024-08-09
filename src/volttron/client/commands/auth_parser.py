@@ -691,7 +691,7 @@ def add_auth_parser(add_parser_fn, filterable):
                              help="add new authentication record",
                              subparser=auth_subparsers)
     auth_add.add_argument("--domain", default=None)
-    auth_add.add_argument("--address", default=None)
+    auth_add.add_argument("--agent-address", default=None)
     auth_add.add_argument("--mechanism", default=None)
     auth_add.add_argument("--credentials", default=None)
     auth_add.add_argument("--user_id", default=None)
