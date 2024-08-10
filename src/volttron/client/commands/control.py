@@ -107,6 +107,9 @@ class AgentMeta:
     The startup priority of the agent.
     """
 
+    def __hash__(self):
+        return hash(self.uuid)
+
     def console_format(self, as_json=False, with_priority=False):
         if as_json:
             return jsonapi.dumps(self.__dict__, indent=2)
