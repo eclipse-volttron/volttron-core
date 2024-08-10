@@ -174,7 +174,6 @@ class ConfigStoreService(Agent):
             }
 
     @RPC.export
-    #@RPC.allow('edit_config_store')
     def set_config(self,
                    identity,
                    config_name,
@@ -192,7 +191,6 @@ class ConfigStoreService(Agent):
                                   send_update=send_update)
 
     @RPC.export
-    #@RPC.allow('edit_config_store')
     def delete_config(self, identity, config_name, trigger_callback=True, send_update=True):
         self.delete(identity,
                     config_name,
@@ -200,7 +198,6 @@ class ConfigStoreService(Agent):
                     send_update=send_update)
 
     @RPC.export
-    #@RPC.allow('edit_config_store')
     def delete_store(self, identity):
         agent_store = self.store.get(identity)
         if agent_store is None:
@@ -308,7 +305,6 @@ class ConfigStoreService(Agent):
 
         return real_config
 
-    #@RPC.allow('edit_config_store')
     @RPC.export
     def initialize_configs(self, identity: Identity):
         """

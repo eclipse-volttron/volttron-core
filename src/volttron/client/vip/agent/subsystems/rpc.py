@@ -220,7 +220,6 @@ class RPC(SubsystemBase):
         core.ondisconnected.connect(self._disconnected)
         core.onconnected.connect(self._connected)
 
-
     def _connected(self, sender, **kwargs):
         self._isconnected = True
         # Registering to 'onadd' and 'ondrop' signals to get notified
@@ -557,14 +556,11 @@ class RPC(SubsystemBase):
     #     .. code-block:: python
     #
     #         @RPC.export
-    #         @RPC.allow('can_read_status')
     #         def get_status():
     #             ...
     #
     #     Multiple capabilities can be provided in a list:
     #     .. code-block:: python
-    #
-    #         @RPC.allow(['can_read_status', 'can_call_my_methods'])
     #
     #     """
     #
