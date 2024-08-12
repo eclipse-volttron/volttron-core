@@ -26,17 +26,17 @@
             }
         }
     },
-    "user_groups": {
-        "admin_users": {
+    "agent_groups": {
+        "admin_agents": {
             "identities": [
                 "volttron.control",
                 "config.store"
             ],
-            "roles": [
+            "agent_roles": [
                 "admin"
             ]
         },
-        "historian_users": {
+        "historians": {
             "identities": [
                 "historian1"
             ],
@@ -48,7 +48,7 @@
             }
         }
     },
-    "users": {
+    "agents": {
         "volttron.control": {
             "comments": "automatically added by platform on start"
         },
@@ -64,7 +64,7 @@
             "pubsub_capabilities": {
                 "listener/stats": "publish"
             },
-            "roles": [
+            "agent_roles": [
                 {"edit_config_store": {
                         "id": "listener1"
                     }
@@ -76,7 +76,7 @@
             "pubsub_capabilities": {
                 "devices/*": "publish"
             },
-            "roles": [
+            "agent_roles": [
                 {"edit_config_store": {
                         "id": "platform.driver"
                     }
@@ -85,9 +85,9 @@
         },
         "historian1": {
             "pubsub_capabilities": {
-                "user_pubsub_topic": "pubsub"
+                "agent_pubsub_topic": "pubsub"
             },
-            "roles": [
+            "agent_roles": [
                 {"edit_config_store": {
                         "id": "historian1"
                     }

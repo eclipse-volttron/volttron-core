@@ -58,30 +58,30 @@ class AuthorizationManager:
         ...
 
     @abstractmethod
-    def create_or_merge_user_group(self,
-                                   *,
-                                   name: str,
-                                   identities: set[authz.Identity],
-                                   roles: authz.UserRoles = None,
-                                   rpc_capabilities: authz.RPCCapabilities = None,
-                                   pubsub_capabilities: authz.PubsubCapabilities = None,
-                                   **kwargs) -> bool:
+    def create_or_merge_agent_group(self,
+                                    *,
+                                    name: str,
+                                    identities: set[authz.Identity],
+                                    roles: authz.AgentRoles = None,
+                                    rpc_capabilities: authz.RPCCapabilities = None,
+                                    pubsub_capabilities: authz.PubsubCapabilities = None,
+                                    **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def remove_users_from_group(self, name: str, identities: set[authz.Identity]):
+    def remove_agents_from_group(self, name: str, identities: set[authz.Identity]):
         ...
 
     @abstractmethod
-    def add_users_to_group(self, name: str, identities: set[authz.Identity]):
+    def add_agents_to_group(self, name: str, identities: set[authz.Identity]):
         ...
 
     @abstractmethod
-    def create_or_merge_user_authz(self,
+    def create_or_merge_agent_authz(self,
                                    *,
                                    identity: str,
                                    protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                                   roles: authz.UserRoles = None,
+                                   roles: authz.AgentRoles = None,
                                    rpc_capabilities: authz.RPCCapabilities = None,
                                    pubsub_capabilities: authz.PubsubCapabilities = None,
                                    comments: str = None,
@@ -101,11 +101,11 @@ class AuthorizationManager:
         ...
 
     @abstractmethod
-    def remove_user_authorization(self, identity: authz.Identity):
+    def remove_agent_authorization(self, identity: authz.Identity):
         ...
 
     @abstractmethod
-    def remove_user_group(self, name: str):
+    def remove_agent_group(self, name: str):
         ...
 
     @abstractmethod
@@ -160,30 +160,30 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def create_or_merge_user_group(self,
-                                   *,
-                                   name: str,
-                                   users: set[authz.Identity],
-                                   roles: Optional[authz.UserRoles] = None,
-                                   rpc_capabilities: Optional[authz.RPCCapabilities] = None,
-                                   pubsub_capabilities: Optional[authz.PubsubCapabilities] = None,
-                                   **kwargs) -> bool:
+    def create_or_merge_agent_group(self,
+                                    *,
+                                    name: str,
+                                    users: set[authz.Identity],
+                                    roles: Optional[authz.AgentRoles] = None,
+                                    rpc_capabilities: Optional[authz.RPCCapabilities] = None,
+                                    pubsub_capabilities: Optional[authz.PubsubCapabilities] = None,
+                                    **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def remove_users_from_group(self, name: str, identities: set[authz.Identity]):
+    def remove_agents_from_group(self, name: str, identities: set[authz.Identity]):
         ...
 
     @abstractmethod
-    def add_users_to_group(self, name: str, identities: set[authz.Identity]):
+    def add_agents_to_group(self, name: str, identities: set[authz.Identity]):
         ...
 
     @abstractmethod
-    def create_or_merge_user_authz(self,
+    def create_or_merge_agent_authz(self,
                                    *,
                                    identity: str,
                                    protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                                   roles: authz.UserRoles = None,
+                                   roles: authz.AgentRoles = None,
                                    rpc_capabilities: authz.RPCCapabilities = None,
                                    pubsub_capabilities: authz.PubsubCapabilities = None,
                                    comments: str = None,
@@ -217,11 +217,11 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def remove_user_authorization(self, name: authz.Identity):
+    def remove_agent_authorization(self, name: authz.Identity):
         ...
 
     @abstractmethod
-    def remove_user_group(self, name: str):
+    def remove_agent_group(self, name: str):
         ...
 
     @abstractmethod
