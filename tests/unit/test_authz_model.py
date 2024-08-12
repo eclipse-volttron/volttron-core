@@ -186,7 +186,7 @@ def test_create_agent_groups_simple():
     authz_map.create_or_merge_agent_group(name="group2",
                                           identities=["test_agent"],
                                           agent_roles=authz.AgentRoles(
-                                              [authz.AgentRole(role_name="test_role")]))
+                                             [authz.AgentRole(role_name="test_role")]))
     # compact_dict which gets persisted shouldn't get updated
     assert authz_map.compact_dict["agents"]["test_agent"] == {"comments": "Created as part of test"}
     # agent_capabilities used in memory should be updated
@@ -270,7 +270,7 @@ def test_update_agent_groups():
     authz_map.create_or_merge_agent_authz(identity="test_agent", comments="Created as part of test")
     assert authz_map.compact_dict["agents"]["test_agent"] == {"comments": "Created as part of test"}
     authz_map.create_or_merge_agent_authz(identity="test_agent2",
-                                          comments="Created as part of test")
+                                         comments="Created as part of test")
 
     authz_map.create_or_merge_role(name="test_role",
                                    rpc_capabilities=authz.RPCCapabilities(
@@ -280,7 +280,7 @@ def test_update_agent_groups():
     authz_map.create_or_merge_agent_group(name="group2",
                                           identities=["test_agent"],
                                           agent_roles=authz.AgentRoles(
-                                              [authz.AgentRole(role_name="test_role")]))
+                                             [authz.AgentRole(role_name="test_role")]))
     # compact_dict which gets persisted shouldn't get updated
     assert authz_map.compact_dict["agent_groups"]["group2"]["identities"] == ["test_agent"]
     assert authz_map.compact_dict["agent_groups"]["group2"]["agent_roles"] == ["test_role"]
