@@ -46,6 +46,7 @@ from attrs import define
 from volttron.client.commands.connection import ControlConnection
 from volttron.client.commands.rpc_parser import add_rpc_agent_parser
 from volttron.client.commands.auth_parser import add_auth_parser
+from volttron.client.commands.authz_parser import add_authz_parser
 from volttron.client.commands.config_store_parser import add_config_store_parser
 from volttron.client.commands.install_agents import add_install_agent_parser
 from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
@@ -2259,6 +2260,11 @@ def main():
     top_level_subparsers = parser.add_subparsers(title="commands", metavar="", dest="command")
 
     def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
+        """Generic method for adding parents and subparsers to the argument parser.
+
+        :return: A reference to the created parser.
+        :rtype: argparse.ArgumentParser
+        """
         parents = kwargs.get("parents", [])
         parents.append(global_args)
         kwargs["parents"] = parents
@@ -2268,6 +2274,7 @@ def main():
     add_install_agent_parser(add_parser)
     add_rpc_agent_parser(add_parser)
     add_auth_parser(add_parser, filterable=filterable)
+    add_authz_parser(add_parser, filterable=filterable)
     add_config_store_parser(add_parser)
     tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
