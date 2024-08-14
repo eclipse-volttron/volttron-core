@@ -468,7 +468,7 @@ class VolttronAuthzMap:
         if rpc_cap_list is None:
             rpc_cap_list = list()
         obj_list = RPCCapabilities(
-            [])    # I don't get a new instance of list in obj if I don't pass []  ?!
+            [])  # I don't get a new instance of list in obj if I don't pass []  ?!
         for rpc_cap in rpc_cap_list:
             if isinstance(rpc_cap, str):
                 obj_list.add_rpc_capability(RPCCapability(rpc_cap))
@@ -483,7 +483,7 @@ class VolttronAuthzMap:
         if pubsub_cap_dict is None:
             pubsub_cap_dict = dict()
         obj_list = PubsubCapabilities(
-            [])    # I don't get a new instance of list in obj if I don't pass []  ?!
+            [])  # I don't get a new instance of list in obj if I don't pass []  ?!
         for topic_pattern, access in pubsub_cap_dict.items():
             obj_list.add_pubsub_capability(PubsubCapability(topic_pattern, access))
         return obj_list
@@ -617,7 +617,7 @@ class VolttronAuthzMap:
         expand_agent_caps = False
         role_dict = self.compact_dict.get(ROLES).get(name)
         if role_dict:
-            expand_agent_caps = True    # existing role so might have agents associated it, updated agent_caps
+            expand_agent_caps = True  # existing role so might have agents associated it, updated agent_caps
         VolttronAuthzMap.update_rpc_capabilities(role_dict,
                                                  authz_converter.unstructure(rpc_capabilities))
         VolttronAuthzMap.update_pubsub_capabilities(
@@ -705,14 +705,14 @@ class VolttronAuthzMap:
         return True
 
     def create_or_merge_agent_authz(self,
-                                   *,
-                                   identity: str,
-                                   protected_rpcs: set[str] = None,
-                                   agent_roles: AgentRoles = None,
-                                   rpc_capabilities: RPCCapabilities = None,
-                                   pubsub_capabilities: PubsubCapabilities = None,
-                                   comments: str = None,
-                                   **kwargs) -> bool:
+                                    *,
+                                    identity: str,
+                                    protected_rpcs: set[str] = None,
+                                    agent_roles: AgentRoles = None,
+                                    rpc_capabilities: RPCCapabilities = None,
+                                    pubsub_capabilities: PubsubCapabilities = None,
+                                    comments: str = None,
+                                    **kwargs) -> bool:
 
         if not identity:
             raise ValueError("agent identity is mandatory")
@@ -852,7 +852,7 @@ if __name__ == "__main__":
         # Agent("hist1", rpc_capabilities=test_rpc_list),
         Agent("listener1",
               agent_roles=AgentRoles(
-                 [AgentRole(role_name="role1", param_restrictions={"param1": "value1"})]))
+                  [AgentRole(role_name="role1", param_restrictions={"param1": "value1"})]))
     ])
     print(test_agents)
     test_agents_dict = authz_converter.unstructure(test_agents)

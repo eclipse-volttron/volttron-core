@@ -22,6 +22,7 @@ class Authorizer(ABC):
     #                                topic_pattern: str, access: str, **kwargs) -> bool:
     #     ...
 
+
 class AuthzPersistence(ABC):
 
     @classmethod
@@ -78,14 +79,14 @@ class AuthorizationManager:
 
     @abstractmethod
     def create_or_merge_agent_authz(self,
-                                   *,
-                                   identity: str,
-                                   protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                                   roles: authz.AgentRoles = None,
-                                   rpc_capabilities: authz.RPCCapabilities = None,
-                                   pubsub_capabilities: authz.PubsubCapabilities = None,
-                                   comments: str = None,
-                                   **kwargs) -> bool:
+                                    *,
+                                    identity: str,
+                                    protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                                    roles: authz.AgentRoles = None,
+                                    rpc_capabilities: authz.RPCCapabilities = None,
+                                    pubsub_capabilities: authz.PubsubCapabilities = None,
+                                    comments: str = None,
+                                    **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -180,14 +181,14 @@ class AuthService(Service):
 
     @abstractmethod
     def create_or_merge_agent_authz(self,
-                                   *,
-                                   identity: str,
-                                   protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
-                                   roles: authz.AgentRoles = None,
-                                   rpc_capabilities: authz.RPCCapabilities = None,
-                                   pubsub_capabilities: authz.PubsubCapabilities = None,
-                                   comments: str = None,
-                                   **kwargs) -> bool:
+                                    *,
+                                    identity: str,
+                                    protected_rpcs: set[authz.vipid_dot_rpc_method] = None,
+                                    roles: authz.AgentRoles = None,
+                                    rpc_capabilities: authz.RPCCapabilities = None,
+                                    pubsub_capabilities: authz.PubsubCapabilities = None,
+                                    comments: str = None,
+                                    **kwargs) -> bool:
         ...
 
     @abstractmethod
