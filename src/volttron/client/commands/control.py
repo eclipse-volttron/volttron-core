@@ -273,11 +273,13 @@ def remove_agent(opts, remove_auth=True):
             opts.connection.call("remove_agent", agent.uuid, remove_auth=remove_auth)
 
 
-def _calc_min_uuid_length(agents):
+def _calc_min_uuid_length(agents: list[AgentMeta]):
     n = 0
     for agent1 in agents:
         for agent2 in agents:
             if agent1 is agent2:
+                continue
+            if isinstance(agent2, str) or isinstance(agent1, str):
                 continue
             common_len = len(os.path.commonprefix([agent1.uuid, agent2.uuid]))
             if common_len > n:
@@ -632,7 +634,7 @@ def status_agents(opts):
             agent_user = ""
         try:
             agent = all_agents[uuid]
-            all_agents[uuid] = agent._replace(agent_user=agent_user)
+            all_agents[uuid] = agent.agent_user = agent_user
         except KeyError:
             all_agents[uuid] = agent = AgentMeta(name,
                                                  None,

@@ -22,6 +22,7 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import argparse
 import base64
 import glob
 import hashlib
@@ -31,6 +32,7 @@ import shutil
 from pathlib import Path
 import sys
 import tempfile
+from typing import Callable
 
 import gevent
 import yaml
@@ -40,10 +42,6 @@ from volttron.types.agent_context import AgentInstallOptions
 
 from volttron.utils import execute_command
 from volttron.utils import jsonapi
-
-# from volttron.platform import agent, config, jsonapi, get_home
-# from volttron.platform.agent.utils import execute_command
-# from volttron.platform.packaging import add_files_to_package, create_package
 
 
 class InstallRuntimeError(RuntimeError):
@@ -58,67 +56,74 @@ _stdout = sys.stdout
 _stderr = sys.stderr
 
 
-# def install_requirements(agent_source):
-#     req_file = os.path.join(agent_source, "requirements.txt")
-#
-#     if os.path.exists(req_file):
-#         _log.info(f"Installing requirements for agent from {req_file}.")
-#         cmds = ["pip", "install", "-r", req_file]
-#         try:
-#             execute_command(cmds, logger=_log, err_prefix="Error installing requirements")
-#         except InstallRuntimeError:
-#             sys.exit(1)
+def _build_from_pyproject(install_path: Path) -> Path:
+    """build project from poetry based upon the pyproject.toml file.
 
+    This is a local build when the user passes a directory to the install command.
 
-def install_agent_directory(opts, publickey=None, secretkey=None):
+    :param install_path: Path to the directory containing the pyproject.toml file.
+    :type install_path: Path
+    :raises InstallRuntimeError: If no wheel file was built during the built process this is thrown.
+    :return: Path to the wheel file that was built.
+    :rtype: Path
     """
-    The main installation method for installing the agent on the correct local
-    platform instance.
-    :param opts:
-    :param package:
-    :param agent_config:
-    :return:
-    """
-    dist_path = os.path.abspath(os.path.join(opts.install_path, "dist"))
-    # if dist directory exists remove it might have older versions of wheel
-    if os.path.isdir(dist_path):
-        shutil.rmtree(dist_path)
-    if os.path.isfile(os.path.join(opts.install_path, "setup.py")):
-        if os.path.isfile(os.path.join(opts.install_path, "Pipfile")):
-            cmd = ["pipenv", "run", "python3", "setup.py", "bdist_wheel"]
-        else:
-            cmd = ["python3", "setup.py", "bdist_wheel"]
-    elif os.path.isfile(os.path.join(opts.install_path, "pyproject.toml")):
-        cmd = ["poetry", "build", "-vv"]
-    else:
-        raise InstallRuntimeError(
-            f"Unable to build file. No setup.py or poetry.lock file exists in {opts.install_path}")
-    output = execute_command(cmd, cwd=opts.install_path)
-    # wheel should be in dist dir
-    match = glob.glob(os.path.join(dist_path, "*.whl"))
+
+    pyproject_path = install_path / "pyproject.toml"
+    assert pyproject_path.exists(), f"pyproject.toml not found in {install_path}"
+
+    dist_path: Path = install_path / "dist"
+
+    cmd = ["poetry", "build", "-vv"]
+    output = execute_command(cmd, cwd=install_path)
+    match = sorted(dist_path.glob("*.whl"))
+
     if match:
-        opts.package = match[0]
+        return Path(match[-1])
     else:
         raise InstallRuntimeError(
             f"No .whl file found in {dist_path} after running command {' '.join(cmd)}. "
             f"\nCommand returned stdout:\n{output}")
 
-    # TODO: does pipenv handle this. Does whl contain requirements.txt
-    # assert opts.connection, "Connection must have been created to access this feature."
-    #
-    # if not opts.skip_requirements:
-    #     install_requirements(opts.install_path)
 
-    _send_and_initialize_agent(opts, publickey, secretkey)
+def _install_and_initialize_agent(opts: argparse.Namespace,
+                                  wheel_file: Path = None,
+                                  pypi_string: str = None):
+    """Create a new agent on the platform.
 
+    This is the main installation function for sending/installing an agent on the platform. Depending
+    on the arguments, the agent will be installed from a wheel file or from pypi.  The options will be
+    retrieved from the opts namespace argument.
 
-def _send_and_initialize_agent(opts, publickey, secretkey):
+    This function creates an `AgentInstallOptions` object and sends it to the platform.  The platform
+    will then install the agent and return the agent uuid.
+
+    :param opts: The command line options for the install command.
+    :type opts: argparse.Namespace
+    :param wheel_file: If a path is specified ".whl" file will be sent, defaults to None
+    :type wheel_file: Path, optional
+    :param pypi_string: A string to install from pypi, defaults to None
+    :type pypi_string: str, optional
+    :raises InstallRuntimeError: Raised if a problem with a passed config file.
+    :raises ValueError: Raised if the agent was not installed properly.
+    """
+
+    assert opts.connection, "Connection must have been created to access this feature."
+    assert wheel_file or pypi_string, "Either a wheel file or pypi string must be specified."
+    assert not (wheel_file
+                and pypi_string), "Only one of wheel_file or pypi_string can be specified."
+
+    connection = opts.connection
+
+    if wheel_file and not wheel_file.exists():
+        raise InstallRuntimeError(f"Wheel file {wheel_file} does not exist!")
+
     # Verify and load agent_config up from the opts.  agent_config will
     # be a yaml config file.
     agent_config = opts.agent_config
     if agent_config is None:
         agent_config = {}
 
+    cfg = None    # temp file if agent_config is a dict
     # if not a dict then config should be a filename
     if not isinstance(agent_config, dict):
         config_file = agent_config
@@ -135,9 +140,27 @@ def _send_and_initialize_agent(opts, publickey, secretkey):
             config_dict = yaml.safe_load(fp)
     except Exception as exc:
         raise InstallRuntimeError(exc)
+    finally:
+        if cfg:
+            cfg.close()
 
-    agent_uuid = send_agent(opts.connection, opts.package, opts.vip_identity, publickey, secretkey,
-                            opts.force, opts.pre_release, config_dict)
+    agent = None    # holds the wheel file or the pypi string
+    agent_data = None    # Holds the base64 encoded data of the wheel file.
+    if wheel_file:
+        with open(wheel_file, "rb") as fp:
+            agent_data = base64.b64encode(fp.read()).decode("utf-8")
+        agent = wheel_file.name
+    else:
+        agent = pypi_string
+
+    agent_install = AgentInstallOptions(source=agent,
+                                        identity=opts.vip_identity,
+                                        data=agent_data,
+                                        agent_config=agent_config,
+                                        force=opts.force,
+                                        allow_prerelease=opts.pre_release)
+
+    agent_uuid = connection.call("install_agent", agent_install.to_dict())
 
     if not agent_uuid:
         raise ValueError(f"Agent was not installed properly.")
@@ -203,309 +226,52 @@ def _send_and_initialize_agent(opts, publickey, secretkey):
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
 
 
-def install_agent_vctl(opts, publickey=None, secretkey=None, callback=None):
+def install_agent_vctl(opts: argparse.Namespace, callback=None):
     """
     The `install_agent_vctl` function is called from the volttron-ctl or vctl install
     sub-parser.
+
+    This function uses the `opts` namespace install_path and wheel attributes to install
+    the agent on the connected platform instance.  The `opts`.connection attribute must
+    be set and connected prior to calling this function.
+
+    If an error occurs during this function it will be passed up the stack and the callback
+    function will not be called.
+
+    :param opts: The namespace object containing the install_path and wheel attributes.
+    :type opts: argparse.Namespace
+    :param callback: A callback function to call after the agent is successfullly installed.
+    :type callback: function
     """
+
+    assert opts.connection, "Connection must have been created to access this feature."
+
     try:
-        install_path = opts.install_path
+        install_path = Path(opts.install_path)
     except AttributeError:
-        install_path = opts.wheel
+        install_path = Path(opts.wheel)
 
-    # if os.path.isdir(install_path):
-    #     install_agent_directory(opts, publickey, secretkey)
-    #     if opts.connection is not None:
-    #         opts.connection.kill()
-    # else:
-    # if install_path.endswith(".whl") and not os.path.isfile(install_path):
-    #     raise InstallRuntimeError(f"Invalid wheel file {install_path}")
-    # opts.package = opts.install_path
-    # _send_and_initialize_agent(opts, publickey, secretkey)
+    if install_path.is_dir():
+        print(f"Building agent from {install_path}")
+        install_path = _build_from_pyproject(install_path)
 
-    if install_path.endswith(".whl") and not os.path.isfile(install_path):
-        raise InstallRuntimeError(f"Invalid wheel file {install_path}")
-    opts.package = opts.install_path
-    _send_and_initialize_agent(opts, publickey, secretkey)
+    if install_path.is_file() and install_path.suffix == ".whl":
+        print(f"Installing from wheel {install_path}")
+        _install_and_initialize_agent(opts, wheel_file=install_path)
+    else:
+        print(f"Installing from pypi {install_path}")
+        _install_and_initialize_agent(opts, pypi_string=install_path)
+
+    if callback:
+        callback()
 
 
-def send_agent(connection: "ControlConnection", agent: str, vip_identity: str, publickey: str,
-               secretkey: str, force: bool, pre_release: bool, agent_config: dict):
+def add_install_agent_parser(add_parser_fn: Callable):
+    """Creat and add the parser for the install command.
+
+    :param add_parser_fn: A
+    :type add_parser_fn: _type_
     """
-    Send an agent wheel from the client to the server.
-
-    The `ControlConnection` uses a protocol to send the wheel across the wire to the 'ControlService`.
-    """
-
-    with open(agent, "rb") as fp:
-        agent_data = base64.b64encode(fp.read()).decode("utf-8")
-
-    agent_install = AgentInstallOptions(source=agent,
-                                        identity=vip_identity,
-                                        data=agent_data,
-                                        agent_config=agent_config,
-                                        force=force,
-                                        allow_prerelease=pre_release)
-
-    response = connection.call("install_agent", agent_install.to_dict())
-    return response
-
-    path = agent
-    peer = connection.peer
-    server = connection.server
-    _log.debug(f"server type is {type(server)} {type(server.core)}")
-
-    channel = None
-    send_topic = "sending"
-    response_topic = "responding"
-    wheel_install = False
-    transferring = True
-
-    with open(agent, "rb") as fp:
-        meta = dict(data=base64.b64encode(fp.read()).decode("utf-8"))
-
-    result = server.vip.rpc.call(peer, "receive_wheel", wheel=meta).get()
-    # result = server.vip.rpc.call(peer,
-    #                              "install_agent_from_message_bus",
-    #                              agent=agent,
-    #                              topic=send_topic,
-    #                              response_topic=response_topic,
-    #                              credentials=creds.to_dict(),
-    #                              force=force,
-    #                              pre_release=pre_release,
-    #                              agent_config=agent_config)
-
-    if os.path.isfile(agent):
-        wheel_install = True
-        wheel = open(path, "rb")
-        path = agent
-        _log.debug(f"Connecting to {peer} to install {path}")
-        send_topic = "agent_sender"
-        response_topic = "request_data"
-
-    def send_through_msg_bus():
-        nonlocal wheel, server, transferring
-
-        sha512 = hashlib.sha512()
-        protocol_message = None
-        protocol_headers = None
-        response_received = False
-
-        def protocol_requested(peer, sender, bus, topic, headers, message):
-            nonlocal protocol_message, protocol_headers, response_received
-
-            protocol_message = message
-            protocol_message = base64.b64decode(protocol_message.encode("utf-8"))
-            protocol_headers = headers
-            response_received = True
-
-        try:
-            first = True
-            op = None
-            size = None
-            _log.debug(f"Subscribing to {response_topic}")
-            _log.debug(f"Peers: {server.vip.peerlist().get()}")
-            server.vip.pubsub.subscribe(
-                peer="pubsub",
-                prefix=response_topic,
-                callback=protocol_requested,
-            ).get(timeout=1000)
-            gevent.sleep(5)
-            _log.debug(f"Publishing to {send_topic}")
-            while True:
-                if first:
-                    transferring = True
-                    _log.debug("Waiting for a fetch")
-                    # Wait until we get the first request.
-                    with gevent.Timeout(30):
-                        while not response_received:
-                            gevent.sleep(0.1)
-
-                    first = False
-                    resp = jsonapi.loads(protocol_message)
-                    _log.debug(f"Got first response {resp}")
-
-                    if len(resp) > 1:
-                        op, size = resp
-                    else:
-                        op = resp[0]
-
-                    if op != "fetch":
-                        raise ValueError(f"First channel response must be fetch but was {op}")
-                response_received = False
-                if op == "fetch":
-                    chunk = wheel.read(size)
-                    if chunk:
-                        _log.debug(f"Op was fetch sending {size}")
-                        sha512.update(chunk)
-                        # Needs a string to go across the messagebus.
-                        message = base64.b64encode(chunk).decode("utf-8")
-                        server.vip.pubsub.publish(
-                            peer="pubsub",
-                            topic=send_topic,
-                            message=message,
-                        ).get(timeout=10)
-                    else:
-                        _log.debug(f"Op was fetch sending complete")
-                        message = base64.b64encode(b"complete").decode("utf-8")
-                        server.vip.pubsub.publish(
-                            peer="pubsub",
-                            topic=send_topic,
-                            message=message,
-                        ).get(timeout=10)
-                        gevent.sleep(10)
-                        break
-                elif op == "checksum":
-                    _log.debug(f"sending checksum {sha512.hexdigest()}")
-                    message = base64.b64encode(sha512.digest()).decode("utf-8")
-                    server.vip.pubsub.publish("pubsub", topic=send_topic,
-                                              message=message).get(timeout=10)
-
-                _log.debug("Waiting for next response")
-
-                with gevent.Timeout(30):
-                    while not response_received:
-                        gevent.sleep(0.1)
-                _log.debug(f"Response received bottom of loop {protocol_message}")
-                # wait for next response
-                resp = jsonapi.loads(protocol_message)
-
-                # [fetch, size] or checksum
-                if len(resp) > 1:
-                    op, size = resp
-                else:
-                    op = resp[0]
-
-        finally:
-            _log.debug("Closing wheel and unsubscribing.")
-            wheel.close()
-            server.vip.pubsub.unsubscribe(
-                peer="pubsub",
-                prefix=send_topic,
-                callback=protocol_requested,
-            )
-            transferring = False
-
-    from volttron.types.auth import Credentials
-
-    creds = Credentials(identity="listener-agent")
-
-    result = server.vip.rpc.call(peer,
-                                 "install_agent_from_message_bus",
-                                 agent=agent,
-                                 topic=send_topic,
-                                 response_topic=response_topic,
-                                 credentials=creds.to_dict(),
-                                 force=force,
-                                 pre_release=pre_release,
-                                 agent_config=agent_config)
-
-    while transferring:
-        gevent.sleep(1)
-
-    return result.get()
-    # def send_zmq():
-    #     nonlocal wheel, channel
-    #     sha512 = hashlib.sha512()
-    #     try:
-    #         first = True
-    #         op = None
-    #         size = None
-    #         while True:
-    #             if first:
-    #                 first = False
-    #                 # Wait for peer to open compliment channel
-    #                 resp = jsonapi.loadb(channel.recv())
-    #                 _log.debug(f"Got first response {resp}")
-
-    #                 if len(resp) > 1:
-    #                     op, size = resp
-    #                 else:
-    #                     op = resp[0]
-
-    #                 if op != "fetch":
-    #                     raise ValueError(f"First channel response must be fetch but was {op}")
-
-    #             if op == "fetch":
-    #                 chunk = wheel.read(size)
-    #                 if chunk:
-    #                     _log.debug(f"Op was fetch sending {size}")
-    #                     sha512.update(chunk)
-    #                     _log.debug(f"Sending chunk:\n{chunk}")
-    #                     channel.send(chunk)
-    #                 else:
-    #                     _log.debug(f"Op was fetch sending complete")
-    #                     channel.send(b"complete")
-    #                     gevent.sleep(10)
-    #                     break
-    #             elif op == "checksum":
-    #                 _log.debug(f"sending checksum {sha512.hexdigest()}")
-    #                 channel.send(sha512.digest())
-
-    #             _log.debug("Waiting for next response")
-    #             # wait for next response
-    #             resp = jsonapi.loadb(channel.recv())
-
-    #             if len(resp) > 1:
-    #                 op, size = resp
-    #             else:
-    #                 op = resp[0]
-
-    #     finally:
-    #         _log.debug("Closing wheel and channel.")
-    #         wheel.close()
-    #         channel.close(linger=0)
-    #         del channel
-
-    # task = None
-    # # if server.core.messagebus == "rmq":
-    # if wheel_install:
-    #     _log.debug(f"calling install_agent on {peer} sending to topic {send_topic}")
-    #     task = gevent.spawn(send_through_msg_bus)
-    #     # TODO: send config
-    #     agent_package = os.path.basename(path)
-    # else:
-    #     agent_package = agent
-    # result = server.vip.rpc.call(peer, "install_agent_from_message_bus", agent_package,
-    #                              send_topic, response_topic, vip_identity, publickey,
-    #                              secretkey, force, pre_release, agent_config)
-    # # elif server.core.messagebus == "zmq":
-    # # if wheel_install:
-    # #     _log.debug(f"calling install_agent on {peer} using channel {channel.name}")
-    # #     task = gevent.spawn(send_through_msg_bus())
-    # #     agent_package = os.path.basename(path)
-    # #     channel_name = channel.name
-    # # else:
-    # #     agent_package = agent
-    # #     channel_name = None
-    # # result = server.vip.__rpc__.call(peer, "install_agent", agent_package, channel_name, vip_identity,
-    # #                              publickey, secretkey, force, pre_release, agent_config)
-
-    # try:
-    #     if wheel_install:
-    #         result.rawlink(lambda glt: task.kill(block=False))
-    #         # Allows larger files to be sent across the message bus without
-    #         # raising an error.
-    #     gevent.wait([result], timeout=300)
-    # except gevent.Timeout:
-    #     print("Install agent timed out")
-    # except BaseException as e:
-    #     print("Install agent failed with exception: {e}")
-    # return result
-
-
-# def send_agent(connection, wheel_file, vip_identity, publickey, secretkey, force):
-
-#     #for wheel in opts.wheel:
-#     #uuid = _send_agent(connection.server, connection.peer, wheel_file).get()
-#     result = _send_agent(connection.server, connection.peer, wheel_file,
-#                          vip_identity, publickey, secretkey, force)
-
-#     _log.debug(f"Returning {result} from send_agent")
-#     return result
-
-
-def add_install_agent_parser(add_parser_fn):
     install = add_parser_fn(
         "install",
         help="install agent from wheel",
