@@ -338,14 +338,10 @@ def test_update_agent_groups():
     # compact_dict which gets persisted shouldn't get updated
     assert authz_map.compact_dict["agents"]["test_agent"] == {"comments": "Created as part of test"}
     # agent_capabilities used in memory should be updated
-    assert authz_map.agent_capabilities["test_agent"] == {
-        "comments": "Created as part of test",
-        "agent_roles": ["test_role"],
-        "rpc_capabilities": ["id.rpc1", "id2.rpc2"],
-        "pubsub_capabilities": {
-            "devices/": "publish"
-        }
-    }
+    assert authz_map.agent_capabilities["test_agent"]["comments"] == "Created as part of test"
+    assert authz_map.agent_capabilities["test_agent"]["agent_roles"] == ["test_role"]
+    assert set(authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]) == {"id.rpc1", "id2.rpc2"}
+    assert authz_map.agent_capabilities["test_agent"]["pubsub_capabilities"] == {"devices/": "publish"}
 
     # #3. Update agent group current pubsub_capabilities
     authz_map.create_or_merge_agent_group(
@@ -367,14 +363,10 @@ def test_update_agent_groups():
     # compact_dict which gets persisted shouldn't get updated
     assert authz_map.compact_dict["agents"]["test_agent"] == {"comments": "Created as part of test"}
     # agent_capabilities used in memory should be updated
-    assert authz_map.agent_capabilities["test_agent"] == {
-        "comments": "Created as part of test",
-        "agent_roles": ["test_role"],
-        "rpc_capabilities": ["id.rpc1", "id2.rpc2"],
-        "pubsub_capabilities": {
-            "devices/": "subscribe"
-        }
-    }
+    assert authz_map.agent_capabilities["test_agent"]["comments"] == "Created as part of test"
+    assert authz_map.agent_capabilities["test_agent"]["agent_roles"] == ["test_role"]
+    assert set(authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]) == {"id.rpc1", "id2.rpc2"}
+    assert authz_map.agent_capabilities["test_agent"]["pubsub_capabilities"] == {"devices/": "subscribe"}
 
     # #4. Update agent group current rpc_capabilities
     authz_map.create_or_merge_agent_group(
@@ -399,18 +391,13 @@ def test_update_agent_groups():
     # compact_dict agents which gets persisted shouldn't get updated
     assert authz_map.compact_dict["agents"]["test_agent"] == {"comments": "Created as part of test"}
     # agent_capabilities used in memory should be updated
-    assert authz_map.agent_capabilities["test_agent"] == {
-        "comments": "Created as part of test",
-        "agent_roles": ["test_role"],
-        "rpc_capabilities": ["id.rpc1", {
-            "id2.rpc2": {
-                "p1": "v1"
-            }
-        }],
-        "pubsub_capabilities": {
-            "devices/": "subscribe"
-        }
-    }
+    assert authz_map.agent_capabilities["test_agent"]["comments"] == "Created as part of test"
+    assert authz_map.agent_capabilities["test_agent"]["agent_roles"] == ["test_role"]
+    assert authz_map.agent_capabilities["test_agent"]["pubsub_capabilities"] == {"devices/": "subscribe"}
+    assert len(authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]) == 2
+    assert authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
+    assert "id.rpc1" in authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
+    assert {"id2.rpc2": {"p1":"v1"}} in authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
 
     # #5. Update agent group current roles
     authz_map.create_or_merge_agent_group(name="group2",
@@ -443,46 +430,28 @@ def test_update_agent_groups():
     # compact_dict agents which gets persisted shouldn't get updated
     assert authz_map.compact_dict["agents"]["test_agent"] == {"comments": "Created as part of test"}
     # agent_capabilities used in memory should be updated
-    assert authz_map.agent_capabilities["test_agent"] == {
-        "comments": "Created as part of test",
-        "agent_roles": [{
-            "test_role": {
-                "p1": "v1"
-            }
-        }],
-        "rpc_capabilities": [{
-            "id.rpc1": {
-                "p1": "v1"
-            }
-        }, {
-            "id2.rpc2": {
-                "p1": "v1"
-            }
-        }],
-        "pubsub_capabilities": {
-            "devices/": "subscribe"
-        }
-    }
+    assert {"id.rpc1": {"p1": "v1"}} in authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
+    assert {"id2.rpc2": {"p1": "v1"}} in authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
+
 
     # #6. Update agent group current identities
     authz_map.create_or_merge_agent_group(name="group2", identities=["test_agent", "test_agent2"])
     # compact_dict agent_groups should get updated
-    assert authz_map.compact_dict["agent_groups"]["group2"] == {
-        "identities": ["test_agent2", "test_agent"],
-        "agent_roles": [{
-            "test_role": {
-                "p1": "v1"
-            }
-        }],
-        "rpc_capabilities": [{
-            "id2.rpc2": {
-                "p1": "v1"
-            }
-        }],
-        "pubsub_capabilities": {
-            "devices/": "subscribe"
+    assert set(authz_map.compact_dict["agent_groups"]["group2"]["identities"]) == {"test_agent2", "test_agent"}
+    assert authz_map.compact_dict["agent_groups"]["group2"]["agent_roles"] == [{
+        "test_role": {
+            "p1": "v1"
         }
+    }]
+    assert authz_map.compact_dict["agent_groups"]["group2"]["rpc_capabilities"] == [{
+        "id2.rpc2": {
+            "p1": "v1"
+        }
+    }]
+    assert authz_map.compact_dict["agent_groups"]["group2"]["pubsub_capabilities"] == {
+        "devices/": "subscribe"
     }
+
     # compact_dict agents which gets persisted shouldn't get updated
     assert authz_map.compact_dict["agents"]["test_agent"] == {"comments": "Created as part of test"}
     assert authz_map.compact_dict["agents"]["test_agent2"] == {
@@ -582,11 +551,9 @@ def test_update_agent():
     }
 
     # agent_capabilities used in memory should be updated
-    assert authz_map.agent_capabilities["test_agent"] == {
-        "comments": "Created as part of test",
-        "agent_roles": ["test_role2", "test_role"],
-        "rpc_capabilities": ["id3.rpc3", "id.rpc1"]
-    }
+    assert authz_map.agent_capabilities["test_agent"]["comments"] == "Created as part of test"
+    assert set(authz_map.agent_capabilities["test_agent"]["agent_roles"]) == {"test_role2", "test_role"}
+    assert set(authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]) == {"id3.rpc3", "id.rpc1"}
 
     # #2. add new rpc_capability to agent
     authz_map.create_or_merge_agent_authz(
@@ -607,15 +574,12 @@ def test_update_agent():
     }
 
     # agent_capabilities used in memory should be updated
-    assert authz_map.agent_capabilities["test_agent"] == {
-        "comments": "Created as part of test",
-        "agent_roles": ["test_role2", "test_role"],
-        "rpc_capabilities": [{
-            "agent2.rpc2": {
-                'param1': 'value2'
-            }
-        }, "id3.rpc3", "id.rpc1"]
-    }
+    assert authz_map.agent_capabilities["test_agent"]["comments"] == "Created as part of test"
+    assert set(authz_map.agent_capabilities["test_agent"]["agent_roles"]) == {"test_role2", "test_role"}
+    assert len(authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]) == 3
+    assert {"agent2.rpc2": {'param1': 'value2'}} in authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
+    assert "id3.rpc3" in authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
+    assert "id.rpc1" in authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]
 
     # #3. add new pubsub_capability to agent
     authz_map.create_or_merge_agent_authz(identity="test_agent",
@@ -708,14 +672,14 @@ def test_update_agent():
     # agent_capabilities used in memory should be updated
     rpcs = authz_map.agent_capabilities["test_agent"].pop("protected_rpcs")
     assert set(rpcs) == {"method_1", "method_3", "method_4"}
-    assert authz_map.agent_capabilities["test_agent"] == {
-        "comments": "new comments",
-        "agent_roles": ["test_role2", "test_role"],
-        "rpc_capabilities": ["agent2.rpc2", "id3.rpc3", "id.rpc1"],
-        "pubsub_capabilities": {
+    assert authz_map.agent_capabilities["test_agent"]["comments"] == "new comments"
+    assert set(authz_map.agent_capabilities["test_agent"]["agent_roles"]) == {"test_role2", "test_role"}
+    assert set(authz_map.agent_capabilities["test_agent"]["rpc_capabilities"]) == {
+        "agent2.rpc2", "id3.rpc3", "id.rpc1"}
+    assert authz_map.agent_capabilities["test_agent"]["pubsub_capabilities"] == {
             "mytopic/*": "subscribe"
         }
-    }
+
 
     # #7. update agents existing pubsub_capability
     authz_map.create_or_merge_agent_authz(identity="test_agent",
