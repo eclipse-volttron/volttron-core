@@ -438,7 +438,7 @@ class VolttronAuthzMap:
         agents = list()
         for identity, value in input_dict.get(AGENTS, dict()).items():
             protected_rpcs = value.get("protected_rpcs", list())
-            role_names = value.get(ROLES, list())
+            role_names = value.get('agent_roles', list())
             rpc_obj_list = VolttronAuthzMap.create_rpc_capabilities_obj(
                 value.get(RPC_CAPABILITIES))
             pubsub_obj_list = VolttronAuthzMap.create_pubsub_capabilities_obj(
@@ -592,7 +592,7 @@ class VolttronAuthzMap:
 
     @classmethod
     def update_agent_roles(cls, authz_dict: dict, new_roles: list):
-        cls.update_rpc_capabilities_or_roles(authz_dict, new_roles, ROLES)
+        cls.update_rpc_capabilities_or_roles(authz_dict, new_roles, 'agent_roles')
 
     @classmethod
     def update_pubsub_capabilities(cls, authz_dict, new_pubsub_caps):
