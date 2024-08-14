@@ -592,7 +592,7 @@ class VolttronAuthzMap:
 
     @classmethod
     def update_agent_roles(cls, authz_dict: dict, new_roles: list):
-        cls.update_rpc_capabilities_or_roles(authz_dict, new_roles, ROLES)
+        cls.update_rpc_capabilities_or_roles(authz_dict, new_roles, 'agent_roles')
 
     @classmethod
     def update_pubsub_capabilities(cls, authz_dict, new_pubsub_caps):
