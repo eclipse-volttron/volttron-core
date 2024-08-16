@@ -143,7 +143,7 @@ def setup_poetry_project(volttron_home):
     # now do multiple piped commands
     pip_cmd = ["pip", "list", "--format", "freeze"]
     # Second command
-    grep_cmd = ["grep", "-v", "volttron"]
+    grep_cmd = ["grep", "-v", "volttron=="]
     # Third command
     poetry_cmd = ["xargs", "poetry", "add", "--directory", volttron_home.as_posix()]
     # Execute the first command
