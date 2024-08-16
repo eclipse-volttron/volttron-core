@@ -29,7 +29,7 @@ from volttron.server.serviceloader import init_services
 
 monkey.patch_socket()
 monkey.patch_ssl()
-
+import subprocess
 import argparse
 import importlib
 import logging
@@ -136,15 +136,36 @@ def setup_poetry_project(volttron_home):
     toml = os.path.join(volttron_home, "pyproject.toml")
     if not os.path.isfile(toml):
         cmd = [
-            sys.executable, "-m", "poetry", "init", "--directory", volttron_home, "--name",
+            "poetry", "init", "--directory", volttron_home.as_posix(), "--name",
             "volttron", "--author", "volttron <volttron@pnnl.gov>", "--quiet"
         ]
         execute_command(cmd)
-    cmd = [
-        sys.executable, "-m", "pip", "list", "--format", "freeze", "|", "grep", "-v", "volttron==",
-        "|", "xargs", "poetry", "add", "--directory", volttron_home
-    ]
-    execute_command(cmd)
+    # now do multiple piped commands
+    pip_cmd = ["pip", "list", "--format", "freeze"]
+    # Second command
+    grep_cmd = ["grep", "-v", "volttron"]
+    # Third command
+    poetry_cmd = ["xargs", "poetry", "add", "--directory", volttron_home.as_posix()]
+    # Execute the first command
+    p1 = subprocess.Popen(pip_cmd, stdout=subprocess.PIPE)
+
+    # Execute the second command, with stdin from the first command's stdout
+    p2 = subprocess.Popen(grep_cmd, stdin=p1.stdout, stdout=subprocess.PIPE)
+    p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
+
+    # Execute the third command, with stdin from the second command's stdout
+    p3 = subprocess.Popen(poetry_cmd, stdin=p2.stdout)
+    p2.stdout.close()  # Allow p2 to receive a SIGPIPE if p3 exits.
+
+    # Wait for the last command to finish
+    stdout, stderr = p3.communicate()
+
+    if p3.returncode != 0:
+        err_msg = (f"Unable to update pyproject.toml in {volttron_home.as_posix()} with venv's current list of libs\n"
+                   f"Command '{poetry_cmd}' failed with return code {p3.returncode} \n"
+                   f"stdout: {stdout} \n"
+                   f"stderr: {stderr}")
+        raise RuntimeError(err_msg)
 
 
 def start_volttron_process(options: ServerOptions):
