@@ -46,6 +46,7 @@ from attrs import define
 from volttron.client.commands.connection import ControlConnection
 from volttron.client.commands.rpc_parser import add_rpc_agent_parser
 from volttron.client.commands.auth_parser import add_auth_parser
+from volttron.client.commands.authz_parser import add_authz_parser
 from volttron.client.commands.config_store_parser import add_config_store_parser
 from volttron.client.commands.install_agents import add_install_agent_parser
 from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
@@ -120,7 +121,7 @@ class AgentMeta:
                 return f"{self.name} {self.uuid} {self.identity} {self.agent_user} {self.tag}"
 
     def __str__(self):
-        return f"{self.name} {self.tag} {self.uuid} {self.vip_identity} {self.agent_user}"
+        return f"{self.name} {self.tag} {self.uuid} {self.identity} {self.agent_user}"
 
 
 def expandall(string):
@@ -272,11 +273,13 @@ def remove_agent(opts, remove_auth=True):
             opts.connection.call("remove_agent", agent.uuid, remove_auth=remove_auth)
 
 
-def _calc_min_uuid_length(agents):
+def _calc_min_uuid_length(agents: list[AgentMeta]):
     n = 0
     for agent1 in agents:
         for agent2 in agents:
             if agent1 is agent2:
+                continue
+            if isinstance(agent2, str) or isinstance(agent1, str):
                 continue
             common_len = len(os.path.commonprefix([agent1.uuid, agent2.uuid]))
             if common_len > n:
@@ -631,13 +634,14 @@ def status_agents(opts):
             agent_user = ""
         try:
             agent = all_agents[uuid]
-            all_agents[uuid] = agent._replace(agent_user=agent_user)
+            print(f"Agent user is {agent_user}")
+            print(f"agent is {agent}")
+            all_agents[uuid] = agent
         except KeyError:
-            all_agents[uuid] = agent = AgentMeta(name,
-                                                 None,
-                                                 uuid,
-                                                 vip_identity=identity,
-                                                 agent_user=agent_user)
+            all_agents[uuid] = AgentMeta(name=name,
+                                         uuid=uuid,
+                                         identity=identity,
+                                         agent_user=agent_user)
         status[uuid] = stat
     all_agents = list(all_agents.values())
 
@@ -2259,6 +2263,11 @@ def main():
     top_level_subparsers = parser.add_subparsers(title="commands", metavar="", dest="command")
 
     def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
+        """Generic method for adding parents and subparsers to the argument parser.
+
+        :return: A reference to the created parser.
+        :rtype: argparse.ArgumentParser
+        """
         parents = kwargs.get("parents", [])
         parents.append(global_args)
         kwargs["parents"] = parents
@@ -2268,6 +2277,7 @@ def main():
     add_install_agent_parser(add_parser)
     add_rpc_agent_parser(add_parser)
     add_auth_parser(add_parser, filterable=filterable)
+    add_authz_parser(add_parser, filterable=filterable)
     add_config_store_parser(add_parser)
     tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
