@@ -213,6 +213,7 @@ class RPC(SubsystemBase):
             # pylint: disable=unused-argument
             self.context = gevent.local.local()
             self._dispatcher = Dispatcher(self._exports, self.context)
+            self.export(self._add_protected_rpcs, "rpc.add_protected_rpcs")
 
         core.onsetup.connect(setup, self)
         core.ondisconnected.connect(self._disconnected)
@@ -276,24 +277,38 @@ class RPC(SubsystemBase):
 
         return checked_method
 
-    def _iterate_exports(self):
+    def _wrap_protected_rpcs(self, protected_rpcs):
         """
         Iterates over exported methods and adds authorization checks
         for protected methods
         """
-        if self._owner.core.identity in [AUTH, CONTROL, CONTROL_CONNECTION]:
-            return
-        print(f"calling auth for {self._owner.core.identity}")
-        self._protected_rpcs = self.call(AUTH,
-                                        "get_protected_rpcs",
-                                        self._owner.core.identity
-                                        ).get(timeout=10)
-        print(f"protected rpcs for {self._owner.core.identity} is {self._protected_rpcs}")
-        if self._protected_rpcs:
+        if protected_rpcs:
             for method_name in self._exports:
-                if method_name in self._protected_rpcs:
+                if method_name in protected_rpcs:
                     self._exports[method_name] = self._add_auth_check(self._exports[method_name])
                     print(f"Added auth check for method {method_name}")
+
+    def _add_protected_rpcs(self, updated_list: list[str]):
+        if not self._protected_rpcs:
+            # nothing was there before so set variable and update all
+            self._protected_rpcs = updated_list
+            self._wrap_protected_rpcs(self._protected_rpcs)
+        else:
+            newly_protected = set(updated_list) - set(self._protected_rpcs)
+            self._wrap_protected_rpcs(newly_protected)
+
+    def _remove_protected_rpcs(self, remove_list: list[str]):
+        if self._protected_rpcs is None:
+            self._protected_rpcs = self.get_protected_rpcs()
+        if self._protected_rpcs:
+            for r in remove_list:
+                if r in self._protected_rpcs:
+                    method = getattr(self._owner, r, None)
+                    # Verify the retrieved method object
+                    if method and inspect.ismethod(method):
+                        self._exports[r] = method
+                    else:
+                        raise ValueError(f"Method '{r}' not found in the instance or is not a method.")
 
     @spawn
     def _handle_external_rpc_subsystem(self, message):
@@ -419,10 +434,11 @@ class RPC(SubsystemBase):
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
-        if self._protected_rpcs is None:
-            # First call
-            if peer not in [AUTH, CONTROL_CONNECTION, CONTROL]:
-                self._iterate_exports()
+        if self._protected_rpcs is None and peer not in [AUTH, CONTROL_CONNECTION, CONTROL]:
+            # first rpc call
+            # TODO: can this be done on onconnect? or on some other event
+            self._protected_rpcs = self.get_protected_rpcs()
+            self._wrap_protected_rpcs(self._protected_rpcs)
         self_ref = kwargs.pop("self", None)
         platform = kwargs.pop("external_platform", "")
         request, result = self._dispatcher.call(method, args, kwargs)
@@ -459,6 +475,13 @@ class RPC(SubsystemBase):
                 _log.debug("Socket send on non-socket %r", self.core().identity)
 
         return result
+
+    def get_protected_rpcs(self):
+        print(f"calling auth for {self._owner.core.identity}")
+        return self.call(AUTH,
+                         "get_protected_rpcs",
+                         self._owner.core.identity
+                         ).get(timeout=10)
 
     __call__ = call
 
