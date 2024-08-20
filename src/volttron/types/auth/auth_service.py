@@ -44,6 +44,10 @@ class Authenticator(ABC):
 class AuthorizationManager:
 
     @abstractmethod
+    def get_protected_rpcs(self, identity: authz.Identity) -> list[str]:
+        ...
+    
+    @abstractmethod
     def check_rpc_authorization(self, *, identity: authz.Identity, method_name: authz.vipid_dot_rpc_method,
                                 method_args: dict, **kwargs) -> bool:
         ...
@@ -142,6 +146,13 @@ class AuthService(Service):
         ...
 
     # Authorization
+
+    @abstractmethod
+    def get_protected_rpcs(self, identity:authz.Identity) -> list[str]:
+        """
+        returns list of protected methods for a given identity
+        """
+        ...
 
     @abstractmethod
     def check_rpc_authorization(self, *, identity: authz.Identity, method_name: authz.vipid_dot_rpc_method,

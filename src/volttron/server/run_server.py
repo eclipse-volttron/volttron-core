@@ -336,7 +336,7 @@ def start_volttron_process(options: ServerOptions):
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
 
-        auth_service: AuthService | None = None
+        auth_service = None
         if options.auth_enabled:
             from volttron.types.auth import Authenticator
             from volttron.types.auth.auth_service import AuthService
@@ -351,23 +351,21 @@ def start_volttron_process(options: ServerOptions):
             authenticator = service_repo.resolve(Authenticator)
             auth_service = service_repo.resolve(AuthService)
 
-        # first service loaded must be the config store
-        # config_store = service_configs.get_service_instance("volttron.services.config_store")
-        config_store = service_repo.resolve(ConfigStoreService)
-
-        # start it up before anything else
-        event = gevent.event.Event()
-        task = gevent.spawn(config_store.core.run, event)
-        event.wait()
-        del event
-        spawned_greenlets.append(task)
-
+        # First load auth_service so that config_store can use
+        # auth service to wrap protected_rpcs
         if auth_service is not None:
             event = gevent.event.Event()
             task = gevent.spawn(auth_service.core.run, event)
             event.wait()
             del event
             spawned_greenlets.append(task)
+
+        config_store = service_repo.resolve(ConfigStoreService)
+        event = gevent.event.Event()
+        task = gevent.spawn(config_store.core.run, event)
+        event.wait()
+        del event
+        spawned_greenlets.append(task)
 
         from volttron.server.decorators import get_messagebus_class
         MessageBusClass = get_messagebus_class()
@@ -495,7 +493,6 @@ def start_volttron_process(options: ServerOptions):
     except Exception as e:
         _log.error(e)
         import traceback
-
         _log.error(traceback.print_exc())
     finally:
         _log.debug("AIP finally")
