@@ -747,6 +747,12 @@ class VolttronAuthzMap:
                                                    roles=self.compact_dict.get(ROLES))
         return True
 
+    def get_protected_rpcs(self, identity) -> list[str]:
+        id_authz = self.agent_capabilities.get(identity)
+        if not id_authz:
+            raise ValueError(f"Invalid agent identity {identity}")
+        return id_authz.get("protected_rpcs", [])
+
     def create_protected_topic(self, *, topic_name_pattern: str) -> bool:
         _topics = self.compact_dict.get("protected_topics", [])
         if topic_name_pattern in _topics:

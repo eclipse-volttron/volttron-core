@@ -35,10 +35,8 @@ from gevent.event import AsyncResult
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
 
-#from volttron.auth.auth_exception import AuthException
 from volttron.utils import jsonapi, jsonrpc
-from volttron.client.known_identities import AUTH
-from volttron.types.auth import AuthException
+from volttron.client.known_identities import AUTH, CONTROL, CONTROL_CONNECTION
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..results import ResultsDictionary, counter
 from .base import SubsystemBase
@@ -203,6 +201,7 @@ class RPC(SubsystemBase):
         self._isconnected = True
         self.peerlist_subsystem = peerlist_subsys
         self.peer_list = {}
+        self._protected_rpcs = None
 
         def export(member):    # pylint: disable=redefined-outer-name
             for name in annotations(member, set, "__rpc__.exports"):
@@ -214,10 +213,12 @@ class RPC(SubsystemBase):
             # pylint: disable=unused-argument
             self.context = gevent.local.local()
             self._dispatcher = Dispatcher(self._exports, self.context)
+            self.export(self._add_protected_rpcs, "rpc.add_protected_rpcs")
 
         core.onsetup.connect(setup, self)
         core.ondisconnected.connect(self._disconnected)
         core.onconnected.connect(self._connected)
+
 
     def _connected(self, sender, **kwargs):
         self._isconnected = True
@@ -244,31 +245,23 @@ class RPC(SubsystemBase):
         except KeyError:
             pass
 
-    # def _iterate_exports(self):
-    #     """
-    #     Iterates over exported methods and adds authorization checks
-    #     as necessary
-    #     """
-    #     for method_name in self._exports:
-    #         method = self._exports[method_name]
-    #         caps = annotations(method, set, "__rpc__.allow_capabilities")
-    #         if caps:
-    #             self._exports[method_name] = self._add_auth_check(method, caps)
-
-    def _add_auth_check(self, method: str):
+    def _add_auth_check(self, method):
         """
         Adds an authorization check to verify the calling agent has the
         required capabilities.
         """
-
         def checked_method(*args, **kwargs):
             calling_user = str(self.context.vip_message.user)
             method_name = method.__name__
-            args_dict = inspect.getcallargs(method, *args, **kwargs)
-
+            #args_dict = inspect.getcallargs(method, *args, **kwargs)
+            signature = inspect.signature(method)
+            bound_args = signature.bind(*args, **kwargs)
+            bound_args.apply_defaults()
+            args_dict = bound_args.arguments
             # Remove self from args_dict if it exists to avoid sending the entire object across.
             # Fixes Issue https://github.com/eclipse-volttron/volttron-core/issues/198
             remove_self = args_dict.pop("self", None)
+            from volttron.types.auth import AuthException
             try:
                 self.call(AUTH,
                           "check_rpc_authorization",
@@ -280,61 +273,42 @@ class RPC(SubsystemBase):
                 #        "was provided for user {}").format(method.__name__, required_caps,
                 #                                           user_capabilites, user)
                 raise jsonrpc.exception_from_json(jsonrpc.UNAUTHORIZED, e.args)
-                # Now check if args passed to method are the ones allowed.
-
-                for cap_name, param_dict in user_capabilites.items():
-                    if (param_dict and required_caps and cap_name in required_caps):
-                        # if the method has required capabilities and
-                        # if the user capability has argument restrictions,
-                        # check if the args passed to method match the
-                        # requirement
-                        _log.debug("args = {} kwargs= {}".format(args, kwargs))
-                        args_dict = inspect.getcallargs(method, *args, **kwargs)
-                        _log.debug("dict = {}".format(args_dict))
-                        _log.debug("name= %r parameters allowed=%r", cap_name, param_dict)
-                        for name, value in param_dict.items():
-                            _log.debug("name= {} value={}".format(name, value))
-                            if name not in args_dict:
-                                raise jsonrpc.exception_from_json(
-                                    jsonrpc.UNAUTHORIZED,
-                                    "User {} capability is not defined "
-                                    "properly. method {} does not have "
-                                    "a parameter {}".format(user, method.__name__, name),
-                                )
-                            if _isregex(value):
-                                regex = re.compile("^" + value[1:-1] + "$")
-                                if not regex.match(args_dict[name]):
-                                    raise jsonrpc.exception_from_json(
-                                        jsonrpc.UNAUTHORIZED,
-                                        "User {} can call method {} only "
-                                        "with {} matching pattern {} but "
-                                        "called with {}={}".format(
-                                            user,
-                                            method.__name__,
-                                            name,
-                                            value,
-                                            name,
-                                            args_dict[name],
-                                        ),
-                                    )
-                            elif args_dict[name] != value:
-                                raise jsonrpc.exception_from_json(
-                                    jsonrpc.UNAUTHORIZED,
-                                    "User {} can call method {} only "
-                                    "with {}={} but called with "
-                                    "{}={}".format(
-                                        user,
-                                        method.__name__,
-                                        name,
-                                        value,
-                                        name,
-                                        args_dict[name],
-                                    ),
-                                )
-
             return method(*args, **kwargs)
 
         return checked_method
+
+    def _wrap_protected_rpcs(self, protected_rpcs):
+        """
+        Iterates over exported methods and adds authorization checks
+        for protected methods
+        """
+        if protected_rpcs:
+            for method_name in self._exports:
+                if method_name in protected_rpcs:
+                    self._exports[method_name] = self._add_auth_check(self._exports[method_name])
+                    print(f"Added auth check for method {method_name}")
+
+    def _add_protected_rpcs(self, updated_list: list[str]):
+        if not self._protected_rpcs:
+            # nothing was there before so set variable and update all
+            self._protected_rpcs = updated_list
+            self._wrap_protected_rpcs(self._protected_rpcs)
+        else:
+            newly_protected = set(updated_list) - set(self._protected_rpcs)
+            self._wrap_protected_rpcs(newly_protected)
+
+    def _remove_protected_rpcs(self, remove_list: list[str]):
+        if self._protected_rpcs is None:
+            self._protected_rpcs = self.get_protected_rpcs()
+        if self._protected_rpcs:
+            for r in remove_list:
+                if r in self._protected_rpcs:
+                    method = getattr(self._owner, r, None)
+                    # Verify the retrieved method object
+                    if method and inspect.ismethod(method):
+                        self._exports[r] = method
+                    else:
+                        raise ValueError(f"Method '{r}' not found in the instance or is not a method.")
 
     @spawn
     def _handle_external_rpc_subsystem(self, message):
@@ -460,6 +434,11 @@ class RPC(SubsystemBase):
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
+        if self._protected_rpcs is None and peer not in [AUTH, CONTROL_CONNECTION, CONTROL]:
+            # first rpc call
+            # TODO: can this be done on onconnect? or on some other event
+            self._protected_rpcs = self.get_protected_rpcs()
+            self._wrap_protected_rpcs(self._protected_rpcs)
         self_ref = kwargs.pop("self", None)
         platform = kwargs.pop("external_platform", "")
         request, result = self._dispatcher.call(method, args, kwargs)
@@ -497,6 +476,13 @@ class RPC(SubsystemBase):
 
         return result
 
+    def get_protected_rpcs(self):
+        print(f"calling auth for {self._owner.core.identity}")
+        return self.call(AUTH,
+                         "get_protected_rpcs",
+                         self._owner.core.identity
+                         ).get(timeout=10)
+
     __call__ = call
 
     def notify(self, peer, method, *args, **kwargs):
@@ -529,46 +515,3 @@ class RPC(SubsystemBase):
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.debug("Socket send on non-socket %r", self.core().identity)
-
-    # @dualmethod
-    # def allow(self, method, capabilities):
-    #     if isinstance(capabilities, str):
-    #         cap = set([capabilities])
-    #     else:
-    #         cap = set(capabilities)
-    #     # Necessary if you have provided an alias for the __rpc__ method.
-    #     if isinstance(method, str):
-    #         if method in self._exports:
-    #             self._exports[method] = self._add_auth_check(self._exports[method], cap)
-    #         else:
-    #             _log.error("Method alias is not in RPC export list.")
-    #     else:
-    #         self._exports[method.__name__] = self._add_auth_check(method, cap)
-    #
-    # @allow.classmethod
-    # def allow(cls, capabilities):
-    #     """
-    #     Decorator specifies required agent capabilities to call a method.
-    #
-    #     This is designed to be used with the export decorator:
-    #
-    #     .. code-block:: python
-    #
-    #         @RPC.export
-    #         def get_status():
-    #             ...
-    #
-    #     Multiple capabilities can be provided in a list:
-    #     .. code-block:: python
-    #
-    #     """
-    #
-    #     def decorate(method):
-    #         if isinstance(capabilities, str):
-    #             annotate(method, set, "__rpc__.allow_capabilities", capabilities)
-    #         else:
-    #             for cap in capabilities:
-    #                 annotate(method, set, "__rpc__.allow_capabilities", cap)
-    #         return method
-    #
-    #     return decorate
