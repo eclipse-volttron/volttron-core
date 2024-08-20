@@ -10,6 +10,8 @@ from volttron.types import Service, Identity
 import volttron.types.auth.authz_types as authz
 
 
+# TODO Make AuthorizationManager the Authorizer.
+#  Below is not used
 class Authorizer(ABC):
     pass
     # @abstractmethod
@@ -94,7 +96,7 @@ class AuthorizationManager:
         ...
 
     @abstractmethod
-    def get_user_capabilities(self, *, identity: str) -> dict:
+    def get_agent_capabilities(self, *, identity: str) -> dict:
         ...
 
     @abstractmethod
@@ -122,11 +124,11 @@ class AuthService(Service):
 
     # Authentication
     @abstractmethod
-    def create_user(self, *, identity: str, **kwargs) -> bool:
+    def create_agent(self, *, identity: str, **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def remove_user(self, *, identity: str, **kwargs) -> bool:
+    def remove_agent(self, *, identity: str, **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -157,7 +159,7 @@ class AuthService(Service):
     @abstractmethod
     def check_rpc_authorization(self, *, identity: authz.Identity, method_name: authz.vipid_dot_rpc_method,
                                 method_args: dict, **kwargs) -> bool:
-        """ should throw AuthException is calling user(identity) is not authorized to access the
+        """ should throw AuthException is calling agent(identity) is not authorized to access the
             method_name(vip_id.rpc_method) with the specific arguments method_args"""
         ...
 
@@ -175,7 +177,7 @@ class AuthService(Service):
     def create_or_merge_agent_group(self,
                                     *,
                                     name: str,
-                                    users: set[authz.Identity],
+                                    identities: set[authz.Identity],
                                     roles: Optional[authz.AgentRoles] = None,
                                     rpc_capabilities: Optional[authz.RPCCapabilities] = None,
                                     pubsub_capabilities: Optional[authz.PubsubCapabilities] = None,
@@ -203,7 +205,7 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def get_user_capabilities(self, *, identity: str) -> dict:
+    def get_agent_capabilities(self, *, identity: str) -> dict:
         ...
 
     @abstractmethod

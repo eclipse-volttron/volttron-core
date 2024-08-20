@@ -567,7 +567,7 @@ class AIPplatform:
 
             # will reuse credentials and capabilities if already exists.
             # Else will create new creds and default capabilities
-            self._auth_service.create_user(identity=final_identity)
+            self._auth_service.create_agent(identity=final_identity)
 
             # if self.message_bus == "rmq":
             #     rmq_user = cc.get_fq_identity(final_identity, cc.get_instance_name())
@@ -905,7 +905,7 @@ class AIPplatform:
                 _log.warning("Volttron agent user not found at {}".format(user_id_path))
                 _log.warning(user_id_err)
         if remove_auth:
-            self._auth_service.remove_user(identity=vip_identity)
+            self._auth_service.remove_agent(identity=vip_identity)
         shutil.rmtree(agent_directory)
         if volttron_agent_user:
             self.remove_agent_user(volttron_agent_user)
