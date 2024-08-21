@@ -219,7 +219,6 @@ class RPC(SubsystemBase):
         core.ondisconnected.connect(self._disconnected)
         core.onconnected.connect(self._connected)
 
-
     def _connected(self, sender, **kwargs):
         self._isconnected = True
         # Registering to 'onadd' and 'ondrop' signals to get notified
@@ -250,9 +249,13 @@ class RPC(SubsystemBase):
         Adds an authorization check to verify the calling agent has the
         required capabilities.
         """
+
         def checked_method(*args, **kwargs):
             calling_user = str(self.context.vip_message.user)
-            method_name = method.__name__
+            #method_name = method.__name__
+            # method.__name__ will give actual method name, but we want the alias used to export this method
+            # ex: export("actual_method_name", "alias_exported_which_will_be_used_by_caller")
+            method_name = self.context.vip_message.args[0]['method']
             #args_dict = inspect.getcallargs(method, *args, **kwargs)
             signature = inspect.signature(method)
             bound_args = signature.bind(*args, **kwargs)
@@ -308,7 +311,8 @@ class RPC(SubsystemBase):
                     if method and inspect.ismethod(method):
                         self._exports[r] = method
                     else:
-                        raise ValueError(f"Method '{r}' not found in the instance or is not a method.")
+                        raise ValueError(
+                            f"Method '{r}' not found in the instance or is not a method.")
 
     @spawn
     def _handle_external_rpc_subsystem(self, message):
@@ -478,10 +482,7 @@ class RPC(SubsystemBase):
 
     def get_protected_rpcs(self):
         print(f"calling auth for {self._owner.core.identity}")
-        return self.call(AUTH,
-                         "get_protected_rpcs",
-                         self._owner.core.identity
-                         ).get(timeout=10)
+        return self.call(AUTH, "get_protected_rpcs", self._owner.core.identity).get(timeout=10)
 
     __call__ = call
 
