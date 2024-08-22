@@ -1,8 +1,8 @@
 {
   "protected_topics": [
     "listener/stats",
-    "devices/*",
-    "historian_stats/*"
+    "/devices/*/",
+    "/historian_stats/*/"
   ],
   "roles": {
     "edit_config_store": {
@@ -14,10 +14,10 @@
     },
     "admin": {
       "rpc_capabilities": [
-        "*.*"
+        "/.*/"
       ],
       "pubsub_capabilities": {
-        "*": "pubsub"
+        "/.*/": "pubsub"
       }
     },
     "test": {
