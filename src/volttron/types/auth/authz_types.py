@@ -753,22 +753,30 @@ class VolttronAuthzMap:
             raise ValueError(f"Invalid agent identity {identity}")
         return id_authz.get("protected_rpcs", [])
 
-    def create_protected_topic(self, *, topic_name_pattern: str) -> bool:
+    def create_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
         _topics = self.compact_dict.get("protected_topics", [])
-        if topic_name_pattern in _topics:
-            return False
-        else:
-            _topics.append(topic_name_pattern)
+        if not _topics:
+            self.compact_dict["protected_topics"] = topic_name_patterns
             return True
 
-    def remove_protected_topic(self, *, topic_name_pattern: str) -> bool:
-        if not self.compact_dict.get("protected_topics"):
+        return_value = False
+        for topic_name_pattern in topic_name_patterns:
+            if topic_name_pattern not in _topics:
+               _topics.append(topic_name_pattern)
+               return_value = True
+        return return_value
+
+    def remove_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
+        _topics = self.compact_dict.get("protected_topics")
+        if not _topics:
             return False
-        try:
-            self.compact_dict.get("protected_topics").remove(topic_name_pattern)
-            return True
-        except KeyError:
-            return False
+
+        return_value = False
+        for topic_name_pattern in topic_name_patterns:
+            if topic_name_pattern in _topics:
+                _topics.remove(topic_name_pattern)
+                return_value = True
+        return return_value
 
     def remove_agent_authorization(self, identity: Identity):
         if not self.compact_dict.get(AGENTS) or identity not in self.compact_dict.get(AGENTS):
