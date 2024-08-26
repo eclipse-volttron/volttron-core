@@ -100,11 +100,11 @@ class AuthorizationManager:
         ...
 
     @abstractmethod
-    def create_protected_topic(self, *, topic_name_pattern: str) -> bool:
+    def create_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
         ...
 
     @abstractmethod
-    def remove_protected_topic(self, *, topic_name_pattern: str) -> bool:
+    def remove_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
         ...
 
     @abstractmethod
@@ -223,11 +223,11 @@ class AuthService(Service):
     #     ...
 
     @abstractmethod
-    def create_protected_topic(self, *, topic_name_pattern: str) -> bool:
+    def create_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
         ...
 
     @abstractmethod
-    def remove_protected_topic(self, *, topic_name_patter: str) -> bool:
+    def remove_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
         ...
 
     @abstractmethod
