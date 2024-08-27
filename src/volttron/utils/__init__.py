@@ -156,7 +156,7 @@ def update_kwargs_with_config(kwargs, config):
 
 
 __all__: List[str] = [
-    "update_kwargs_with_config", "load_config", "parse_json_config", "get_hostname", "strip_comments", "setup_logging",
+    "update_kwargs_with_config", "load_config", "parse_json_config", "get_hostname", "strip_comments", "is_regex",
     "is_valid_identity", "isapipe", "is_volttron_running", "create_file_if_missing", "wait_for_volttron_shutdown",
     "process_timestamp", "parse_timestamp_string", "execute_command", "get_version", "get_aware_utc_now",
     "get_utc_seconds_from_epoch", "get_address", "wait_for_volttron_startup", "normalize_identity", "ClientContext",

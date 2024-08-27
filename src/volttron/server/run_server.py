@@ -24,9 +24,6 @@
 
 from gevent import monkey
 
-# monkey.patch_all()
-from volttron.server.serviceloader import init_services
-
 monkey.patch_socket()
 monkey.patch_ssl()
 import subprocess
@@ -38,25 +35,18 @@ import os
 import resource
 import stat
 import sys
-import threading
 from logging import handlers
 from pathlib import Path
-from urllib.parse import urlparse
 
 import gevent
 
-from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, CONTROL,
-                                              CONTROL_CONNECTION)
 from volttron.server import aip
 from volttron.server import server_argparser as config
 from volttron.server.containers import service_repo
 from volttron.server.logs import (LogLevelAction, configure_logging, log_to_file)
 from volttron.server.server_options import ServerOptions
 from volttron.server.tracking import Tracker
-from volttron.types.auth.auth_service import AuthService
-from volttron.types.events import volttron_home_set_evnt
 from volttron.types.peer import ServicePeerNotifier
-from volttron.types.server_config import ServerConfig, ServiceConfigs
 from volttron.utils import ClientContext as cc, execute_command
 from volttron.utils import (get_version, store_message_bus_config)
 from volttron.utils.persistance import load_create_store
@@ -65,10 +55,6 @@ _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__"
 
 # No need for str after python 3.8
 VOLTTRON_INSTANCES = Path("~/.volttron_instances").expanduser().resolve()
-
-
-def load_messagebus_module(slug: str):
-    importlib.import_module(f"volttron.messagebus.{slug}")
 
 
 def run_server():
@@ -89,8 +75,7 @@ def run_server():
     volttron_home_set_evnt.send(run_server)
 
     if volttron_home.joinpath("config").exists():
-        service_repo.add_instance(ServerOptions,
-                                  ServerOptions(config_file=volttron_home.joinpath("config")))
+        service_repo.add_instance(ServerOptions, ServerOptions(config_file=volttron_home.joinpath("config")))
     else:
         service_repo.add_instance(ServerOptions, ServerOptions(volttron_home=volttron_home))
 
@@ -108,7 +93,6 @@ def run_server():
         # command line args get preference over same args in config file
         args = args + ["--config", conf]
 
-    # logging.getLogger().setLevel(logging.NOTSET)
     opts = parser.parse_args(args)
 
     # Handle the fact that we don't use store_true and config that requires
@@ -123,9 +107,8 @@ def run_server():
     # create poetry project and poetry lock file in VOLTTRON_HOME
     if dev_mode:
         if not os.path.isfile(server_options.poetry_project_path / "pyproject.toml"):
-            raise ValueError(
-                "VOLTTRON is run with --dev but unable to fund pyproject.toml is current directory - "
-                f"{server_options.poetry_project_path}")
+            raise ValueError("VOLTTRON is run with --dev but unable to fund pyproject.toml is current directory - "
+                             f"{server_options.poetry_project_path}")
     else:
         setup_poetry_project(server_options.poetry_project_path)
 
@@ -136,8 +119,8 @@ def setup_poetry_project(volttron_home):
     toml = os.path.join(volttron_home, "pyproject.toml")
     if not os.path.isfile(toml):
         cmd = [
-            "poetry", "init", "--directory", volttron_home.as_posix(), "--name",
-            "volttron", "--author", "volttron <volttron@pnnl.gov>", "--quiet"
+            "poetry", "init", "--directory",
+            volttron_home.as_posix(), "--name", "volttron", "--author", "volttron <volttron@pnnl.gov>", "--quiet"
         ]
         execute_command(cmd)
     # now do multiple piped commands
@@ -151,11 +134,11 @@ def setup_poetry_project(volttron_home):
 
     # Execute the second command, with stdin from the first command's stdout
     p2 = subprocess.Popen(grep_cmd, stdin=p1.stdout, stdout=subprocess.PIPE)
-    p1.stdout.close()  # Allow p1 to receive a SIGPIPE if p2 exits.
+    p1.stdout.close()    # Allow p1 to receive a SIGPIPE if p2 exits.
 
     # Execute the third command, with stdin from the second command's stdout
     p3 = subprocess.Popen(poetry_cmd, stdin=p2.stdout)
-    p2.stdout.close()  # Allow p2 to receive a SIGPIPE if p3 exits.
+    p2.stdout.close()    # Allow p2 to receive a SIGPIPE if p3 exits.
 
     # Wait for the last command to finish
     stdout, stderr = p3.communicate()
@@ -266,28 +249,16 @@ def start_volttron_process(options: ServerOptions):
     aip_platform = service_repo.resolve(aip.AIPplatform)
     aip_platform.setup()
     opts.aip = aip_platform
-    # opts.aip = aip.AIPplatform(opts)
-    # opts.aip.setup()
 
     # Check for secure mode/permissions on VOLTTRON_HOME directory
     mode = os.stat(opts.volttron_home).st_mode
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning("insecure mode on directory: %s", opts.volttron_home)
-    # # Get or generate encryption key
-    # keystore = KeyStore()
-    # _log.debug("using key-store file %s", keystore.filename)
-    # if not keystore.isvalid():
-    #     _log.warning("key store is invalid; connections may fail")
-    # st = os.stat(keystore.filename)
-    # if st.st_mode & (stat.S_IRWXG | stat.S_IRWXO):
-    #     _log.warning("insecure mode on key file")
 
     tracker = Tracker()
-    protected_topics_file = os.path.join(opts.volttron_home, "protected_topics.json")
-    _log.debug("protected topics file %s", protected_topics_file)
     external_address_file = os.path.join(opts.volttron_home, "external_address.json")
     _log.debug("external_address_file file %s", external_address_file)
-    protected_topics = {}
+
     if opts.agent_monitor_frequency:
         try:
             int(opts.agent_monitor_frequency)
@@ -316,43 +287,9 @@ def start_volttron_process(options: ServerOptions):
         from volttron.types.known_host import \
             KnownHostProperties as known_host_properties
 
-        # server_config = ServerConfig()
-        # server_config.opts = opts
-        # server_config.internal_address = address
-        # server_config.aip = opts.aip
-        # server_config.auth_file = Path(opts.volttron_home).joinpath("auth.json")
-        # server_config.protected_topics_file = Path(
-        #     opts.volttron_home).joinpath("protected_topics.json")
-        # The return value will be added to the service_config.yml file in order to pass in
-        # the expected defaults. From there the user may choose to modify the defaults.
-        # service_config_file = Path(opts.volttron_home).joinpath("service_config.yml")
-        # service_configs = ServiceConfigs(service_config_file=service_config_file,
-        #                                  server_config=server_config)
-        # service_configs.init_services(server_config=server_config)
-        # This variable will hold the executing services to determine when one of the services
-        # dies or the platform has been shutdown.
         spawned_greenlets = []
 
         mb = None
-
-        # auth_service: Optional[AuthService] = None
-        # # if we have an auth service it should be started before the
-        # # zmq router.
-        # if options.auth_enabled:
-        #     # TODO Move probably to auth service.
-        #     auth_service = service_repo.resolve(AuthService)
-        #     cred_service = service_repo.resolve(CredentialsStore)
-        #     server_creds = cred_service.retrieve_credentials(identity="server")
-
-        #     # Add the server credentials to the known host properties.  Note this is how zmq does it
-        #     # there may be different schemes that we put in auth here.
-        #     if hasattr(server_creds, "publickey"):
-        #         known_host_properties.add_property("@", "publickey", server_creds.publickey)
-        #     else:
-        #         known_host_properties.add_property("@", "publickey", None)
-        #     for ip in options.address:
-        #         known_host_properties.add_property(ip, "publickey", server_creds.publickey)
-        #     known_host_properties.store(options.volttron_home / "known_hosts.json")
 
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
@@ -393,8 +330,7 @@ def start_volttron_process(options: ServerOptions):
         # Allows registration agents to callbacks for peers
         notifier = ServicePeerNotifier()
 
-        mb = MessageBusClass(opts, notifier, tracker, protected_topics, external_address_file,
-                             config_store.core.stop)
+        mb = MessageBusClass(opts, notifier, tracker, protected_topics, external_address_file, config_store.core.stop)
 
         mb.start()
 
@@ -553,8 +489,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     }
     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 
-    volttron_home = os.path.normpath(
-        config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
+    volttron_home = os.path.normpath(config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
     os.environ["VOLTTRON_HOME"] = volttron_home
 
     argv = sys.argv
@@ -658,13 +593,11 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
                         help=argparse.SUPPRESS)
     parser.add_argument("--auth-disabled", action="store_false", help=argparse.SUPPRESS)
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument(
-        "--dev",
-        action="store_true",
-        dest="dev_mode",
-        default=False,
-        help="development mode with poetry environment to build volttron libraries from source/pypi"
-    )
+    parser.add_argument("--dev",
+                        action="store_true",
+                        dest="dev_mode",
+                        default=False,
+                        help="development mode with poetry environment to build volttron libraries from source/pypi")
 
     parser.add_help_argument()
     parser.add_version_argument(version="%(prog)s " + str(get_version()))
