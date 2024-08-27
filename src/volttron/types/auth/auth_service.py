@@ -2,8 +2,7 @@ from typing import Any, Optional
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
-from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
-                                                  CredentialsStore)
+from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator, CredentialsStore)
 
 from volttron.types import Service, Identity
 
@@ -28,7 +27,7 @@ class Authorizer(ABC):
 class AuthzPersistence(ABC):
 
     @classmethod
-    def load(cls, input: Any, **kwargs) -> authz.VolttronAuthzMap:
+    def load(cls, filename: str, **kwargs) -> authz.VolttronAuthzMap:
         ...
 
     @classmethod
@@ -48,15 +47,15 @@ class AuthorizationManager:
     @abstractmethod
     def get_protected_rpcs(self, identity: authz.Identity) -> list[str]:
         ...
-    
+
     @abstractmethod
     def check_rpc_authorization(self, *, identity: authz.Identity, method_name: authz.vipid_dot_rpc_method,
                                 method_args: dict, **kwargs) -> bool:
         ...
 
     @abstractmethod
-    def check_pubsub_authorization(self, *, identity: authz.Identity,
-                                   topic_pattern: str, access: str, **kwargs) -> bool:
+    def check_pubsub_authorization(self, *, identity: authz.Identity, topic_pattern: str, access: str,
+                                   **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -101,6 +100,21 @@ class AuthorizationManager:
 
     @abstractmethod
     def create_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
+        ...
+
+    @abstractmethod
+    def is_protected_topic(self, *, topic_name_pattern: str) -> bool:
+        """Return True if the topic is protected, False otherwise.
+
+        The topic_expression can be a str or regex pattern.  If the string or
+        expression matches a protected topic then True is returned.  If not,
+        False is returned.
+
+        :param topic_name_pattern: The topic to check if it is protected.
+        :type topic_name_pattern: str
+        :return: True if the topic is protected, False otherwise.
+        :rtype: bool
+        """
         ...
 
     @abstractmethod
@@ -150,7 +164,7 @@ class AuthService(Service):
     # Authorization
 
     @abstractmethod
-    def get_protected_rpcs(self, identity:authz.Identity) -> list[str]:
+    def get_protected_rpcs(self, identity: authz.Identity) -> list[str]:
         """
         returns list of protected methods for a given identity
         """
@@ -164,8 +178,8 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def check_pubsub_authorization(self, *, identity: authz.Identity,
-                                   topic_pattern: str, access: str, **kwargs) -> bool:
+    def check_pubsub_authorization(self, *, identity: authz.Identity, topic_pattern: str, access: str,
+                                   **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -228,6 +242,21 @@ class AuthService(Service):
 
     @abstractmethod
     def remove_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:
+        ...
+
+    @abstractmethod
+    def is_protected_topic(self, *, topic_expression: str) -> bool:
+        """Return True if the topic is protected, False otherwise.
+
+        The topic_expression can be a str or regex pattern.  If the string or
+        expression matches a protected topic then True is returned.  If not,
+        False is returned.
+
+        :param topic_expression: The topic to check if it is protected.
+        :type topic_expression: str
+        :return: True if the topic is protected, False otherwise.
+        :rtype: bool
+        """
         ...
 
     @abstractmethod

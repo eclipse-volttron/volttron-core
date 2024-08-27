@@ -74,7 +74,7 @@ ignore_patterns = [
 [tool.yapf]
 based_on_style = "pep8"
 spaces_before_comment = 4
-column_limit = 99
+column_limit = 120
 split_before_logical_operator = true
 
 [tool.mypy]

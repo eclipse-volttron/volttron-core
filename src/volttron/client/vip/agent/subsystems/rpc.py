@@ -160,8 +160,7 @@ class Dispatcher(jsonrpc.Dispatcher):
             if p.default is not inspect.Parameter.empty:
                 response["params"][p.name]["default"] = p.default
             if p.annotation is not inspect.Parameter.empty:
-                annotation = (p.annotation.__name__
-                              if type(p.annotation) is type else str(p.annotation))
+                annotation = (p.annotation.__name__ if type(p.annotation) is type else str(p.annotation))
                 response["params"][p.name]["annotation"] = annotation
         doc = inspect.getdoc(method)
         if doc:
@@ -311,8 +310,7 @@ class RPC(SubsystemBase):
                     if method and inspect.ismethod(method):
                         self._exports[r] = method
                     else:
-                        raise ValueError(
-                            f"Method '{r}' not found in the instance or is not a method.")
+                        raise ValueError(f"Method '{r}' not found in the instance or is not a method.")
 
     @spawn
     def _handle_external_rpc_subsystem(self, message):
@@ -329,10 +327,7 @@ class RPC(SubsystemBase):
             dispatch = self._dispatcher.dispatch
             # _log.debug("External RPC IN message args {}".format(message))
 
-            responses = [
-                response for response in (dispatch(msg, message) for msg in message.args)
-                if response
-            ]
+            responses = [response for response in (dispatch(msg, message) for msg in message.args) if response]
             # _log.debug("External RPC Responses {}".format(responses))
             if responses:
                 message.user = ""
@@ -374,9 +369,7 @@ class RPC(SubsystemBase):
     def _handle_subsystem(self, message):
         dispatch = self._dispatcher.dispatch
 
-        responses = [
-            response for response in (dispatch(msg, message) for msg in message.args) if response
-        ]
+        responses = [response for response in (dispatch(msg, message) for msg in message.args) if response]
         if responses:
             message.user = ""
             message.args = responses
@@ -481,7 +474,6 @@ class RPC(SubsystemBase):
         return result
 
     def get_protected_rpcs(self):
-        print(f"calling auth for {self._owner.core.identity}")
         return self.call(AUTH, "get_protected_rpcs", self._owner.core.identity).get(timeout=10)
 
     __call__ = call

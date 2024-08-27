@@ -33,9 +33,8 @@ from contextlib import contextmanager
 
 import yaml
 
-from volttron.utils.commands import (is_volttron_running, execute_command, isapipe,
-                                     wait_for_volttron_startup, wait_for_volttron_shutdown,
-                                     vip_main)
+from volttron.utils.commands import (is_volttron_running, execute_command, isapipe, wait_for_volttron_startup,
+                                     wait_for_volttron_shutdown, vip_main)
 from volttron.utils.context import ClientContext
 from volttron.utils.commands import wait_for_volttron_startup, wait_for_volttron_shutdown
 from volttron.utils.dynamic_helper import get_module, get_class, get_subclasses
@@ -46,8 +45,7 @@ from volttron.utils.jsonapi import strip_comments, parse_json_config
 from volttron.utils.messagebus import store_message_bus_config
 from volttron.utils.network import get_address, get_hostname, is_ip_private
 from volttron.utils.time import (format_timestamp, process_timestamp, parse_timestamp_string,
-                                 get_utc_seconds_from_epoch, get_aware_utc_now,
-                                 fix_sqlite3_datetime)
+                                 get_utc_seconds_from_epoch, get_aware_utc_now, fix_sqlite3_datetime)
 from volttron.utils.version import get_version
 from volttron.types import Identity
 
@@ -86,6 +84,17 @@ def monkey_patch():
     for module, fn in patches:
         if not monkey.is_module_patched(module):
             fn()
+
+
+def is_regex(value: str) -> bool:
+    """
+    Determine if the passed value is a regular expression or not.  A regular expression
+    is something that starts and ends with /, is a string and can be compiled.
+
+    :param value: A potential regular expression
+    :return: True if a volttron regular expression.
+    """
+    return value is not None and isinstance(value, str) and len(value) > 1 and value[0] == value[-1] == "/"
 
 
 def load_config(default_configuration: str | Path | dict | None) -> dict:
@@ -147,11 +156,10 @@ def update_kwargs_with_config(kwargs, config):
 
 
 __all__: List[str] = [
-    "update_kwargs_with_config", "load_config", "parse_json_config", "get_hostname",
-    "strip_comments", "setup_logging", "is_valid_identity", "isapipe", "is_volttron_running",
-    "create_file_if_missing", "wait_for_volttron_shutdown", "process_timestamp",
-    "parse_timestamp_string", "execute_command", "get_version", "get_aware_utc_now",
-    "get_utc_seconds_from_epoch", "get_address", "wait_for_volttron_startup", "normalize_identity",
-    "ClientContext", "format_timestamp", "store_message_bus_config", "is_ip_private",
-    "fix_sqlite3_datetime", "vip_main", "get_module", "get_class", "get_subclasses", "monkey_patch"
+    "update_kwargs_with_config", "load_config", "parse_json_config", "get_hostname", "strip_comments", "setup_logging",
+    "is_valid_identity", "isapipe", "is_volttron_running", "create_file_if_missing", "wait_for_volttron_shutdown",
+    "process_timestamp", "parse_timestamp_string", "execute_command", "get_version", "get_aware_utc_now",
+    "get_utc_seconds_from_epoch", "get_address", "wait_for_volttron_startup", "normalize_identity", "ClientContext",
+    "format_timestamp", "store_message_bus_config", "is_ip_private", "fix_sqlite3_datetime", "vip_main", "get_module",
+    "get_class", "get_subclasses", "monkey_patch"
 ]
