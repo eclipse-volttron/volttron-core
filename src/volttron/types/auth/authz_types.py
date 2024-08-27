@@ -7,7 +7,6 @@ from attrs import validators, define, field, fields
 from cattrs import Converter
 
 from volttron.types import Identity
-from volttron.utils import is_regex
 
 vipid_dot_rpc_method = str
 RPC_CAPABILITIES = "rpc_capabilities"
@@ -746,6 +745,8 @@ class VolttronAuthzMap:
         return return_value
 
     def is_protected_topic(self, *, topic_name_pattern: str) -> bool:
+        from volttron.utils import is_regex
+
         # 1. Check that we have any protected topics.
         if not self.compact_dict.get('protected_topics'):
             return False
