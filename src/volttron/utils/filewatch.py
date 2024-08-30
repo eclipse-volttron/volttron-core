@@ -49,7 +49,7 @@ class VolttronHomeFileReloader(PatternMatchingEventHandler):
     """
 
     def __init__(self, filetowatch, callback):
-        super(VolttronHomeFileReloader, self).__init__([f"{cc.get_volttron_home()}/{filetowatch}"])
+        super(VolttronHomeFileReloader, self).__init__(patterns=[f"{cc.get_volttron_home()}/{filetowatch}"])
         _log.debug(f"patterns is {cc.get_volttron_home()}/{filetowatch}")
         self._callback = callback
 
