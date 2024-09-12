@@ -677,7 +677,7 @@ class VolttronAuthzMap:
                                            agent_groups={name: group_dict})
         return True
 
-    def remove_agents_from_group(self, name: str, identities: [Identity]) -> bool:
+    def remove_agents_from_group(self, name: str, identities: list[Identity]) -> bool:
         if not self.compact_dict.get(GROUPS) or name not in self.compact_dict[GROUPS]:
             return False
         s = set(self.compact_dict[GROUPS][name][IDENTITIES])
@@ -691,7 +691,7 @@ class VolttronAuthzMap:
             roles=self.compact_dict[ROLES])
         return True
 
-    def add_agents_to_group(self, name: str, identities: [Identity]):
+    def add_agents_to_group(self, name: str, identities: list[Identity]):
         if not self.compact_dict.get(GROUPS) or name not in self.compact_dict[GROUPS]:
             return False
         # TODO validate identity
@@ -707,7 +707,7 @@ class VolttronAuthzMap:
     def create_or_merge_agent_authz(self,
                                     *,
                                     identity: str,
-                                    protected_rpcs: [str] = None,
+                                    protected_rpcs: list[str] = None,
                                     agent_roles: AgentRoles = None,
                                     rpc_capabilities: RPCCapabilities = None,
                                     pubsub_capabilities: PubsubCapabilities = None,
