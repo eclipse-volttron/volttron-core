@@ -22,12 +22,26 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-from json import dump, dumps, load, loads
+from json import dump, load, loads, dumps as json_dumps
 import re
+import attr
+from attr import asdict
+from typing import Any
 
 __all__ = ("dump", "dumpb", "dumps", "load", "loadb", "loads", "strip_comments",
            "parse_json_config")
 
+def attr_default(o: Any) -> Any:
+    if attr.has(o.__class__):
+        return asdict(o)
+    raise TypeError(f"Object of type {o.__class__.__name__} is not JSON serializable")
+
+def dumps(object, **kwargs):
+    if "default" not in kwargs:
+        # if caller hasn't included their own default use our that handles attr data classes
+        return json_dumps(object, default=attr_default, **kwargs)
+    else:
+        return json_dumps(object, **kwargs)
 
 def dumpb(data, **kwargs):
     return dumps(data, **kwargs).encode("utf-8")
