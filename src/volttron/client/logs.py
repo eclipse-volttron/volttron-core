@@ -2,10 +2,11 @@ import logging
 from logging import Logger
 import sys
 import os
+import volttron.utils as utils
 
 
 def get_logger() -> Logger:
-    return logging.getLogger("volttron.client")
+    return utils.get_logger()
 
 
 def get_default_client_log_config(level=logging.DEBUG) -> dict:

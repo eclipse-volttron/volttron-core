@@ -23,6 +23,7 @@
 # }}}
 
 from gevent import monkey
+from volttron.types import MessageBusStopHandler
 
 monkey.patch_socket()
 monkey.patch_ssl()
@@ -199,6 +200,7 @@ def start_volttron_process(options: ServerOptions):
 
     opts.address = [config.expandall(addr) for addr in opts.address]
     opts.local_address = config.expandall(opts.local_address)
+
     opts.messagebus = config.expandall(opts.messagebus)
 
     os.environ["MESSAGEBUS"] = opts.messagebus
@@ -304,8 +306,6 @@ def start_volttron_process(options: ServerOptions):
             # to not use our default auth service and can install their own service to this
             # location.
             loader = importlib.util.find_spec("volttron.services.auth")
-            # loader2.load_module("volttron.zap")
-            # loader2 = importlib.find_loader("volttron.zap")
             authenticator = service_repo.resolve(Authenticator)
             auth_service = service_repo.resolve(AuthService)
 
@@ -325,12 +325,25 @@ def start_volttron_process(options: ServerOptions):
         del event
         spawned_greenlets.append(task)
 
-        from volttron.server.decorators import get_messagebus_class
-        MessageBusClass = get_messagebus_class()
-        # Allows registration agents to callbacks for peers
-        notifier = ServicePeerNotifier()
+        from volttron.types import MessageBus
 
-        mb = MessageBusClass(opts, notifier, tracker, protected_topics, external_address_file, config_store.core.stop)
+        mb: MessageBus = service_repo.resolve(MessageBus)
+
+        class StopHandler(MessageBusStopHandler):
+
+            def message_bus_shutdown(self):
+                for spawned_task in spawned_greenlets:
+                    spawned_task.kill(block=False)
+                gevent.wait(spawned_greenlets)
+
+        mb.set_stop_handler(StopHandler())
+
+        # from volttron.server.decorators import get_messagebus_class
+        # MessageBusClass = get_messagebus_class()
+        # # Allows registration agents to callbacks for peers
+        # notifier = ServicePeerNotifier()
+        #
+        # mb = MessageBusClass(opts, notifier, tracker, protected_topics, external_address_file, config_store.core.stop)
 
         mb.start()
 
@@ -658,6 +671,8 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         "running scripts/secure_user_permissions.sh as sudo)",
     )
 
+    agents.add_argument("--server-messagebus-id", default="vip.server", help="A connection from the server")
+
     ipc = "ipc://%s$VOLTTRON_HOME/run/" % ("@" if sys.platform.startswith("linux") else "")
 
     parser.set_defaults(log=None,
@@ -672,7 +687,8 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
                         resource_monitor=True,
                         msgdebug=None,
                         setup_mode=False,
-                        agent_isolation_mode=False)
+                        agent_isolation_mode=False,
+                        server_messagebus_id="vip.server")
 
     return parser
 

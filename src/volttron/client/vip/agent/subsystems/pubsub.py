@@ -68,13 +68,7 @@ class PubSub(SubsystemBase):
     Pubsub subsystem concrete class implementation for ZMQ message bus.
     """
 
-    def __init__(self,
-                 core,
-                 rpc_subsys,
-                 peerlist_subsys,
-                 owner,
-                 tag_vip_id=PLATFORM_TAGGING,
-                 tag_refresh_interval=-1):
+    def __init__(self, core, rpc_subsys, peerlist_subsys, owner, tag_vip_id=PLATFORM_TAGGING, tag_refresh_interval=-1):
         self.__core__ = weakref.ref(core)
         self.__rpc__ = weakref.ref(rpc_subsys)
         self.__peerlist__ = weakref.ref(peerlist_subsys)
@@ -120,12 +114,10 @@ class PubSub(SubsystemBase):
             #self.vip_socket = self.core().socket
 
             def subscribe(member):    # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms, queue in annotations(
-                        member, set, "pubsub.subscriptions"):
+                for peer, bus, prefix, all_platforms, queue in annotations(member, set, "pubsub.subscriptions"):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription("prefix", prefix, member, bus, all_platforms)
-                    _log.debug("SYNC ZMQ: all_platforms {}".format(
-                        self._my_subscriptions['internal'][bus][prefix]))
+                    _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
 
                 for peer, bus, tag_condition, topic_source, all_platforms, queue in annotations(
                         member, set, "pubsub.subscription_by_tags"):
@@ -198,8 +190,7 @@ class PubSub(SubsystemBase):
             self.synchronize()
 
     def get_topics_by_tag(self, condition):
-        topics = self.rpc().call(self.tag_vip_id, "get_topics_by_tags",
-                                 condition=condition).get(timeout=10)
+        topics = self.rpc().call(self.tag_vip_id, "get_topics_by_tags", condition=condition).get(timeout=10)
         return topics
 
     @spawn
@@ -413,8 +404,7 @@ class PubSub(SubsystemBase):
 
         if success_list:
             # even if there was one successful subscription save tag_condition for periodic updates
-            self._my_tag_condition_callbacks[platform][bus][(topic_source,
-                                                             tag_condition)].add(callback)
+            self._my_tag_condition_callbacks[platform][bus][(topic_source, tag_condition)].add(callback)
         return success_list, failure_list
 
     @subscribe.classmethod
@@ -841,28 +831,3 @@ class PubSub(SubsystemBase):
         except KeyError:
             return
         result.set_exception(error)
-
-
-class ProtectedPubSubTopics(object):
-    """Simple class to contain protected pubsub topics"""
-
-    def __init__(self):
-        self._dict = {}
-        self._re_list = []
-
-    def add(self, topic, capabilities):
-        if isinstance(capabilities, str):
-            capabilities = [capabilities]
-        if len(topic) > 1 and topic[0] == topic[-1] == "/":
-            regex = re.compile("^" + topic[1:-1] + "$")
-            self._re_list.append((regex, capabilities))
-        else:
-            self._dict[topic] = capabilities
-
-    def get(self, topic):
-        if topic in self._dict:
-            return self._dict[topic]
-        for regex, capabilities in self._re_list:
-            if regex.match(topic):
-                return capabilities
-        return None

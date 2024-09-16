@@ -137,8 +137,6 @@ class Dispatcher(jsonrpc.Dispatcher):
         local.request = request
         local.batch = batch
         try:
-            _log.error("Method is: {}".format(method))
-            _log.error("Calling method %r with args %r and kwargs %r", name, args, kwargs)
             return method(*args, **kwargs)
         except Exception as exc:    # pylint: disable=broad-except
             exc_tb = traceback.format_exc()

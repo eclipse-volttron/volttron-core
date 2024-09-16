@@ -1,6 +1,6 @@
 from typing import Any, Optional
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import Literal
 
 from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator, CredentialsStore)
 
@@ -178,8 +178,8 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def check_pubsub_authorization(self, *, identity: authz.Identity, topic_pattern: str, access: str,
-                                   **kwargs) -> bool:
+    def check_pubsub_authorization(self, *, identity: authz.Identity, topic_pattern: str,
+                                   access: Literal["pubsub", "publish", "subscribe"], **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -245,15 +245,15 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def is_protected_topic(self, *, topic_expression: str) -> bool:
-        """Return True if the topic is protected, False otherwise.
+    def is_protected_topic(self, *, topic_name_pattern: str) -> bool:
+        """Return True if the topic or pattern is protected, False otherwise.
 
         The topic_expression can be a str or regex pattern.  If the string or
         expression matches a protected topic then True is returned.  If not,
         False is returned.
 
-        :param topic_expression: The topic to check if it is protected.
-        :type topic_expression: str
+        :param topic_name_pattern: The topic to check if it is protected.
+        :type topic_name_pattern: str
         :return: True if the topic is protected, False otherwise.
         :rtype: bool
         """

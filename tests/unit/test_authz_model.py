@@ -759,3 +759,9 @@ def test_create_protected_topic():
     assert authz_map.create_protected_topics(topic_name_patterns=[reg_ex_topic])
     assert authz_map.is_protected_topic(topic_name_pattern=reg_ex_pass)
     assert not authz_map.is_protected_topic(topic_name_pattern=reg_ex_fail)
+
+    # Admin case is here.
+    reg_ex_topic = "/*/"
+    reg_ex_pass = "devices/building2/foo"
+    assert authz_map.create_protected_topics(topic_name_patterns=[reg_ex_topic])
+    assert authz_map.is_protected_topic(topic_name_pattern=reg_ex_pass)
