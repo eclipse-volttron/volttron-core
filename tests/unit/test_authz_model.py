@@ -734,7 +734,7 @@ def test_remove_agents_from_group():
     }
 
 
-def test_create_protected_topic():
+def test_create_protected_topics():
     ################
     # Pre-requisites
     ################
