@@ -667,17 +667,8 @@ class AIPplatform:
             # In such case, we should be able to revert to current version - so explicitly find current version and
             # see if that can be installed from pypi because local wheel might not be there anymore.
             try:
-                if agent.endswith(".whl"):
-                    cmd_dry_run = [
-                        "poetry", "--directory",
-                        self._server_opts.poetry_project_path.as_posix(), "add", f"{agent}", "--dry-run"
-                    ]
-                else:
-                    cmd_dry_run = [
-                        "poetry", "--directory",
-                        self._server_opts.poetry_project_path.as_posix(), "add", f"{agent_name}=={current_version}",
-                        "--dry-run"
-                    ]
+                cmd_dry_run = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "add",
+                               f"{agent_name}=={current_version}", "--dry-run"]
                 execute_command(cmd_dry_run)
             except RuntimeError as r:
                 raise RuntimeError(f"Unable to find currently installed version of {agent_name} ({current_version}) "
