@@ -381,7 +381,7 @@ def unstructure_agents(instance: Agents):
 
 @define
 class VolttronAuthzMap:
-    protected_topics = field(type=set[str], default=None)
+    protected_topics = field(type=list[str], default=None)
     roles = field(type=Roles, default=None)
     agent_groups = field(type=AgentGroups, default=None)
     agents = field(type=Agents, default=None)
