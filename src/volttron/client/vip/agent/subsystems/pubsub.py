@@ -688,7 +688,6 @@ class PubSub(SubsystemBase):
         result = next(self._results)
         args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
         message = self._create_message_for_router(msg_id=result.ident, args=args)
-        _log.debug(f"**********************************************Sending: {message}")
         self.__core__().connection.send_vip_message(message=message)
         return result
 
@@ -768,7 +767,7 @@ class PubSub(SubsystemBase):
                 result = self._results.pop(message.id)
             except KeyError:
                 pass
-
+            _log.debug(f"Result is: {result}")
             response = message.args[1]
             import struct
 
