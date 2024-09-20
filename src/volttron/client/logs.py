@@ -3,6 +3,7 @@ import warnings
 from logging import Logger
 import sys
 import os
+import volttron.utils.jsonapi as jsonapi
 import volttron.utils as utils
 
 
