@@ -264,7 +264,7 @@ class RPC(SubsystemBase):
             from volttron.types.auth import AuthException
             try:
                 self.call(AUTH,
-                          "check_rpc_authorization",
+                          method="check_rpc_authorization",
                           identity=calling_user,
                           method_name=f"{self.core().identity}.{method_name}",
                           method_args=args_dict).get(timeout=10)
@@ -286,7 +286,6 @@ class RPC(SubsystemBase):
             for method_name in self._exports:
                 if method_name in protected_rpcs:
                     self._exports[method_name] = self._add_auth_check(self._exports[method_name])
-                    print(f"Added auth check for method {method_name}")
 
     def _add_protected_rpcs(self, updated_list: list[str]):
         if not self._protected_rpcs:
