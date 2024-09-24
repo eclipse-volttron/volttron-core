@@ -35,7 +35,7 @@ from gevent.queue import Queue
 from volttron.client.known_identities import PLATFORM_TAGGING, AUTH
 from volttron.client.messaging.health import STATUS_BAD
 from volttron.types.auth import AuthException
-from volttron.utils import jsonapi
+from volttron.utils import jsonapi, get_logger
 from volttron.utils.scheduling import periodic
 from volttron.types.message import Message
 
@@ -47,8 +47,6 @@ __all__ = ["PubSub"]
 
 min_compatible_version = "3.0"
 max_compatible_version = ""
-
-from volttron.client.logs import get_logger
 
 _log = get_logger()
 
@@ -345,8 +343,10 @@ class PubSub(SubsystemBase):
         authorized = True
         identity = self.__core__().identity
         if AUTH in self.__peerlist__().list().get():
-            authorized = self.__rpc__().call("platform.auth", "check_pubsub_authorization",
-                                             identity=identity, topic_pattern=prefix,
+            authorized = self.__rpc__().call("platform.auth",
+                                             "check_pubsub_authorization",
+                                             identity=identity,
+                                             topic_pattern=prefix,
                                              access="subscribe").get()
         if authorized:
             self._add_subscription("prefix", prefix, callback, bus, all_platforms)
@@ -354,8 +354,7 @@ class PubSub(SubsystemBase):
         else:
             self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {prefix}")
             #self.__owner__.health.publish()
-            raise AuthException(
-                f"{identity} is not authorized to subscribe to protected topic {prefix}")
+            raise AuthException(f"{identity} is not authorized to subscribe to protected topic {prefix}")
 
     @dualmethod
     @spawn
@@ -701,6 +700,7 @@ class PubSub(SubsystemBase):
         result = next(self._results)
         args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
         message = self._create_message_for_router(msg_id=result.ident, args=args)
+        _log.debug(f"sending pubsub message created for router is: {message}")
         self.__core__().connection.send_vip_message(message=message)
         return result
 
@@ -762,6 +762,7 @@ class PubSub(SubsystemBase):
         param message: VIP message from PubSubService
         type message: dict
         """
+        _log.debug(f"Putting message in event queue for {self.__core__().identity} {message}")
         self._event_queue.put(message)
 
     @spawn
@@ -773,7 +774,7 @@ class PubSub(SubsystemBase):
         op = message.args[0]
 
         _log.debug(f"Processing {self.__core__().identity}: op: {op}, message: {message}")
-
+        response = None
         if op == "request_response":
             result = None
             try:
@@ -782,15 +783,7 @@ class PubSub(SubsystemBase):
                 pass
             _log.debug(f"Result is: {result}")
             response = message.args[1]
-            import struct
 
-            if not isinstance(response, int):
-                if len(response) == 4:    # integer
-                    response = struct.unpack("I", response.encode("utf-8"))
-                    response = response[0]
-                elif len(response) == 1:    # bool
-                    response = struct.unpack("?", response.encode("utf-8"))
-                    response = response[0]
             if result:
                 result.set(response)
 
@@ -808,6 +801,7 @@ class PubSub(SubsystemBase):
             except KeyError as exc:
                 _log.error("Missing keys in pubsub message: {}".format(exc))
             else:
+                response = message
                 self._process_callback(sender, bus, topic, headers, message)
 
         elif op == "list_response":
@@ -821,6 +815,9 @@ class PubSub(SubsystemBase):
                 pass
         else:
             _log.error("Unknown operation ({})".format(op))
+
+        if response is not None:
+            _log.debug(f"Processed {op} response was {response}")
 
     def _process_loop(self):
         """Incoming message processing loop"""

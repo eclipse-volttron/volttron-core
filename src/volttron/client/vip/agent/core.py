@@ -60,7 +60,7 @@ from .errors import VIPError
 
 __all__: list[str] = ["BasicCore", "Core", "killing"]
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
@@ -195,8 +195,7 @@ class BasicCore(AbstractCore):
         periodics = []
 
         def setup_annotations(member):    # pylint: disable=redefined-outer-name
-            periodics.extend(
-                periodic.get(member) for periodic in annotations(member, list, "core.periodics"))
+            periodics.extend(periodic.get(member) for periodic in annotations(member, list, "core.periodics"))
             for deadline, args, kwargs in annotations(member, list, "core.schedule"):
                 self.schedule(deadline, member, *args, **kwargs)
             for name in annotations(member, set, "core.signals"):
@@ -470,8 +469,7 @@ class Core(BasicCore):
     # to false to keep from blocking. AuthService does this.
     delay_running_event_set = True
 
-    def __init__(self, owner: AbstractAgent, credentials: Credentials,
-                 connection_factory: ConnectionBuilder):
+    def __init__(self, owner: AbstractAgent, credentials: Credentials, connection_factory: ConnectionBuilder):
 
         # These signals need to exist before calling super().__init__()
         self.onviperror = Signal()

@@ -55,7 +55,7 @@ from volttron.utils.persistance import load_create_store
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
 # No need for str after python 3.8
-VOLTTRON_INSTANCES = Path("~/.volttron_instances").expanduser().resolve()
+VOLTTRON_INSTANCES_PATH = Path("~/.volttron_instances").expanduser().resolve()
 
 
 def run_server():
@@ -271,7 +271,7 @@ def start_volttron_process(options: ServerOptions):
                              "and attempts to restart. {}".format(e))
 
     address = "inproc://vip"
-    pid_file = os.path.join(opts.volttron_home, "VOLTTRON_PID")
+    pid_file = os.path.join(opts.volttron_home.as_posix(), "VOLTTRON_PID")
     try:
         protected_topics = {}
         proxy_router = None
@@ -288,6 +288,7 @@ def start_volttron_process(options: ServerOptions):
         from volttron.services.health.health_service import HealthService
         from volttron.types.known_host import \
             KnownHostProperties as known_host_properties
+        from volttron.utils import jsonapi
 
         spawned_greenlets = []
 
@@ -353,66 +354,40 @@ def start_volttron_process(options: ServerOptions):
         #  ever increasing file depending on the number of instances it could get quite large.
         # The instance file is where we are going to record the instance and
         # its details according to
-        instance_file = str(VOLTTRON_INSTANCES)
-        try:
-            instances = load_create_store(instance_file)
-        except ValueError:
-            os.remove(instance_file)
-            instances = load_create_store(instance_file)
+        if VOLTTRON_INSTANCES_PATH.is_file():
+            instances = jsonapi.loads(VOLTTRON_INSTANCES_PATH.open().read())
+        else:
+            instances = {}
 
         # Trim instances from instance file.
+        # Need to use list here because we are going to potentially decrease the size of the dictionary so
+        # we need to be careful about the iteration.
         for k in list(instances):
             try:
-                # Raises OSError if the pid is not found
-                # TODO if necessary include all the cases found
+                # Raises OSError if the pid is not found note this will not actually kill the process.
                 # https://stackoverflow.com/questions/568271/how-to-check-if-there-exists-a-process-with-a-given-pid-in-python/6940314#6940314
                 os.kill(instances[k]['pid'], 0)
             except OSError:
                 del instances[k]
 
-        this_instance = instances.get(opts.volttron_home, {})
+        this_instance = instances.get(opts.volttron_home.as_posix(), {})
         this_instance["pid"] = os.getpid()
         this_instance["version"] = get_version()
         # note vip_address is a list
         this_instance["address"] = opts.address
-        this_instance["volttron-home"] = opts.volttron_home
-        this_instance["volttron-root"] = os.path.abspath("../../..")
+        this_instance["volttron-home"] = opts.volttron_home.as_posix()
         this_instance["start-args"] = sys.argv[1:]
-        instances[opts.volttron_home] = this_instance
-        instances.async_sync()
+        instances[opts.volttron_home.as_posix()] = this_instance
 
-        protected_topics_file = os.path.join(opts.volttron_home, "protected_topics.json")
-        _log.debug("protected topics file %s", protected_topics_file)
+        # protected_topics_file = os.path.join(opts.volttron_home, "protected_topics.json")
+        # _log.debug("protected topics file %s", protected_topics_file)
         external_address_file = os.path.join(opts.volttron_home, "external_address.json")
         _log.debug("external_address_file file %s", external_address_file)
 
+        with VOLTTRON_INSTANCES_PATH.open("w") as fp:
+            fp.write(jsonapi.dumps(instances))
+
         spawned_greenlets.extend(start_service_agents())
-
-        # control_service = service_repo.resolve(ControlService)
-        # event = gevent.event.Event()
-        # task = gevent.spawn(control_service.core.run, event)
-        # event.wait()
-        # del event
-        # spawned_greenlets.append(task)
-        # #control_service = service_configs.get_service_instance("volttron.services.control")
-
-        # entry = AuthEntry(
-        #     credentials=control_service.core.publickey,
-        #     user_id=CONTROL,
-        #     capabilities=[
-        #         {
-        #             "edit_config_store": {
-        #                 "identity": "/.*/"
-        #             }
-        #         },
-        #         "allow_auth_modifications",
-        #     ],
-        #     comments="Automatically added by platform on start",
-        # )
-        # try:
-        #     AuthFile().add(entry)
-        # except AuthFileUserIdAlreadyExists:
-        #     pass
 
         # # # TODO Key discovery agent add in.
         # # # KeyDiscoveryAgent(
@@ -427,16 +402,6 @@ def start_volttron_process(options: ServerOptions):
         # # # ),
         # # ]
 
-        # #health_service = service_configs.get_service_instance("volttron.services.health")
-        # health_service = service_repo.resolve(HealthService)
-        # event = gevent.event.Event()
-        # task = gevent.spawn(health_service.core.run, event)
-        # event.wait()
-        # del event
-        # if health_service is not None:
-        #     notifier.register_peer_callback(health_service.peer_added, health_service.peer_dropped)
-
-        _log.debug("Finished Startup of Platform.")
         # Auto-start agents now that all services are up
         if opts.autostart:
             for name, error in opts.aip.autostart():
@@ -446,6 +411,8 @@ def start_volttron_process(options: ServerOptions):
 
         with open(pid_file, "w+") as f:
             f.write(str(os.getpid()))
+
+        _log.debug("Finished Startup of Platform.")
 
         # Wait for any service to stop, signaling exit
         try:
@@ -467,7 +434,7 @@ def start_volttron_process(options: ServerOptions):
     finally:
         _log.debug("AIP finally")
         opts.aip.finish()
-        instance_file = str(VOLTTRON_INSTANCES)
+        instance_file = str(VOLTTRON_INSTANCES_PATH)
         try:
             instances = load_create_store(instance_file)
             instances.pop(opts.volttron_home, None)
@@ -475,7 +442,7 @@ def start_volttron_process(options: ServerOptions):
             if os.path.exists(pid_file):
                 os.remove(pid_file)
         except Exception:
-            _log.warning(f"Unable to load {VOLTTRON_INSTANCES}")
+            _log.warning(f"Unable to load {VOLTTRON_INSTANCES_PATH}")
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM HAS SHUTDOWN")
         _log.debug("********************************************************************")
