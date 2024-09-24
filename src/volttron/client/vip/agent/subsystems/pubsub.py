@@ -32,7 +32,9 @@ from functools import partial
 import gevent
 from gevent.queue import Queue
 
-from volttron.client.known_identities import PLATFORM_TAGGING
+from volttron.client.known_identities import PLATFORM_TAGGING, AUTH
+from volttron.client.messaging.health import STATUS_BAD
+from volttron.types.auth import AuthException
 from volttron.utils import jsonapi
 from volttron.utils.scheduling import periodic
 from volttron.types.message import Message
@@ -340,9 +342,20 @@ class PubSub(SubsystemBase):
         :Return Values:
         Success or Failure
         """
-
-        self._add_subscription("prefix", prefix, callback, bus, all_platforms)
-        return self.call_server_subscribe(all_platforms, bus, prefix)
+        authorized = True
+        identity = self.__core__().identity
+        if AUTH in self.__peerlist__().list().get():
+            authorized = self.__rpc__().call("platform.auth", "check_pubsub_authorization",
+                                             identity=identity, topic_pattern=prefix,
+                                             access="subscribe").get()
+        if authorized:
+            self._add_subscription("prefix", prefix, callback, bus, all_platforms)
+            return self.call_server_subscribe(all_platforms, bus, prefix)
+        else:
+            self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {prefix}")
+            #self.__owner__.health.publish()
+            raise AuthException(
+                f"{identity} is not authorized to subscribe to protected topic {prefix}")
 
     @dualmethod
     @spawn

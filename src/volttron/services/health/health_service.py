@@ -134,10 +134,7 @@ class HealthService(Agent):
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
-        # Start subscribing to heartbeat topic to get updates from the health subsystem.
-        # TODO: We need pubsub to use this method.
-        #
-        # self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
-        pl = self.vip.rpc.call(CONTROL, "peerlist").get()
+        self.vip.pubsub.subscribe("pubsub", "/heartbeat.*/", callback=self._heartbeat_updates)
+        #pl = self.vip.rpc.call(CONTROL, "peerlist").get()
         # for peer in pl:
         #     self._health_dict[peer] =

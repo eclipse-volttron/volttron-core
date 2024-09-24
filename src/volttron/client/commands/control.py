@@ -691,11 +691,11 @@ def agent_health(opts):
     agent = agents.pop()
     update_health_cache(opts)
 
-    data = health_cache.get(agent.vip_identity)
+    data = health_cache.get(agent.identity)
 
     if not data:
         if not opts.json:
-            _stdout.write(f"No health associated with {agent.vip_identity}\n")
+            _stdout.write(f"No health associated with {agent.identity}\n")
         else:
             _stdout.write(f"{jsonapi.dumps({}, indent=2)}\n")
     else:
@@ -1347,7 +1347,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         n = max(_calc_min_uuid_length(agents), opts.min_uuid_len)
     name_width = max(5, max(len(agent.name) for agent in agents))
     tag_width = max(3, max(len(agent.tag or "") for agent in agents))
-    identity_width = max(3, max(len(agent.vip_identity or "") for agent in agents))
+    identity_width = max(3, max(len(agent.identity or "") for agent in agents))
     fmt = "{} {:{}} {:{}} {:{}} {:>6}\n"
 
     if not opts.json:
@@ -1368,7 +1368,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
                     agent.uuid[:n],
                     agent.name,
                     name_width,
-                    agent.vip_identity,
+                    agent.identity,
                     identity_width,
                     agent.tag or "",
                     tag_width,
@@ -1377,10 +1377,10 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
     else:
         json_obj = {}
         for agent in agents:
-            json_obj[agent.vip_identity] = {
+            json_obj[agent.identity] = {
                 "agent_uuid": agent.uuid,
                 "name": agent.name,
-                "identity": agent.vip_identity,
+                "identity": agent.identity,
                 "agent_tag": agent.tag or "",
                 field_name: field_callback(agent),
             }
