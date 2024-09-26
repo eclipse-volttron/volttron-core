@@ -583,9 +583,9 @@ class AuthZUtils:
             return None
         protected_rpcs: List[authz.vipid_dot_rpc_method] = []
         for topic_name in topic_names:
-            if not AuthZUtils.is_topic_pattern_valid(topic_name):
+            if not AuthZUtils.is_capability_format_valid(topic_name):
                 raise ValueError(
-                    f"Input '{topic_name=}' in {topic_names} does not meet the required format: {AuthZUtils.topic_pattern_requirement()}"
+                    f"Input '{topic_name=}' in {topic_names} does not meet the required format: {AuthZUtils.capability_format_requirement()}"
                 )
             protected_rpcs.append(authz.vipid_dot_rpc_method(topic_name))
         return protected_rpcs
