@@ -542,7 +542,7 @@ class AuthZUtils:
         rpc_caps: List[authz.RPCCapability] = []
         for rpc_cap in rpc_capabilities_attr:
             if not AuthZUtils.is_capability_format_valid(rpc_cap):
-                msg = f"Input rpc-capability '{rpc_cap}' in {rpc_capabilities_attr} does not meet the required format: {AuthZService.capability_format_requirement()}"
+                msg = f"Input rpc-capability '{rpc_cap}' in {rpc_capabilities_attr} does not meet the required format: {AuthZUtils.capability_format_requirement()}"
                 raise ValueError(msg)
             rpc_caps.append(authz.RPCCapability(rpc_cap))
 
