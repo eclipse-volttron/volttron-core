@@ -63,6 +63,9 @@ class HealthService(Agent):
 
         :param peer: The identity of the agent connected to the platform
         """
+        if peer not in self._health_dict:
+            self._health_dict[peer] = dict()
+
         health = self._health_dict[peer]
 
         health["peer"] = peer
@@ -104,7 +107,7 @@ class HealthService(Agent):
             agents = {
                 k: v
                 for k, v in self._health_dict.items()
-                if v is dict and not v.get("peer") == CONTROL_CONNECTION
+                if isinstance(v, dict) and v.get("peer") != CONTROL_CONNECTION
             }
         _log.debug(f"get_platform_health() -> {agents}")
         return agents
@@ -122,6 +125,11 @@ class HealthService(Agent):
         :param message:
         :return:
         """
+        # TODO: workaround for not getting notified by message bus when new peer connects
+        #  should be ok for now as client side will cache and clear cache after sometime
+        if sender not in self._health_dict:
+            self._health_dict[sender] = dict()
+
         health = self._health_dict[sender]
         time_now = format_timestamp(datetime.now())
         if not health:
@@ -134,10 +142,7 @@ class HealthService(Agent):
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
-        # Start subscribing to heartbeat topic to get updates from the health subsystem.
-        # TODO: We need pubsub to use this method.
-        #
-        # self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
-        pl = self.vip.rpc.call(CONTROL, "peerlist").get()
+        self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
+        # pl = self.vip.rpc.call(CONTROL, "peerlist").get()
         # for peer in pl:
         #     self._health_dict[peer] =

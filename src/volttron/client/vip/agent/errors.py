@@ -23,6 +23,7 @@
 # }}}
 
 import errno
+import volttron.utils.jsonrpc as jsonrpc
 
 __all__ = ["VIPError", "Unreachable", "Again", "UnknownSubsystem"]
 
@@ -45,13 +46,16 @@ class VIPError(Exception):
     @classmethod
     def from_errno(cls, errnum, msg, *args):
         try:
-            errnum = getattr(errno, errnum.split('.')[-1])
+            if isinstance(errnum, str):
+                errnum = getattr(errno, errnum.split('.')[-1])
+
         except ValueError:
             return cls(999, msg, *args)
         return {
             errno.EHOSTUNREACH: Unreachable,
             errno.EAGAIN: Again,
             errno.EPROTONOSUPPORT: UnknownSubsystem,
+            jsonrpc.UNAUTHORIZED: Unauthorized
         }.get(errnum, cls)(errnum, msg, *args)
 
 
@@ -69,3 +73,7 @@ class UnknownSubsystem(VIPError):
 
     def __str__(self):
         return "%s: %s" % (super(UnknownSubsystem, self).__str__(), self.subsystem)
+
+
+class Unauthorized(VIPError):
+    pass

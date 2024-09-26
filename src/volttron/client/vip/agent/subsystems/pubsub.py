@@ -32,8 +32,10 @@ from functools import partial
 import gevent
 from gevent.queue import Queue
 
-from volttron.client.known_identities import PLATFORM_TAGGING
-from volttron.utils import jsonapi
+from volttron.client.known_identities import PLATFORM_TAGGING, AUTH
+from volttron.client.messaging.health import STATUS_BAD
+from volttron.types.auth import AuthException
+from volttron.utils import jsonapi, get_logger
 from volttron.utils.scheduling import periodic
 from volttron.types.message import Message
 
@@ -45,8 +47,6 @@ __all__ = ["PubSub"]
 
 min_compatible_version = "3.0"
 max_compatible_version = ""
-
-from volttron.client.logs import get_logger
 
 _log = get_logger()
 
@@ -68,13 +68,7 @@ class PubSub(SubsystemBase):
     Pubsub subsystem concrete class implementation for ZMQ message bus.
     """
 
-    def __init__(self,
-                 core,
-                 rpc_subsys,
-                 peerlist_subsys,
-                 owner,
-                 tag_vip_id=PLATFORM_TAGGING,
-                 tag_refresh_interval=-1):
+    def __init__(self, core, rpc_subsys, peerlist_subsys, owner, tag_vip_id=PLATFORM_TAGGING, tag_refresh_interval=-1):
         self.__core__ = weakref.ref(core)
         self.__rpc__ = weakref.ref(rpc_subsys)
         self.__peerlist__ = weakref.ref(peerlist_subsys)
@@ -120,12 +114,10 @@ class PubSub(SubsystemBase):
             #self.vip_socket = self.core().socket
 
             def subscribe(member):    # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms, queue in annotations(
-                        member, set, "pubsub.subscriptions"):
+                for peer, bus, prefix, all_platforms, queue in annotations(member, set, "pubsub.subscriptions"):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription("prefix", prefix, member, bus, all_platforms)
-                    _log.debug("SYNC ZMQ: all_platforms {}".format(
-                        self._my_subscriptions['internal'][bus][prefix]))
+                    _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
 
                 for peer, bus, tag_condition, topic_source, all_platforms, queue in annotations(
                         member, set, "pubsub.subscription_by_tags"):
@@ -198,8 +190,7 @@ class PubSub(SubsystemBase):
             self.synchronize()
 
     def get_topics_by_tag(self, condition):
-        topics = self.rpc().call(self.tag_vip_id, "get_topics_by_tags",
-                                 condition=condition).get(timeout=10)
+        topics = self.rpc().call(self.tag_vip_id, "get_topics_by_tags", condition=condition).get(timeout=10)
         return topics
 
     @spawn
@@ -349,9 +340,22 @@ class PubSub(SubsystemBase):
         :Return Values:
         Success or Failure
         """
-
-        self._add_subscription("prefix", prefix, callback, bus, all_platforms)
-        return self.call_server_subscribe(all_platforms, bus, prefix)
+        authorized = True
+        identity = self.__core__().identity
+        if AUTH in self.__peerlist__().list().get():
+            authorized = self.__rpc__().call("platform.auth",
+                                             "check_pubsub_authorization",
+                                             identity=identity,
+                                             topic_pattern=prefix,
+                                             access="subscribe").get()
+        if authorized:
+            self._add_subscription("prefix", prefix, callback, bus, all_platforms)
+            return self.call_server_subscribe(all_platforms, bus, prefix)
+        else:
+            self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {prefix}")
+            # no harm in publishing so we don't wait till next heart beat for status update
+            self.__owner__.health.publish()
+            _log.error(f"{identity} is not authorized to subscribe to protected topic {prefix}")
 
     @dualmethod
     @spawn
@@ -413,8 +417,7 @@ class PubSub(SubsystemBase):
 
         if success_list:
             # even if there was one successful subscription save tag_condition for periodic updates
-            self._my_tag_condition_callbacks[platform][bus][(topic_source,
-                                                             tag_condition)].add(callback)
+            self._my_tag_condition_callbacks[platform][bus][(topic_source, tag_condition)].add(callback)
         return success_list, failure_list
 
     @subscribe.classmethod
@@ -694,12 +697,25 @@ class PubSub(SubsystemBase):
 
         if peer is None:
             peer = "pubsub"
-
+        authorized = True
+        identity = self.__core__().identity
+        if AUTH in self.__peerlist__().list().get():
+            authorized = self.__rpc__().call("platform.auth",
+                                             "check_pubsub_authorization",
+                                             identity=identity,
+                                             topic_pattern=topic,
+                                             access="publish").get()
         result = next(self._results)
-        args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
-        message = self._create_message_for_router(msg_id=result.ident, args=args)
-        _log.debug(f"**********************************************Sending: {message}")
-        self.__core__().connection.send_vip_message(message=message)
+        if authorized:
+            args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
+            message = self._create_message_for_router(msg_id=result.ident, args=args)
+            _log.debug(f"sending pubsub message created for router is: {message}")
+            self.__core__().connection.send_vip_message(message=message)
+        else:
+            self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {topic}")
+            self.__owner__.health.publish()
+            _log.error(f"{identity} is not authorized to subscribe to protected topic {topic}")
+
         return result
 
     def publish_by_tags(self,
@@ -760,6 +776,7 @@ class PubSub(SubsystemBase):
         param message: VIP message from PubSubService
         type message: dict
         """
+        _log.debug(f"Putting message in event queue for {self.__core__().identity} {message}")
         self._event_queue.put(message)
 
     @spawn
@@ -771,24 +788,16 @@ class PubSub(SubsystemBase):
         op = message.args[0]
 
         _log.debug(f"Processing {self.__core__().identity}: op: {op}, message: {message}")
-
+        response = None
         if op == "request_response":
             result = None
             try:
                 result = self._results.pop(message.id)
             except KeyError:
                 pass
-
+            _log.debug(f"Result is: {result}")
             response = message.args[1]
-            import struct
 
-            if not isinstance(response, int):
-                if len(response) == 4:    # integer
-                    response = struct.unpack("I", response.encode("utf-8"))
-                    response = response[0]
-                elif len(response) == 1:    # bool
-                    response = struct.unpack("?", response.encode("utf-8"))
-                    response = response[0]
             if result:
                 result.set(response)
 
@@ -806,6 +815,7 @@ class PubSub(SubsystemBase):
             except KeyError as exc:
                 _log.error("Missing keys in pubsub message: {}".format(exc))
             else:
+                response = message
                 self._process_callback(sender, bus, topic, headers, message)
 
         elif op == "list_response":
@@ -819,6 +829,9 @@ class PubSub(SubsystemBase):
                 pass
         else:
             _log.error("Unknown operation ({})".format(op))
+
+        if response is not None:
+            _log.debug(f"Processed {op} response was {response}")
 
     def _process_loop(self):
         """Incoming message processing loop"""
@@ -841,28 +854,3 @@ class PubSub(SubsystemBase):
         except KeyError:
             return
         result.set_exception(error)
-
-
-class ProtectedPubSubTopics(object):
-    """Simple class to contain protected pubsub topics"""
-
-    def __init__(self):
-        self._dict = {}
-        self._re_list = []
-
-    def add(self, topic, capabilities):
-        if isinstance(capabilities, str):
-            capabilities = [capabilities]
-        if len(topic) > 1 and topic[0] == topic[-1] == "/":
-            regex = re.compile("^" + topic[1:-1] + "$")
-            self._re_list.append((regex, capabilities))
-        else:
-            self._dict[topic] = capabilities
-
-    def get(self, topic):
-        if topic in self._dict:
-            return self._dict[topic]
-        for regex, capabilities in self._re_list:
-            if regex.match(topic):
-                return capabilities
-        return None

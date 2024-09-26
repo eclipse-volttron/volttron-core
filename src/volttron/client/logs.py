@@ -1,11 +1,14 @@
 import logging
+import warnings
 from logging import Logger
 import sys
 import os
+import volttron.utils.jsonapi as jsonapi
+import volttron.utils as utils
 
 
 def get_logger() -> Logger:
-    return logging.getLogger("volttron.client")
+    return utils.get_logger()
 
 
 def get_default_client_log_config(level=logging.DEBUG) -> dict:
@@ -103,3 +106,6 @@ def setup_logging(level=logging.DEBUG, console=False):
             warnings.filterwarnings("ignore", category=InsecureRequestWarning)
         root.addHandler(handler)
     root.setLevel(level)
+
+    logging.getLogger("volttron.messagebus").setLevel("INFO")
+    logging.getLogger("volttron.server").setLevel("WARN")

@@ -23,11 +23,13 @@
 # }}}
 
 import logging
+from volttron.server.decorators import service
 
 _log = logging.getLogger(__name__)
 
 
-class ServicePeerNotifier(object):
+@service
+class ServicePeerNotifier:
     """
     This class is responsible for routing the base_router's connections and disconnections
     from the zmq thread through to the registered callback functions.

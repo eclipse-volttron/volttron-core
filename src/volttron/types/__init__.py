@@ -60,8 +60,8 @@ class AbstractAgent(ABC):
         :rtype: Credentials
         """
         # TODO: We need to not do it like this!
-        cred_path = Path(os.environ.get(
-            "VOLTTRON_HOME", "~/.volttron")).expanduser() / f"credentials_store/{identity}.json"
+        cred_path = Path(os.environ.get("VOLTTRON_HOME",
+                                        "~/.volttron")).expanduser() / f"credentials_store/{identity}.json"
         return CredentialsFactory.load_credentials_from_file(cred_path)
 
 
@@ -190,6 +190,10 @@ class Service(ABC):
 
 
 class MessageBus(ABC):
+    # This should be set so it is called for the main
+    # program clean up when either the `stop` method is
+    # called.
+    _stop_handler: MessageBusStopHandler
 
     @abstractmethod
     def start(self, options: any):    # ServerOptions):
@@ -198,6 +202,12 @@ class MessageBus(ABC):
     @abstractmethod
     def stop(self):
         ...
+
+    def set_stop_handler(self, value: MessageBusStopHandler):
+        self._stop_handler = value
+
+    def get_stop_handler(self) -> MessageBusStopHandler | None:
+        return self._stop_handler
 
     @abstractmethod
     def is_running(self) -> bool:
@@ -209,6 +219,13 @@ class MessageBus(ABC):
 
     @abstractmethod
     def receive_vip_message(self) -> Message:
+        ...
+
+
+class MessageBusStopHandler(ABC):
+
+    @abstractmethod
+    def message_bus_shutdown(self):
         ...
 
 
