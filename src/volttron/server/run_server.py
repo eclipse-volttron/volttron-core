@@ -387,6 +387,17 @@ def start_volttron_process(options: ServerOptions):
         with VOLTTRON_INSTANCES_PATH.open("w") as fp:
             fp.write(jsonapi.dumps(instances))
 
+
+        # TODO - health service should register callback with messagebus to keep track of peer add and remove
+        # health_service = service_repo.resolve(HealthService)
+        # event = gevent.event.Event()
+        # task = gevent.spawn(health_service.core.run, event)
+        # event.wait()
+        # del event
+        # spawned_greenlets.append(task)
+        # mb._notifier.register_peer_callback(health_service.peer_added,
+        #                                     health_service.peer_dropped)
+
         spawned_greenlets.extend(start_service_agents())
 
         # # # TODO Key discovery agent add in.

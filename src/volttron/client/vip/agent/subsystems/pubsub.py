@@ -353,8 +353,9 @@ class PubSub(SubsystemBase):
             return self.call_server_subscribe(all_platforms, bus, prefix)
         else:
             self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {prefix}")
-            #self.__owner__.health.publish()
-            raise AuthException(f"{identity} is not authorized to subscribe to protected topic {prefix}")
+            # no harm in publishing so we don't wait till next heart beat for status update
+            self.__owner__.health.publish()
+            _log.error(f"{identity} is not authorized to subscribe to protected topic {prefix}")
 
     @dualmethod
     @spawn
@@ -696,12 +697,25 @@ class PubSub(SubsystemBase):
 
         if peer is None:
             peer = "pubsub"
-
+        authorized = True
+        identity = self.__core__().identity
+        if AUTH in self.__peerlist__().list().get():
+            authorized = self.__rpc__().call("platform.auth",
+                                             "check_pubsub_authorization",
+                                             identity=identity,
+                                             topic_pattern=topic,
+                                             access="publish").get()
         result = next(self._results)
-        args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
-        message = self._create_message_for_router(msg_id=result.ident, args=args)
-        _log.debug(f"sending pubsub message created for router is: {message}")
-        self.__core__().connection.send_vip_message(message=message)
+        if authorized:
+            args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
+            message = self._create_message_for_router(msg_id=result.ident, args=args)
+            _log.debug(f"sending pubsub message created for router is: {message}")
+            self.__core__().connection.send_vip_message(message=message)
+        else:
+            self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {topic}")
+            self.__owner__.health.publish()
+            _log.error(f"{identity} is not authorized to subscribe to protected topic {topic}")
+
         return result
 
     def publish_by_tags(self,
