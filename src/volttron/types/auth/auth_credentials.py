@@ -96,6 +96,8 @@ class CredentialsFactory:
     @staticmethod
     def load_from_environ() -> Credentials:
         if credentials := os.environ.get("AGENT_CREDENTIALS"):
+            # Expand user variables
+            credentials = os.path.expanduser(credentials)
             try:
                 creds = CredentialsFactory.load_credentials_from_file(credentials)
                 return creds

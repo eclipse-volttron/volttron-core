@@ -226,8 +226,7 @@ class SecureExecutionEnvironment(object):
             _log.info("stopping agent: stdout {} stderr: {}".format(stdout, stderr))
             if process.returncode != 0:
                 _log.error("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
-                raise RuntimeError("Exception stopping agent: stdout {} stderr: {}".format(
-                    stdout, stderr))
+                raise RuntimeError("Exception stopping agent: stdout {} stderr: {}".format(stdout, stderr))
         return self.process.poll()
 
     def __call__(self, *args, **kwargs):
@@ -282,8 +281,7 @@ class AIPplatform:
         user_id_path = os.path.join(agent_dir, "USER_ID")
 
         with open(user_id_path, "w+") as user_id_file:
-            volttron_agent_user = "volttron_{}".format(
-                str(get_utc_seconds_from_epoch()).replace(".", ""))
+            volttron_agent_user = "volttron_{}".format(str(get_utc_seconds_from_epoch()).replace(".", ""))
             _log.info("Creating volttron user {}".format(volttron_agent_user))
             group = "volttron_{}".format(self._instance_name)
             useradd = ["sudo", "useradd", volttron_agent_user, "-r", "-G", group]
@@ -291,8 +289,7 @@ class AIPplatform:
             stdout, stderr = useradd_process.communicate()
             if useradd_process.returncode != 0:
                 # TODO alert?
-                raise RuntimeError("Creating {} user failed: {}".format(
-                    volttron_agent_user, stderr))
+                raise RuntimeError("Creating {} user failed: {}".format(volttron_agent_user, stderr))
             user_id_file.write(volttron_agent_user)
         return volttron_agent_user
 
@@ -307,15 +304,12 @@ class AIPplatform:
         acl_perms = "user:{user}:{perms}".format(user=user, perms=perms)
         permissions_command = ["setfacl", "-m", acl_perms, path]
         _log.debug("PERMISSIONS COMMAND {}".format(permissions_command))
-        permissions_process = subprocess.Popen(permissions_command,
-                                               stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE)
+        permissions_process = subprocess.Popen(permissions_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = permissions_process.communicate()
         if permissions_process.returncode != 0:
             _log.error("Set {} permissions on {}, stdout: {}".format(perms, path, stdout))
             # TODO alert?
-            raise RuntimeError("Setting {} permissions on {} failed: {}".format(
-                perms, path, stderr))
+            raise RuntimeError("Setting {} permissions on {} failed: {}".format(perms, path, stderr))
 
     def set_agent_user_permissions(self, volttron_agent_user, agent_uuid, agent_dir):
         name = self.agent_name(agent_uuid)
@@ -329,8 +323,7 @@ class AIPplatform:
         for (root, directories, files) in os.walk(agent_dir, topdown=True):
             for directory in directories:
                 if directory == os.path.basename(data_dir):
-                    self.set_acl_for_path("rwx", volttron_agent_user,
-                                          os.path.join(root, directory))
+                    self.set_acl_for_path("rwx", volttron_agent_user, os.path.join(root, directory))
                 else:
                     self.set_acl_for_path("rx", volttron_agent_user, os.path.join(root, directory))
         # In install directory, make all files' permissions to 400.
@@ -374,13 +367,10 @@ class AIPplatform:
         if pwd.getpwnam(volttron_agent_user):
             _log.info("Removing volttron agent user {}".format(volttron_agent_user))
             userdel = ["sudo", "userdel", volttron_agent_user]
-            userdel_process = subprocess.Popen(userdel,
-                                               stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE)
+            userdel_process = subprocess.Popen(userdel, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = userdel_process.communicate()
             if userdel_process.returncode != 0:
-                _log.error("Remove {user} user failed: {stderr}".format(user=volttron_agent_user,
-                                                                        stderr=stderr))
+                _log.error("Remove {user} user failed: {stderr}".format(user=volttron_agent_user, stderr=stderr))
                 raise RuntimeError(stderr)
 
     def setup(self):
@@ -489,8 +479,7 @@ class AIPplatform:
                 # And there is data to backup
                 backup_agent_file = "/tmp/{}.tar.gz".format(agent_uuid)
                 with tarfile.open(backup_agent_file, "w:gz") as tar:
-                    tar.add(old_agent_data_dir,
-                            arcname=os.path.sep)    # os.path.basename(source_dir))
+                    tar.add(old_agent_data_dir, arcname=os.path.sep)    # os.path.basename(source_dir))
         return backup_agent_file
 
     @staticmethod
@@ -499,12 +488,7 @@ class AIPplatform:
         with tarfile.open(source_file, mode="r:gz") as tar:
             tar.extractall(output_dir)
 
-    def install_agent(self,
-                      agent,
-                      vip_identity=None,
-                      agent_config=None,
-                      force=False,
-                      pre_release=False):
+    def install_agent(self, agent, vip_identity=None, agent_config=None, force=False, pre_release=False):
         """
         Installs the agent into the current environment, set up the agent data directory and
         agent data structure.
@@ -656,8 +640,10 @@ class AIPplatform:
             # We essentially have to remove and add. so do a dry run to see nothing will break
             #
             try:
-                cmd_dry_run = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(),
-                               "remove", agent_name, "--dry-run"]
+                cmd_dry_run = [
+                    "poetry", "--directory",
+                    self._server_opts.poetry_project_path.as_posix(), "remove", agent_name, "--dry-run"
+                ]
                 # we only care about the return code. is return code is non-zero below will raise exception
                 execute_command(cmd_dry_run)
             except RuntimeError as r:
@@ -692,8 +678,14 @@ class AIPplatform:
                                    f"Or manually remove agent and install agent with specific version")
 
             # No exception. Worst case we can revert so safely uninstall current version.
-            cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "remove",
-                   f"{agent_name}=={current_version}"]
+            # if agent.endswith(".whl"):
+            #     cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "remove",
+            #            f"{agent}"]
+            # else:
+            cmd = [
+                "poetry", "--directory",
+                self._server_opts.poetry_project_path.as_posix(), "remove", f"{agent_name}=={current_version}"
+            ]
             execute_command(cmd)
 
         # finally install agent passed!
@@ -710,15 +702,18 @@ class AIPplatform:
                 _log.info("--force was used. Attempting to reinstall agent version that was previously present in env"
                           f"({agent_name}=={current_version})")
                 try:
-                    cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "add",
-                           f"{agent_name}=={current_version}"]
+                    cmd = [
+                        "poetry", "--directory",
+                        self._server_opts.poetry_project_path.as_posix(), "add", f"{agent_name}=={current_version}"
+                    ]
                     execute_command(cmd)
                 except RuntimeError as e:
                     # We are in trouble. we are not able to install give agent version and unable to roll back to the
                     # version that was already there either!
-                    raise RuntimeError("ERROR: --force was used. we successfully uninstalled current version of agent"
-                                       f"{agent_name}=={current_version}. But there was error installing {agent} and "
-                                       f"we are unable to reinstall current version either. \n", e)
+                    raise RuntimeError(
+                        "ERROR: --force was used. we successfully uninstalled current version of agent"
+                        f"{agent_name}=={current_version}. But there was error installing {agent} and "
+                        f"we are unable to reinstall current version either. \n", e)
             else:
                 raise e
 
@@ -775,8 +770,7 @@ class AIPplatform:
         final_identity = self._get_available_agent_identity(name_template)
 
         if final_identity is None:
-            raise ValueError(
-                "Agent with VIP ID {} already installed on platform.".format(name_template))
+            raise ValueError("Agent with VIP ID {} already installed on platform.".format(name_template))
 
         if not is_valid_identity(final_identity):
             raise ValueError("Invalid identity detected: {}".format(",".format(final_identity)))
@@ -840,8 +834,7 @@ class AIPplatform:
         pkg = None
         # TODO: wheel_wrap
         # pkg = UnpackedPackage(agent_path)
-        data_dir = os.path.join(os.path.dirname(pkg.distinfo),
-                                "{}.agent-data".format(pkg.package_name))
+        data_dir = os.path.join(os.path.dirname(pkg.distinfo), "{}.agent-data".format(pkg.package_name))
         if not os.path.exists(data_dir):
             os.mkdir(data_dir)
         return data_dir
@@ -915,8 +908,10 @@ class AIPplatform:
             if agent_name not in uuid_name_map.values():
                 # if no other uuid has the same agent name. There was only one instance that we popped earlier
                 # so safe to uninstall source
-                execute_command(["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(),
-                                 "remove", agent_name[:agent_name.rfind("-")]])
+                execute_command([
+                    "poetry", "--directory",
+                    self._server_opts.poetry_project_path.as_posix(), "remove", agent_name[:agent_name.rfind("-")]
+                ])
         # update uuid vip id maps
         self._uuid_vip_id_map.pop(agent_uuid)
         self._vip_id_uuid_map.pop(vip_identity)
@@ -955,10 +950,7 @@ class AIPplatform:
                 for agent_uuid, execenv in self._active_agents.items()
             }
         else:
-            return {
-                agent_uuid: execenv.name
-                for agent_uuid, execenv in self._active_agents.items()
-            }
+            return {agent_uuid: execenv.name for agent_uuid, execenv in self._active_agents.items()}
 
     def clear_status(self, clear_all=False):
         remove = []
@@ -975,12 +967,10 @@ class AIPplatform:
 
     def status_agents(self, get_agent_user=False):
         if self._secure_agent_user and get_agent_user:
-            return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid),
-                     self._uuid_vip_id_map[agent_uuid])
+            return [(agent_uuid, agent[0], agent[1], self.agent_status(agent_uuid), self._uuid_vip_id_map[agent_uuid])
                     for agent_uuid, agent in self.get_active_agents_meta().items()]
         else:
-            return [(agent_uuid, agent_name, self.agent_status(agent_uuid),
-                     self._uuid_vip_id_map[agent_uuid])
+            return [(agent_uuid, agent_name, self.agent_status(agent_uuid), self._uuid_vip_id_map[agent_uuid])
                     for agent_uuid, agent_name in self.get_active_agents_meta().items()]
 
     def tag_agent(self, agent_uuid, tag):
@@ -1009,8 +999,7 @@ class AIPplatform:
             raise ValueError("invalid agent")
 
         if not vip_identity:
-            if "/" in agent_uuid or agent_uuid in [".", ".."
-                                                   ] or not self._uuid_vip_id_map.get(agent_uuid):
+            if "/" in agent_uuid or agent_uuid in [".", ".."] or not self._uuid_vip_id_map.get(agent_uuid):
                 raise ValueError("invalid agent")
             vip_identity = self._uuid_vip_id_map[agent_uuid]
 

@@ -54,15 +54,18 @@ class ServerOptions:
     """
     volttron_home: Path = None
     instance_name: str = None
+    local_address: str = None
     address: list[str] = field(default_factory=list)
     agent_isolation_mode: bool = False
-    # Module that holds the zmq based classes, though we shorten it assumeing
+    # Module that holds the zmq based classes, though we shorten it assuming
     # it's in volttron.messagebus
     messagebus: str = "zmq"
     auth_enabled: bool = True
     config_file: Path = None
     initialized: bool = False
     service_address: str = None
+    server_messagebus_id: str = "vip.server"
+    agent_monitor_frequency: int = 30
     poetry_project_path: Path = None
 
     # services: list[ServiceData] = field(default_factory=list)
@@ -111,8 +114,6 @@ class ServerOptions:
                 for fld in ServerOptions.__dataclass_fields__:
                     setattr(self, fld, getattr(options, fld))
 
-        namespace = "volttron.services"
-
     def update(self, opts: argparse.Namespace | dict):
         """Update the opts from the passed command line or a dictionary.
 
@@ -151,8 +152,8 @@ class ServerOptions:
         for field in fields(ServerOptions):
             try:
                 # Don't save volttron_home within the config file.
-                if field.name not in ('volttron_home', 'services', 'config_file', 'initialized',
-                                      'service_address', "poetry_project_path"):
+                if field.name not in ('volttron_home', 'services', 'config_file', 'initialized', 'service_address',
+                                      "poetry_project_path"):
                     # More than one address can be present, so we must be careful
                     # with it.
                     if field.name == 'address':
@@ -164,8 +165,7 @@ class ServerOptions:
                         # for v in getattr(self, field.name):
                         #     parser.set("volttron", "address", v)
                     else:
-                        parser.set("volttron", field.name.replace('_', '-'),
-                                   str(getattr(self, field.name)))
+                        parser.set("volttron", field.name.replace('_', '-'), str(getattr(self, field.name)))
             except configparser.NoOptionError:
                 pass
 

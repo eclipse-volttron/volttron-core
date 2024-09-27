@@ -6,9 +6,7 @@ This module contains a factory registration function and several instances of it
 includes a function for logging traces.
 """
 import inspect
-import logging
-import typing
-from typing import TYPE_CHECKING, TypeVar
+from typing import TypeVar
 
 import gevent
 from gevent import Greenlet
@@ -16,23 +14,18 @@ from gevent import Greenlet
 from volttron.client.known_identities import AUTH, CONFIGURATION_STORE
 from volttron.server.containers import service_repo
 from volttron.server.server_options import ServerOptions
-from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator,
-                                                  CredentialsStore)
-from volttron.types.auth.auth_service import (AuthService, Authenticator, AuthorizationManager,
-                                              Authorizer)
-from volttron.types import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor, AgentStarter,
-                            Connection, MessageBus, Service)
-from volttron.types.factories import ConnectionBuilder, CoreBuilder
+from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator, CredentialsStore)
+from volttron.types.auth.auth_service import (AuthService, Authenticator, AuthorizationManager, Authorizer)
+from volttron.types import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor, AgentStarter, MessageBus)
 
-_log = logging.getLogger(__name__)
+from volttron.utils import get_logger
+
+_log = get_logger()
 
 T = TypeVar('T')
 
 
-def factory_registration(registy_name: str,
-                         protocol: T = None,
-                         singleton: bool = True,
-                         allow_many: bool = False):
+def factory_registration(registy_name: str, protocol: T = None, singleton: bool = True, allow_many: bool = False):
     """
     Create a factory registration function.
 
@@ -69,13 +62,11 @@ def factory_registration(registy_name: str,
             lookup_key = cls.__name__
 
         if lookup_key is None:
-            raise ValueError(
-                f"{cls.__name__} does not have an internal Meta class with identity or name.")
+            raise ValueError(f"{cls.__name__} does not have an internal Meta class with identity or name.")
 
         # args = typing.get_args(protocol)
         # if
-        if protocol is not None and not protocol in cls.__bases__ and not isinstance(
-                cls, protocol):
+        if protocol is not None and not protocol in cls.__bases__ and not isinstance(cls, protocol):
             raise ValueError(f"{cls.__name__} doesn't implement {protocol}")
 
         if singleton:
@@ -121,8 +112,7 @@ authservice = factory_registration("authservice", protocol=AuthService)
 
 authorizer = factory_registration("authorizer", protocol=Authorizer)
 authenticator = factory_registration("authenticator", protocol=Authenticator)
-authorization_manager = factory_registration("authorization_manager",
-                                             protocol=AuthorizationManager)
+authorization_manager = factory_registration("authorization_manager", protocol=AuthorizationManager)
 
 auth_create_hook = factory_registration("auth_create_hook")
 auth_add_hook = factory_registration("auth_add_hook")
@@ -144,8 +134,7 @@ def __get_create_instance_from_factory__(*, instances, registration, name: str =
         signature = inspect.signature(registration.registry[name].__init__)
         for k, v in kwargs.items():
             if k not in signature.parameters:
-                raise ValueError(
-                    f"Invalid parameter {k} for {name} signature has {signature.parameters}")
+                raise ValueError(f"Invalid parameter {k} for {name} signature has {signature.parameters}")
 
         instances[name] = registration.registry[name](**kwargs)
     elif name not in instances:
@@ -238,8 +227,7 @@ def get_core_instance(credentials: Credentials) -> AbstractCore:
 __authorizer__: dict[str, Authorizer] = {}
 
 
-def get_authorizer(name: str = None,
-                   authorization_manager: AuthorizationManager = None) -> Authorizer:
+def get_authorizer(name: str = None, authorization_manager: AuthorizationManager = None) -> Authorizer:
     authorizer_instance: Authorizer = None
     if name is not None:
         authorizeritem = __authorizer__.get(name, None)
@@ -251,11 +239,10 @@ def get_authorizer(name: str = None,
     assert isinstance(authorization_manager, AuthorizationManager)
 
     if authorizer_instance is None:
-        authorizer_instance = __get_create_instance_from_factory__(
-            instances=__authorizer__,
-            registration=authorizer,
-            name=name,
-            authorization_manager=authorization_manager)
+        authorizer_instance = __get_create_instance_from_factory__(instances=__authorizer__,
+                                                                   registration=authorizer,
+                                                                   name=name,
+                                                                   authorization_manager=authorization_manager)
         if authorizer_instance is not None:
             __authorizer__[name] = authorizer_instance
     return authorizer_instance
@@ -264,8 +251,7 @@ def get_authorizer(name: str = None,
 __authenticator__: dict[str, Authenticator] = {}
 
 
-def get_authenticator(name: str = None,
-                      credentials_creator: CredentialsCreator = None) -> Authenticator:
+def get_authenticator(name: str = None, credentials_creator: CredentialsCreator = None) -> Authenticator:
     authenticatoritem: Authenticator = None
     if name is not None:
         authenticatoritem = __authenticator__.get(name, None)
@@ -275,11 +261,10 @@ def get_authenticator(name: str = None,
     assert isinstance(credentials_creator, CredentialsCreator)
 
     if authenticatoritem is None:
-        authenticatoritem = __get_create_instance_from_factory__(
-            instances=__authenticator__,
-            registration=authenticator,
-            name=name,
-            credentials_creator=credentials_creator)
+        authenticatoritem = __get_create_instance_from_factory__(instances=__authenticator__,
+                                                                 registration=authenticator,
+                                                                 name=name,
+                                                                 credentials_creator=credentials_creator)
         if authenticatoritem is not None:
             __authenticator__[name] = authenticatoritem
     return authenticatoritem
@@ -293,8 +278,9 @@ def get_credentials_store(name: str = None) -> CredentialsStore:
     if name is not None:
         credentials_store_item = __credentials_store__.get(name, None)
     if credentials_store_item is None:
-        credentials_store_item = __get_create_instance_from_factory__(
-            instances=__credentials_store__, registration=credentials_store, name=name)
+        credentials_store_item = __get_create_instance_from_factory__(instances=__credentials_store__,
+                                                                      registration=credentials_store,
+                                                                      name=name)
         if credentials_store_item is not None:
             __credentials_store__[name] = credentials_store_item
     return credentials_store_item
@@ -356,9 +342,7 @@ __service_instances__: dict[str, object] = {}
 
 
 def get_service_instance(identity: str) -> object:
-    return __get_create_instance_from_factory__(instances=__service_instances__,
-                                                registration=service,
-                                                name=identity)
+    return __get_create_instance_from_factory__(instances=__service_instances__, registration=service, name=identity)
 
 
 def get_service_startup_order() -> list[str]:
@@ -378,6 +362,7 @@ def start_service_agents() -> list[Greenlet]:
     :return: A list of greenlets that are running the services.
     :rtype: list[Greenlet]
     """
+    _log.debug("Starting Service Agents")
     from volttron.types.auth.auth_service import AuthService
 
     greenlets = []
@@ -394,14 +379,16 @@ def start_service_agents() -> list[Greenlet]:
             break
 
     for lookup, cls in service.registry.items():
-        if isinstance(cls, type) and issubclass(
-                cls, AbstractAgent) and cls.Meta.identity not in (CONFIGURATION_STORE, AUTH):
+        if isinstance(cls, type) and issubclass(cls,
+                                                AbstractAgent) and cls.Meta.identity not in (CONFIGURATION_STORE, AUTH):
+            _log.debug(f"- {cls.__name__}")
             obj = service_repo.resolve(cls)
             event = gevent.event.Event()
             task = gevent.spawn(obj.core.run, event)
             event.wait()
             del event
             greenlets.append(task)
+    _log.debug("End Starting Service Agents")
     return greenlets
 
 
