@@ -234,7 +234,7 @@ def authz_list_dummy(opts):
     else:
         pass
     # return list_content
-    print(print(json.dumps(list_content, indent=4)))
+    print(json.dumps(list_content, indent=4))
     # print(list_content.keys())
 
 
