@@ -37,7 +37,7 @@ way.
 __docformat__ = "reStructuredText"
 __version__ = "1.1"
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
@@ -75,13 +75,10 @@ class Health(SubsystemBase):
         fq_identity = cc.get_fq_identity(self._core().identity)
         # RMQ and other message buses can't handle '.' because it's used as the separator.  This
         # causes us to change the alert topic's agent_identity to have '_' rather than '.'.
-        topic = topics.ALERTS(agent_class=agent_class,
-                              agent_identity=fq_identity.replace(".", "_"))
+        topic = topics.ALERTS(agent_class=agent_class, agent_identity=fq_identity.replace(".", "_"))
         headers = dict(alert_key=alert_key)
 
-        self._owner.vip.pubsub.publish("pubsub",
-                                       topic=topic.format(),
-                                       headers=headers,
+        self._owner.vip.pubsub.publish("pubsub", topic=topic.format(), headers=headers,
                                        message=statusobj.as_json()).get(timeout=10)
 
     def add_status_callback(self, fn):

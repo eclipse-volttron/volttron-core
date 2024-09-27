@@ -34,6 +34,20 @@ from typing import List, TYPE_CHECKING
 
 import yaml
 
+
+# This needs to be at the top of the file because it is used in some of the imported functions below
+# and most likely will cause a circular import if not here.
+def get_logger() -> logging.Logger:
+    """
+    Gets the logger for the module that called this method.
+
+    :return: The logger for the module that calls this function.
+    """
+    frame = inspect.stack()[1]
+    module = inspect.getmodule(frame[0])
+    return logging.getLogger(module.__name__)
+
+
 from volttron.utils.commands import (is_volttron_running, execute_command, isapipe, wait_for_volttron_startup,
                                      wait_for_volttron_shutdown, vip_main)
 from volttron.utils.context import ClientContext
@@ -49,13 +63,6 @@ from volttron.utils.time import (format_timestamp, process_timestamp, parse_time
                                  get_utc_seconds_from_epoch, get_aware_utc_now, fix_sqlite3_datetime)
 from volttron.utils.version import get_version
 from volttron.types import Identity
-
-
-def get_logger() -> logging.Logger:
-    frame = inspect.stack()[1]
-    module = inspect.getmodule(frame[0])
-    return logging.getLogger(module.__name__)
-
 
 _log = get_logger()
 

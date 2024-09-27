@@ -36,7 +36,7 @@ from .base import SubsystemBase
 
 __all__ = ["PeerList"]
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
@@ -68,10 +68,7 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip("",
-                                "peerlist",
-                                args=["add", peer, message_bus],
-                                msg_id=result.ident)
+            connection.send_vip("", "peerlist", args=["add", peer, message_bus], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))
@@ -83,10 +80,7 @@ class PeerList(SubsystemBase):
         if not message_bus:
             message_bus = self.core().messagebus
         try:
-            connection.send_vip("",
-                                "peerlist",
-                                args=["drop", peer, message_bus],
-                                msg_id=result.ident)
+            connection.send_vip("", "peerlist", args=["drop", peer, message_bus], msg_id=result.ident)
         except ZMQError as exc:
             if exc.errno == ENOTSOCK:
                 _log.error("Socket send on non socket {}".format(self.core().identity))

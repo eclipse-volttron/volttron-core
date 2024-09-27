@@ -7,17 +7,14 @@ from volttron.client.vip.agent.core import Core
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.factories import (ConnectionBuilder, ControlParser, CoreBuilder)
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
 T = TypeVar('T')
 
 
-def factory_registration(registy_name: str,
-                         protocol: T = None,
-                         singleton: bool = True,
-                         allow_many: bool = False):
+def factory_registration(registy_name: str, protocol: T = None, singleton: bool = True, allow_many: bool = False):
     """
     Create a factory registration function.
 
@@ -46,13 +43,11 @@ def factory_registration(registy_name: str,
             lookup_key = cls.__name__
 
         if lookup_key is None:
-            raise ValueError(
-                f"{cls.__name__} does not have an internal Meta class with identity or name.")
+            raise ValueError(f"{cls.__name__} does not have an internal Meta class with identity or name.")
 
         # args = typing.get_args(protocol)
         # if
-        if protocol is not None and not protocol in cls.__bases__ and not isinstance(
-                cls, protocol):
+        if protocol is not None and not protocol in cls.__bases__ and not isinstance(cls, protocol):
             raise ValueError(f"{cls.__name__} doesn't implement {protocol}")
 
         # if singleton:
@@ -77,9 +72,7 @@ def factory_registration(registy_name: str,
 
 
 core_builder = factory_registration("core_builder", protocol=CoreBuilder, singleton=True)
-connection_builder = factory_registration("connection_bulider",
-                                          protocol=ConnectionBuilder,
-                                          singleton=True)
+connection_builder = factory_registration("connection_bulider", protocol=ConnectionBuilder, singleton=True)
 vctl_subparser = factory_registration("vctl_subparser", protocol=ControlParser)
 
 
@@ -118,8 +111,7 @@ def get_core_builder(name: Optional[str] = None, **kwargs) -> CoreBuilder:
             zmq_core_builder_class = "ZmqCoreBuilder"
             module = importlib.import_module(zmq_core_module)
             __core_builder__ = __get_class_from_factory__(
-                registration=core_builder,
-                name=name)    # __core_builder__ = getattr(module, zmq_core_builder_class)
+                registration=core_builder, name=name)    # __core_builder__ = getattr(module, zmq_core_builder_class)
 
             # __core_builder__ = importlib.import_module(new_package)
 
@@ -143,8 +135,7 @@ def get_server_credentials(address: Optional[str] = None) -> Credentials:
     import os
     from pathlib import Path
 
-    from volttron.types.auth import (Credentials, PKICredentials, PublicCredentials,
-                                     VolttronCredentials)
+    from volttron.types.auth import (Credentials, PKICredentials, PublicCredentials, VolttronCredentials)
     from volttron.types.known_host import KnownHostProperties as known_host_properties
     from volttron.client.known_identities import PLATFORM
     from volttron.utils import jsonapi
@@ -153,8 +144,7 @@ def get_server_credentials(address: Optional[str] = None) -> Credentials:
     if address is None or address.startswith('ipc'):
         address = "@"
 
-    cred_path = Path(
-        os.environ['VOLTTRON_HOME']).expanduser() / f"credentials_store/{PLATFORM}.json"
+    cred_path = Path(os.environ['VOLTTRON_HOME']).expanduser() / f"credentials_store/{PLATFORM}.json"
     return VolttronCredentials.load_from_file(cred_path)
 
     new_path = Path(os.environ['VOLTTRON_HOME']) / "known_hosts.json"

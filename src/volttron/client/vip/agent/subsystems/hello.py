@@ -32,7 +32,7 @@ from zmq.green import ENOTSOCK
 
 __all__ = ["Hello"]
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 

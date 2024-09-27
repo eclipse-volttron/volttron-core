@@ -44,6 +44,13 @@ from pathlib import Path
 
 Identity = str
 Tag = str
+StrPath = str | Path
+
+
+def get_path_from_strpath(path: StrPath) -> Path:
+    if isinstance(path, str):
+        return Path(path)
+    return path
 
 
 class AbstractAgent(ABC):

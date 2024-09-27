@@ -30,7 +30,7 @@ from volttron.client.vip.agent import Agent as BaseAgent
 from volttron.types.agent_context import AgentContext, AgentOptions
 from volttron.utils import ClientContext as cc
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
@@ -47,17 +47,14 @@ class ControlConnection(object):
 
         from volttron.types.auth import Credentials, VolttronCredentials
         from volttron.utils import jsonapi
-        credentials_path = Path(
-            cc.get_volttron_home()) / "credentials_store" / f"{CONTROL_CONNECTION}.json"
+        credentials_path = Path(cc.get_volttron_home()) / "credentials_store" / f"{CONTROL_CONNECTION}.json"
         if not credentials_path.exists():
             raise ValueError(f"Control connection credentials not found at {credentials_path}")
 
         credjson = jsonapi.load(credentials_path.open("r"))
 
         credentials = VolttronCredentials(**credjson)
-        options = AgentOptions(heartbeat_autostart=False,
-                               volttron_home=cc.get_volttron_home(),
-                               enable_store=False)
+        options = AgentOptions(heartbeat_autostart=False, volttron_home=cc.get_volttron_home(), enable_store=False)
         self._server = BaseAgent(credentials=credentials, options=options, address=address)
         self._greenlet = None
 
