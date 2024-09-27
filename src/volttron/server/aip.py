@@ -412,7 +412,7 @@ class AIPplatform:
             _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
         event = gevent.event.Event()
-        agent = Agent(identity="aip", address="inproc://vip", message_bus=self.message_bus)
+        agent = Agent(identity="aip", address="inproc://vip")
         task = gevent.spawn(agent.core.run, event)
         try:
             event.wait()
