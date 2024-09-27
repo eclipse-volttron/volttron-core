@@ -55,7 +55,7 @@ def add_authz_parser(add_parser_fn, filterable):
         metavar="<COMMAND=add|remove|list>",
         dest="store_commands",
         required=True,
-        # help="Available commands are: add, remove, list",
+        help="Commands to add/merge/remove volttron authorization rules.",
     )
 
     # Create the 'add' subparser under 'rpc'
@@ -76,7 +76,7 @@ def add_authz_parser(add_parser_fn, filterable):
     add_role_command.add_argument("role_name", help="add role")
     add_role_command.add_argument(
         "--pubsub-capabilities", "-ps", nargs="+", help="add role --pubsub-capabilities"
-    )  # TODO: confirm behavior
+    )
     add_role_command.add_argument(
         "--rpc-capabilities", "-rpc", nargs="+", help="add role --rpc-capabilities"
     )
@@ -85,50 +85,51 @@ def add_authz_parser(add_parser_fn, filterable):
     # Add a command "group" under 'authz add'
     add_group_command = add_node_parser.add_parser("group", help="add group")
     add_group_command.add_argument(
-        "group_name", help="add group <group_name> <vips[s]>"
+        "group_name", help="add group <group_name> <identities>"
     )
     add_group_command.add_argument(
-        "vip_ids", nargs="+", help="add group <group_name> <vips[s]>"
+        "identities", nargs="+", help="add group <group-name> <identities>"
     )  # "+" means one or more inputs are required,
     add_group_command.add_argument(
-        "--role_names", "-rns", nargs="+", help="add group --role_names <vips[s]>"
+        "--role-names", "-rns", nargs="+", help="add group --role-names <role-names>"
     )
     add_group_command.add_argument(
         "--pubsub-capabilities",
         "-ps",
         nargs="+",
-        help="add group --pubsub-capabilities",
-    )  # TODO: confirm behavior
+        help="add group --pubsub-capabilities <pubsub-capabilities>",
+    )
     add_group_command.add_argument(
         "--rpc-capabilities", "-rpc", nargs="+", help="add group --rpc-capabilities"
     )
-    # TODO: confirm if group has (optional) --topics option (like in agent)
     add_group_command.set_defaults(func=authz_add_group)
 
     # Add a command "topics" under 'authz add'
-    add_topic_command = add_node_parser.add_parser("topic", help="add topic")
-    add_topic_command.add_argument(
-        "topic_names", nargs="+", help="add topic <topics[s]>"
+    add_topic_command = add_node_parser.add_parser(
+        "topic",
+        help=(
+            "protect topic or topic pattern by adding it to the protected_topics list. Use / to specify topic pattern."
+            "Example: /devices.*/. "
+            "More on [Messaging and Topics](https://volttron.readthedocs.io/en/main/platform-features/message-bus/topics.html)"
+        ),
     )
+    add_topic_command.add_argument("topic_names", nargs="+", help="add topic <topics>")
     add_topic_command.set_defaults(func=authz_add_topic)
 
     # Add a command "agent" under 'authz add'
     add_agent_command = add_node_parser.add_parser("agent", help="add agent")
     add_agent_command.add_argument(
-        "vip_id", help="add agent <vip_id>"
+        "identity", help="add agent <identity>"
     )  # "+" means one or more inputs are required,
     add_agent_command.add_argument(
-        "--role_names", "-rns", nargs="+", help="add agent --role_names"
-    )
-    add_agent_command.add_argument(
-        "--topic_names", "-tns", nargs="+", help="add agent --topic_names"
+        "--role-names", "-rns", nargs="+", help="add agent --role-names"
     )
     add_agent_command.add_argument(
         "--pubsub-capabilities",
         "-ps",
         nargs="+",
         help="add agent --pubsub-capabilities",
-    )  # TODO: confirm behavior
+    )
     add_agent_command.add_argument(
         "--rpc-capabilities", "-rpc", nargs="+", help="add agent --rpc-capabilities"
     )
@@ -168,7 +169,7 @@ def add_authz_parser(add_parser_fn, filterable):
     # Add a command "agent" under 'authz remove'
     remove_agent_command = remove_node_parser.add_parser("agent", help="remove agent")
     remove_agent_command.add_argument(
-        "vip_id", help="add agent <vip_id>"
+        "identity", help="add agent <identity>"
     )  # "+" means one or more inputs are required,
     remove_agent_command.set_defaults(func=authz_remove_agent)
 
@@ -185,11 +186,11 @@ def add_authz_parser(add_parser_fn, filterable):
     # Add a command "role" under 'authz remove'
     list_role_command = list_node_parser.add_parser("role", help="list role")
     # Add a command "group" under 'authz remove'
-    list_group_command = list_node_parser.add_parser("group", help="remove group")
+    list_group_command = list_node_parser.add_parser("group", help="list group")
     # Add a command "protected-topics" under 'authz remove'
-    list_topic_command = list_node_parser.add_parser("topic", help="remove topic")
+    list_topic_command = list_node_parser.add_parser("topic", help="list topic")
     # Add a command "agent" under 'authz remove'
-    list_agent_command = list_node_parser.add_parser("agent", help="remove agent")
+    list_agent_command = list_node_parser.add_parser("agent", help="list agent")
     # list_authz_method.set_defaults(func=list_dummy)
     list_authz_method.set_defaults(func=authz_list_dummy)
 
@@ -273,7 +274,7 @@ def authz_remove_role(opts):
 
 
 def authz_add_agent(opts):
-    vip_id: str = opts.vip_id
+    identity: str = opts.identity
     role_names: List[str] | None = opts.role_names
     topic_names: List[str] | None = opts.topic_names
     rpc_capabilities_attr: List[str] | None = opts.rpc_capabilities
@@ -282,15 +283,14 @@ def authz_add_agent(opts):
 
     rpc_capabilities = AuthZUtils.str_to_RPCCapabilities(rpc_capabilities_attr)
     pubsub_capabilities = AuthZUtils.str_to_PubsubCapabilities(pubsub_capabilities_attr)
-    protected_rpcs = AuthZUtils.str_to_vipid_dot_rpc_method(topic_names)
     roles = AuthZUtils.str_to_AgentRoles(role_names)
 
     rpc_method: Callable = VolttronAuthService.create_or_merge_agent_authz
     res = opts.connection.server.vip.rpc.call(
         AUTH,
         rpc_method.__name__,
-        identity=vip_id,
-        protected_rpcs=protected_rpcs,
+        identity=identity,
+        protected_rpcs=None,  # TODO: confirm what is this argument for, and its relationship with rpc_capabilities
         roles=roles,
         pubsub_capabilities=pubsub_capabilities,
         rpc_capabilities=rpc_capabilities,
@@ -300,12 +300,12 @@ def authz_add_agent(opts):
         print(
             f"Added Agent: {topic_names=}, {role_names=}, \
 {rpc_capabilities_attr=}, {pubsub_capabilities_attr=}, \
-{comments=} to {vip_id=}."
+{comments=} to {identity=}."
         )
 
 
 def authz_remove_agent(opts):
-    identity: str = opts.vip_id
+    identity: str = opts.identity
     rpc_method: Callable = VolttronAuthService.remove_agent
     # TODO: remove_agent is not robust. Often got "volttron.utils.jsonrpc.RemoteError: volttron.types.auth.auth_credentials.IdentityNotFound('role7')" need to figure out why.
     res = opts.connection.server.vip.rpc.call(
@@ -319,7 +319,7 @@ def authz_remove_agent(opts):
 
 def authz_add_topic(opts):
     topic_names: List[str] = opts.topic_names
-    protected_rpcs = AuthZUtils.str_to_vipid_dot_rpc_method(topic_names)
+    protected_rpcs = AuthZUtils.str_to_topic_patterns(topic_names)
     rpc_method: Callable = VolttronAuthService.create_protected_topics
     res = opts.connection.server.vip.rpc.call(
         AUTH,
@@ -364,7 +364,6 @@ def authz_add_group(opts):
 
     rpc_capabilities = AuthZUtils.str_to_RPCCapabilities(rpc_capabilities_attr)
     pubsub_capabilities = AuthZUtils.str_to_PubsubCapabilities(pubsub_capabilities_attr)
-    # protected_rpcs = AuthZUtils.str_to_vipid_dot_rpc_method(topic_names)
     roles = AuthZUtils.str_to_AgentRoles(role_names)
 
     rpc_method: Callable = VolttronAuthService.create_or_merge_agent_group
@@ -405,7 +404,7 @@ def authz_remove_group(opts):
 
 class AuthZUtils:
     @staticmethod
-    def is_capability_format_valid(cap_attr: str) -> bool:
+    def is_rpc_capability_format_valid(cap_attr: str) -> bool:
         """
         Validates that the value follows the 'string.string' format.
         This function uses regular expression to check the pattern.
@@ -414,7 +413,7 @@ class AuthZUtils:
         return bool(pattern.match(cap_attr))
 
     @staticmethod
-    def capability_format_requirement() -> str:
+    def rpc_capability_format_requirement() -> str:
         return "in 'str-dot-str' format. i.e., 'id1.method1'"
 
     @staticmethod
@@ -541,8 +540,8 @@ class AuthZUtils:
         # check rpc_cap in "id.rpc1" format
         rpc_caps: List[authz.RPCCapability] = []
         for rpc_cap in rpc_capabilities_attr:
-            if not AuthZUtils.is_capability_format_valid(rpc_cap):
-                msg = f"Input rpc-capability '{rpc_cap}' in {rpc_capabilities_attr} does not meet the required format: {AuthZUtils.capability_format_requirement()}"
+            if not AuthZUtils.is_rpc_capability_format_valid(rpc_cap):
+                msg = f"Input rpc-capability '{rpc_cap}' in {rpc_capabilities_attr} does not meet the required format: {AuthZUtils.rpc_capability_format_requirement()}"
                 raise ValueError(msg)
             rpc_caps.append(authz.RPCCapability(rpc_cap))
 
@@ -576,18 +575,18 @@ class AuthZUtils:
         return authz.PubsubCapabilities(pubsub_caps)
 
     @staticmethod
-    def str_to_vipid_dot_rpc_method(
+    def str_to_topic_patterns(
         topic_names: List[str] | None,
-    ) -> List[authz.vipid_dot_rpc_method] | None:
+    ) -> List[str] | None:
         if topic_names is None:
             return None
-        protected_rpcs: List[authz.vipid_dot_rpc_method] = []
+        protected_rpcs: List[str] = []
         for topic_name in topic_names:
-            if not AuthZUtils.is_capability_format_valid(topic_name):
+            if not AuthZUtils.is_topic_pattern_valid(topic_name):
                 raise ValueError(
-                    f"Input '{topic_name=}' in {topic_names} does not meet the required format: {AuthZUtils.capability_format_requirement()}"
+                    f"Input '{topic_name=}' in {topic_names} does not meet the required format: {AuthZUtils.topic_pattern_requirement()}"
                 )
-            protected_rpcs.append(authz.vipid_dot_rpc_method(topic_name))
+            protected_rpcs.append(topic_name)
         return protected_rpcs
 
     @staticmethod
