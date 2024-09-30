@@ -7,8 +7,11 @@ Eclipse VOLTTRON™ (VOLTTRON/volttron) is an open source platform for distribut
 [![pypi version](https://img.shields.io/pypi/v/volttron.svg)](https://pypi.org/project/volttron/)
 ## Pre-requisites
 git >= 2.25
+
 poetry >= 1.2.2
+
 python >= 3.10
+
 pip >= 24.0
 
 Note- Ubuntu 22.04 comes with python 3.10. To upgrade pip run ```python -m pip install --upgrade pip```
