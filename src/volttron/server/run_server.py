@@ -273,10 +273,6 @@ def start_volttron_process(options: ServerOptions):
     address = "inproc://vip"
     pid_file = os.path.join(opts.volttron_home.as_posix(), "VOLTTRON_PID")
     try:
-        protected_topics = {}
-        proxy_router = None
-        proxy_router_task = None
-
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.messagebus))
         _log.debug("********************************************************************")
@@ -328,6 +324,7 @@ def start_volttron_process(options: ServerOptions):
 
         from volttron.types import MessageBus
 
+        # A message bus is required, if we don't have one installed then this will definitely fail.
         mb: MessageBus = service_repo.resolve(MessageBus)
 
         class StopHandler(MessageBusStopHandler):
@@ -349,8 +346,6 @@ def start_volttron_process(options: ServerOptions):
 
         assert mb.is_running()
 
-        # TODO Better make this so that it removes instances from this file or it will just be an
-        #  ever increasing file depending on the number of instances it could get quite large.
         # The instance file is where we are going to record the instance and
         # its details according to
         if VOLTTRON_INSTANCES_PATH.is_file():
@@ -372,14 +367,13 @@ def start_volttron_process(options: ServerOptions):
         this_instance = instances.get(opts.volttron_home.as_posix(), {})
         this_instance["pid"] = os.getpid()
         this_instance["version"] = get_version()
+
         # note vip_address is a list
         this_instance["address"] = opts.address
         this_instance["volttron-home"] = opts.volttron_home.as_posix()
         this_instance["start-args"] = sys.argv[1:]
         instances[opts.volttron_home.as_posix()] = this_instance
 
-        # protected_topics_file = os.path.join(opts.volttron_home, "protected_topics.json")
-        # _log.debug("protected topics file %s", protected_topics_file)
         external_address_file = os.path.join(opts.volttron_home, "external_address.json")
         _log.debug("external_address_file file %s", external_address_file)
 
@@ -430,8 +424,6 @@ def start_volttron_process(options: ServerOptions):
             _log.info("SIGINT received; shutting down")
         finally:
             sys.stderr.write("Shutting down.\n")
-            if proxy_router_task:
-                proxy_router.core.stop()
             _log.debug("Kill all service agent tasks")
             for task in spawned_greenlets:
                 task.kill(block=False)

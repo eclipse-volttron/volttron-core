@@ -196,7 +196,7 @@ class MessageBus(ABC):
     _stop_handler: MessageBusStopHandler
 
     @abstractmethod
-    def start(self, options: any):    # ServerOptions):
+    def start(self):    # ServerOptions):
         ...
 
     @abstractmethod

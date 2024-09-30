@@ -236,8 +236,11 @@ class SecureExecutionEnvironment(object):
 class AIPplatform:
     """Manages the main workflow of receiving and sending agents."""
 
-    def __init__(self, server_opts: ServerOptions, auth_service: AuthService | None,
-                 credentials_store: CredentialsStore, **kwargs):
+    def __init__(self,
+                 server_opts: ServerOptions,
+                 auth_service: AuthService | None = None,
+                 credentials_store: CredentialsStore | None = None,
+                 **kwargs):
         self._server_opts = server_opts
         self._auth_service = auth_service
         self._credentials_store = credentials_store

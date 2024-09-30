@@ -144,9 +144,7 @@ def escape(pattern):
     if len(strings) == 1:
         return re.escape(pattern), False
     return (
-        "".join(
-            ".*" if s == "*" else "." if s == "?" else s if s in [r"\?", r"\*"] else re.escape(s)
-            for s in strings),
+        "".join(".*" if s == "*" else "." if s == "?" else s if s in [r"\?", r"\*"] else re.escape(s) for s in strings),
         True,
     )
 
@@ -264,8 +262,7 @@ def remove_agent(opts, remove_auth=True):
         if not match:
             _stderr.write("{}: error: agent not found: {}\n".format(opts.command, pattern))
         elif len(match) > 1 and not opts.force:
-            _stderr.write("{}: error: pattern returned multiple agents: {}\n".format(
-                opts.command, pattern))
+            _stderr.write("{}: error: pattern returned multiple agents: {}\n".format(opts.command, pattern))
             _stderr.write("Use -f or --force to force removal of multiple agents.\n")
             return 10
         for agent in match:
@@ -481,8 +478,7 @@ def list_remotes(opts):
     except TimeoutError:
         print("Certs timed out")
     try:
-        approved_certs = conn.server.vip.rpc.call(AUTH,
-                                                  "get_authorization_approved").get(timeout=4)
+        approved_certs = conn.server.vip.rpc.call(AUTH, "get_authorization_approved").get(timeout=4)
         for value in approved_certs:
             output_view.append({"entry": value, "status": "APPROVED"})
     except TimeoutError:
@@ -514,9 +510,7 @@ def list_remotes(opts):
         output_view = [output for output in output_view if output["status"] == "PENDING"]
 
     elif opts.status is not None:
-        _stdout.write(
-            "Invalid parameter. Please use 'approved', 'denied', 'pending', or leave blank to list all.\n"
-        )
+        _stdout.write("Invalid parameter. Please use 'approved', 'denied', 'pending', or leave blank to list all.\n")
         return
 
     if len(output_view) == 0:
@@ -532,15 +526,14 @@ def list_remotes(opts):
     address_width = max(5, max(len(str(output["entry"]["address"])) for output in output_view))
     status_width = max(5, max(len(str(output["status"])) for output in output_view))
     fmt = "{:{}} {:{}} {:{}}\n"
-    _stderr.write(
-        fmt.format(
-            "USER_ID",
-            userid_width,
-            "ADDRESS",
-            address_width,
-            "STATUS",
-            status_width,
-        ))
+    _stderr.write(fmt.format(
+        "USER_ID",
+        userid_width,
+        "ADDRESS",
+        address_width,
+        "STATUS",
+        status_width,
+    ))
     fmt = "{:{}} {:{}} {:{}}\n"
     for output in output_view:
         _stdout.write(
@@ -610,14 +603,12 @@ def update_health_cache(opts):
     t_now = datetime.now()
     do_update = True
     # Make sure we update if we don't have any health dicts, or if the cache has timed out.
-    if (health_cache_timeout_date is not None and t_now < health_cache_timeout_date
-            and health_cache):
+    if (health_cache_timeout_date is not None and t_now < health_cache_timeout_date and health_cache):
         do_update = False
 
     if do_update:
         health_cache.clear()
-        response = opts.connection.server.vip.rpc.call(PLATFORM_HEALTH,
-                                                       "get_platform_health").get(timeout=4)
+        response = opts.connection.server.vip.rpc.call(PLATFORM_HEALTH, "get_platform_health").get(timeout=4)
         health_cache.update(response)
         health_cache_timeout_date = datetime.now() + timedelta(seconds=health_cache_timeout)
 
@@ -638,10 +629,7 @@ def status_agents(opts):
             print(f"agent is {agent}")
             all_agents[uuid] = agent
         except KeyError:
-            all_agents[uuid] = AgentMeta(name=name,
-                                         uuid=uuid,
-                                         identity=identity,
-                                         agent_user=agent_user)
+            all_agents[uuid] = AgentMeta(name=name, uuid=uuid, identity=identity, agent_user=agent_user)
         status[uuid] = stat
     all_agents = list(all_agents.values())
 
@@ -1387,11 +1375,7 @@ def _show_filtered_agents(opts, field_name, field_callback, agents=None):
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
-def _show_filtered_agents_status(opts,
-                                 status_callback,
-                                 health_callback,
-                                 priority_callback,
-                                 agents=None):
+def _show_filtered_agents_status(opts, status_callback, health_callback, priority_callback, agents=None):
     """Provides generic way to filter and display agent information.
 
     The agents will be filtered by the provided opts.pattern and the
@@ -1516,8 +1500,7 @@ def _show_filtered_agents_status(opts,
             }
             if cc.is_secure_mode():
                 json_obj[agent.vip_identity]["agent_user"] = (
-                    agent.agent_user
-                    if json_obj[agent.vip_identity]["status"].startswith("running") else "")
+                    agent.agent_user if json_obj[agent.vip_identity]["status"].startswith("running") else "")
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
@@ -1640,8 +1623,7 @@ def edit_config(opts):
             #  subprocess.PIPE
             subprocess.check_call([opts.editor, f.name])
         except subprocess.CalledProcessError as e:
-            _stderr.write("Editor returned with code {}. Changes not committed.\n".format(
-                e.returncode))
+            _stderr.write("Editor returned with code {}. Changes not committed.\n".format(e.returncode))
             success = False
 
         if not success:
@@ -2180,15 +2162,13 @@ def main():
         "--name",
         dest="by_name",
         action="store_true",
-        help=
-        "filter/search by agent name. value passed should be quoted if it contains a regular expression",
+        help="filter/search by agent name. value passed should be quoted if it contains a regular expression",
     )
     filterable.add_argument(
         "--tag",
         dest="by_tag",
         action="store_true",
-        help=
-        "filter/search by tag name. value passed should be quoted if it contains a regular expression",
+        help="filter/search by tag name. value passed should be quoted if it contains a regular expression",
     )
     filterable.add_argument("--all-tagged",
                             dest="by_all_tagged",
@@ -2198,8 +2178,7 @@ def main():
         "--uuid",
         dest="by_uuid",
         action="store_true",
-        help=
-        "filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
+        help="filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
     )
     filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
     parser = config.ArgumentParser(
@@ -2276,6 +2255,7 @@ def main():
 
     add_install_agent_parser(add_parser)
     add_rpc_agent_parser(add_parser)
+
     add_auth_parser(add_parser, filterable=filterable)
     add_authz_parser(add_parser, filterable=filterable)
     add_config_store_parser(add_parser)
@@ -2299,10 +2279,7 @@ def main():
     peers = add_parser("peerlist", help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
 
-    status = add_parser("status",
-                        aliases=("list", ),
-                        parents=[filterable],
-                        help="show status of agents")
+    status = add_parser("status", aliases=("list", ), parents=[filterable], help="show status of agents")
     status.add_argument("pattern", nargs="*", help="UUID or name of agent")
     status.add_argument(
         "-n",
@@ -2453,8 +2430,7 @@ def main():
         print_tb = exc.print_tb
         error = exc.message
     except AttributeError as exc:
-        _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(
-            opts.command))
+        _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
         parser.print_help()
         return 1
     # raised during install if wheel not found.
