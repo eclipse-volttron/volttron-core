@@ -130,7 +130,11 @@ rpc-capabilities:
                                                    epilog=capabilities_epilog
                                                    )
     add_agent_command.add_argument("identity", help="vip identity of the agent")
-    add_agent_command.add_argument("--role-names", "-rns", nargs="+", help="name of role(s) to be assigned to this agent")
+    add_agent_command.add_argument("--role-names", "-rns", nargs="+",
+                                   help="name of role(s) to be assigned to this agent")
+    add_agent_command.add_argument("--protected-rpcs", "-rns", nargs="+",
+                                   help="rpc exported methods of this agent that needs to be protected by "
+                                        "authorization rules")
     add_agent_command.add_argument(
         "--pubsub-capabilities",
         "-ps",
@@ -195,7 +199,7 @@ rpc-capabilities:
     # Add a command "group" under 'authz remove'
     list_group_command = list_node_parser.add_parser("group", help="list group")
     # Add a command "protected-topics" under 'authz remove'
-    list_topic_command = list_node_parser.add_parser("topics", help="list topic")
+    list_topic_command = list_node_parser.add_parser("topics", help="list protected topics")
     # Add a command "agent" under 'authz remove'
     list_agent_command = list_node_parser.add_parser("agent", help="list agent")
     # list_authz_method.set_defaults(func=list_dummy)
@@ -274,6 +278,7 @@ def authz_remove_role(opts):
 def authz_add_agent(opts):
     identity: str = opts.identity
     role_names: List[str] | None = opts.role_names
+    protected_rpcs: List[str] | None = opts.protected_rpcs
     rpc_capabilities_attr: List[str] | None = opts.rpc_capabilities
     pubsub_capabilities_attr: List[str] | None = opts.pubsub_capabilities
     comments: str | None = opts.comments
@@ -287,7 +292,7 @@ def authz_add_agent(opts):
         AUTH,
         rpc_method.__name__,
         identity=identity,
-        protected_rpcs=None,  # TODO: confirm what is this argument for, and its relationship with rpc_capabilities
+        protected_rpcs=protected_rpcs,
         roles=roles,
         pubsub_capabilities=pubsub_capabilities,
         rpc_capabilities=rpc_capabilities,
@@ -316,12 +321,12 @@ def authz_remove_agent(opts):
 
 def authz_add_topic(opts):
     topic_names: List[str] = opts.topic_names
-    protected_rpcs = AuthZUtils.str_to_topic_patterns(topic_names)
+    protected_topics = AuthZUtils.str_to_topic_patterns(topic_names)
     rpc_method: Callable = VolttronAuthService.create_protected_topics
     res = opts.connection.server.vip.rpc.call(
         AUTH,
         rpc_method.__name__,
-        topic_name_patterns=protected_rpcs,
+        topic_name_patterns=protected_topics,
     ).get()
     if res:
         print(f"Added Topic: {topic_names=}.")
