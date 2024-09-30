@@ -45,8 +45,6 @@ from volttron.client.vip.agent.subsystems.query import Query
 from volttron.server.aip import AIPplatform
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
-from volttron.types import Service
-from volttron.types.service_interface import ServiceInterface
 from volttron.utils import ClientContext as cc
 from volttron.utils import get_aware_utc_now, jsonapi
 from volttron.utils.scheduling import periodic
@@ -264,10 +262,17 @@ class ControlService(Agent):
 
     @RPC.export
     def shutdown(self):
+        """
+        Shutdown the agents of the platform.  This rpc does not shut the platform itself down
+        there is another call to stop_platform that does this.
+        """
         self._aip.shutdown()
 
     @RPC.export
     def stop_platform(self):
+        """
+        Stops the platform by sending quit to the router.  The router in this case is our "" entity on the bus.
+        """
         # XXX: Restrict call as it kills the process
         self.core.connection.send_vip("", "quit")
 
@@ -418,16 +423,12 @@ class ControlService(Agent):
             sha512 = hashlib.sha512()
 
             try:
-                request_checksum = base64.b64encode(jsonapi.dumps(
-                    ["checksum"]).encode("utf-8")).decode("utf-8")
-                request_fetch = base64.b64encode(
-                    jsonapi.dumps(["fetch",
-                                   protocol_request_size]).encode("utf-8")).decode("utf-8")
+                request_checksum = base64.b64encode(jsonapi.dumps(["checksum"]).encode("utf-8")).decode("utf-8")
+                request_fetch = base64.b64encode(jsonapi.dumps(["fetch",
+                                                                protocol_request_size]).encode("utf-8")).decode("utf-8")
 
                 _log.debug(f"Server subscribing to {topic}")
-                self.vip.pubsub.subscribe(peer="pubsub",
-                                          prefix=topic,
-                                          callback=protocol_subscription).get(timeout=5)
+                self.vip.pubsub.subscribe(peer="pubsub", prefix=topic, callback=protocol_subscription).get(timeout=5)
                 gevent.sleep(5)
                 while True:
 
@@ -458,9 +459,7 @@ class ControlService(Agent):
                     with gevent.Timeout(30):
                         _log.debug("Requesting checksum")
                         response_received = False
-                        self.vip.pubsub.publish("pubsub",
-                                                topic=response_topic,
-                                                message=request_checksum).get(timeout=5)
+                        self.vip.pubsub.publish("pubsub", topic=response_topic, message=request_checksum).get(timeout=5)
 
                         while not response_received:
                             gevent.sleep(0.1)
@@ -481,8 +480,8 @@ class ControlService(Agent):
                 self.vip.pubsub.unsubscribe("pubsub", response_topic, protocol_subscription)
                 _log.debug("Unsubscribing on server")
 
-            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey,
-                                                 agent_config, force, pre_release)
+            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force,
+                                                 pre_release)
             return agent_uuid
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
@@ -515,8 +514,7 @@ class ControlService(Agent):
                                        force=options.force,
                                        pre_release=options.allow_prerelease)
 
-    def _raise_error_if_identity_exists_without_force(self, vip_identity: str,
-                                                      force: bool) -> Identity:
+    def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool) -> Identity:
         """
         This will raise a ValueError if the identity passed exists but
         force was not True when this function is called.
