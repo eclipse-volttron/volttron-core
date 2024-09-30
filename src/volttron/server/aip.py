@@ -44,7 +44,6 @@ from gevent import subprocess
 from gevent.subprocess import PIPE
 
 from volttron.client.known_identities import VOLTTRON_CENTRAL_PLATFORM
-from volttron.client.vip.agent import Agent
 from volttron.server.decorators import service
 from volttron.server.server_options import ServerOptions
 from volttron.types.auth.auth_service import AuthService
@@ -408,17 +407,14 @@ class AIPplatform:
                 exeenv.process.kill()
 
     def shutdown(self):
+        """
+        Stop each of the agents that are currently running on the platform.  This allows
+        clean shutdown rather than just killing off the individual processes.
+        """
+
         for agent_uuid in self._active_agents.keys():
             _log.debug("Stopping agent UUID {}".format(agent_uuid))
             self.stop_agent(agent_uuid)
-        event = gevent.event.Event()
-        agent = Agent(identity="aip", address="inproc://vip")
-        task = gevent.spawn(agent.core.run, event)
-        try:
-            event.wait()
-        finally:
-            agent.core.stop()
-            task.kill()
 
     def brute_force_platform_shutdown(self):
         for agent_uuid in list(self._active_agents.keys()):
@@ -667,8 +663,11 @@ class AIPplatform:
             # In such case, we should be able to revert to current version - so explicitly find current version and
             # see if that can be installed from pypi because local wheel might not be there anymore.
             try:
-                cmd_dry_run = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "add",
-                               f"{agent_name}=={current_version}", "--dry-run"]
+                cmd_dry_run = [
+                    "poetry", "--directory",
+                    self._server_opts.poetry_project_path.as_posix(), "add", f"{agent_name}=={current_version}",
+                    "--dry-run"
+                ]
                 execute_command(cmd_dry_run)
             except RuntimeError as r:
                 raise RuntimeError(f"Unable to find currently installed version of {agent_name} ({current_version}) "

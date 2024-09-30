@@ -335,7 +335,6 @@ def start_volttron_process(options: ServerOptions):
             def message_bus_shutdown(self):
                 for spawned_task in spawned_greenlets:
                     spawned_task.kill(block=False)
-                gevent.wait(spawned_greenlets)
 
         mb.set_stop_handler(StopHandler())
 
@@ -386,7 +385,6 @@ def start_volttron_process(options: ServerOptions):
 
         with VOLTTRON_INSTANCES_PATH.open("w") as fp:
             fp.write(jsonapi.dumps(instances))
-
 
         # TODO - health service should register callback with messagebus to keep track of peer add and remove
         # health_service = service_repo.resolve(HealthService)
