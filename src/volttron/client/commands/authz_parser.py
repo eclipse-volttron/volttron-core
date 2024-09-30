@@ -274,7 +274,6 @@ def authz_remove_role(opts):
 def authz_add_agent(opts):
     identity: str = opts.identity
     role_names: List[str] | None = opts.role_names
-    topic_names: List[str] | None = opts.topic_names
     rpc_capabilities_attr: List[str] | None = opts.rpc_capabilities
     pubsub_capabilities_attr: List[str] | None = opts.pubsub_capabilities
     comments: str | None = opts.comments
@@ -296,7 +295,7 @@ def authz_add_agent(opts):
     ).get()
     if res:
         print(
-            f"Added Agent: {topic_names=}, {role_names=}, \
+            f"Added Agent:  {role_names=}, \
 {rpc_capabilities_attr=}, {pubsub_capabilities_attr=}, \
 {comments=} to {identity=}."
         )
