@@ -5,17 +5,26 @@ Eclipse VOLTTRON™ (VOLTTRON/volttron) is an open source platform for distribut
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
 [![Pytests](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml/badge.svg)](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml)
 [![pypi version](https://img.shields.io/pypi/v/volttron.svg)](https://pypi.org/project/volttron/)
+## Pre-requisites
+git >= 2.25
+poetry >= 1.2.2
+python >= 3.10
+pip >= 24.0
 
+Note- Ubuntu 22.04 comes with python 3.10. To upgrade pip run ```python -m pip install --upgrade pip```
+ 
 ## Installation
-
+This package is the core volttron server, client and utilities. in order to successfully start volttron at a minimum you would need a volttron message bus(volttron-lib-zmq) and volttron authentication library(volttron-lib-auth). You can install these as three separate steps or use the wrapper (volttron-zmq) that pulls all three packages
 It is recommended to use a virtual environment for installing volttron.
 
 ```shell
 python -m venv env
 source env/bin/activate
-
-pip install volttron
+export VOLTTRON_HOME=</path/to/volttron/home>
+pip install volttron-zmq
 ```
+
+Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib-auth```
 
 ### Quick Start
 
