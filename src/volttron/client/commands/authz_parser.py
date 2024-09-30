@@ -132,7 +132,7 @@ rpc-capabilities:
     add_agent_command.add_argument("identity", help="vip identity of the agent")
     add_agent_command.add_argument("--role-names", "-rns", nargs="+",
                                    help="name of role(s) to be assigned to this agent")
-    add_agent_command.add_argument("--protected-rpcs", "-rns", nargs="+",
+    add_agent_command.add_argument("--protected-rpcs", "-pts", nargs="+",
                                    help="rpc exported methods of this agent that needs to be protected by "
                                         "authorization rules")
     add_agent_command.add_argument(
