@@ -445,28 +445,26 @@ def add_auth(opts):
 
 
 def remove_auth(opts):
+    from volttron.client.commands.control import _ask_yes_no
     conn = opts.connection
     if not conn:
         _stderr.write("VOLTTRON is not running. This command "
                       "requires VOLTTRON platform to be running\n")
         return
-    entry_count = len(conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"])
+    #
+    # entry_count = len(conn.server.vip.rpc.call(AUTH, "auth_file.read").get()["allow_list"])
+    #
+    # for i in opts.indices:
+    #     if i < 0 or i >= entry_count:
+    #         _stderr.write("ERROR: invalid index {}\n".format(i))
+    #         return
+    _stdout.write(f"This action will remove the identity {opts.identity}\n")
 
-    for i in opts.indices:
-        if i < 0 or i >= entry_count:
-            _stderr.write("ERROR: invalid index {}\n".format(i))
-            return
-
-    _stdout.write("This action will delete the following:\n")
-    list_auth(opts, opts.indices)
     if not _ask_yes_no("Do you wish to delete?"):
         return
     try:
-        conn.server.vip.rpc.call(AUTH, "auth_file.remove_by_indices", opts.indices)
-        if len(opts.indices) > 1:
-            msg = "removed entries at indices {}".format(opts.indices)
-        else:
-            msg = msg = "removed entry at index {}".format(opts.indices)
+        conn.server.vip.rpc.call(AUTH, "remove_credentials", identity=opts.identity)
+        msg = f"{opts.identity} removed!"
         _stdout.write(msg + "\n")
     except AuthException as err:
         _stderr.write("ERROR: %s\n" % str(err))
