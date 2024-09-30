@@ -124,31 +124,44 @@ def setup_poetry_project(volttron_home):
             volttron_home.as_posix(), "--name", "volttron", "--author", "volttron <volttron@pnnl.gov>", "--quiet"
         ]
         execute_command(cmd)
+        cmd = ["poetry", "--directory", volttron_home.as_posix(), "source", "add",  "--priority=supplemental", "test-pypi", "https://test.pypi.org/simple/"]
+        execute_command(cmd)
+
     # now do multiple piped commands
     pip_cmd = ["pip", "list", "--format", "freeze"]
     # Second command
     grep_cmd = ["grep", "-v", "volttron=="]
     # Third command
     poetry_cmd = ["xargs", "poetry", "add", "--directory", volttron_home.as_posix()]
+
+    err_msg =  ""
     # Execute the first command
-    p1 = subprocess.Popen(pip_cmd, stdout=subprocess.PIPE)
+    p1 = subprocess.Popen(pip_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p1_stdout, p1_stderr = p1.communicate()
+    # Check and print the output of the first command
+    if p1.returncode != 0:
+        err_msg = "Error from pip command:", p1_stderr.decode()
+    else:
+        # Execute the second command, with stdin from the first command's stdout
+        p2 = subprocess.Popen(grep_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p2_stdout, p2_stderr = p2.communicate(input=p1_stdout)  # Use p1's output directly
+        # Check and print the output of the second command
+        if p2.returncode != 0:
+            err_msg = "Error from grep command:", p2_stderr.decode()
+        else:
+            # Check if `grep` produced any output
+            if not p2_stdout.strip():
+                print("No packages to add; grep output is empty.")
+            else:
+                # Execute the third command, with stdin from the second command's stdout
+                p3 = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                p3_stdout, p3_stderr = p3.communicate(input=p2_stdout)  # Use p2's output directly
+                if p3.returncode != 0:
+                    err_msg = "Error from poetry command:", p3_stderr.decode()
 
-    # Execute the second command, with stdin from the first command's stdout
-    p2 = subprocess.Popen(grep_cmd, stdin=p1.stdout, stdout=subprocess.PIPE)
-    p1.stdout.close()    # Allow p1 to receive a SIGPIPE if p2 exits.
-
-    # Execute the third command, with stdin from the second command's stdout
-    p3 = subprocess.Popen(poetry_cmd, stdin=p2.stdout)
-    p2.stdout.close()    # Allow p2 to receive a SIGPIPE if p3 exits.
-
-    # Wait for the last command to finish
-    stdout, stderr = p3.communicate()
-
-    if p3.returncode != 0:
-        err_msg = (f"Unable to update pyproject.toml in {volttron_home.as_posix()} with venv's current list of libs\n"
-                   f"Command '{poetry_cmd}' failed with return code {p3.returncode} \n"
-                   f"stdout: {stdout} \n"
-                   f"stderr: {stderr}")
+    if err_msg:
+        err_msg = (f"Unable to update pyproject.toml in {volttron_home.as_posix()} with venv's current list of "
+                   f"libs. {err_msg}")
         raise RuntimeError(err_msg)
 
 
