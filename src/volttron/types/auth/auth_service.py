@@ -59,8 +59,12 @@ class AuthorizationManager:
         ...
 
     @abstractmethod
-    def create_or_merge_role(self, *, name: str, rpc_capabilities: Optional[authz.RPCCapabilities] = None,
-                             pubsub_capabilities: Optional[authz.PubsubCapabilities] = None, **kwargs) -> bool:
+    def create_or_merge_role(self,
+                             *,
+                             name: str,
+                             rpc_capabilities: Optional[authz.RPCCapabilities] = None,
+                             pubsub_capabilities: Optional[authz.PubsubCapabilities] = None,
+                             **kwargs) -> bool:
         ...
 
     @abstractmethod
@@ -146,19 +150,19 @@ class AuthService(Service):
         ...
 
     @abstractmethod
-    def has_credentials_for(self, *, identity: str) -> bool:
+    def has_credentials_for(self, *, identity: Identity) -> bool:
         ...
 
     @abstractmethod
-    def add_credentials(self, *, credentials: Credentials):
+    def create_credentials(self, *, identity: Identity):
         ...
 
     @abstractmethod
-    def remove_credentials(self, *, credentials: Credentials):
+    def remove_credentials(self, *, identity: Identity):
         ...
 
     @abstractmethod
-    def is_credentials(self, *, identity: str) -> bool:
+    def is_credentials(self, *, identity: Identity) -> bool:
         ...
 
     # Authorization

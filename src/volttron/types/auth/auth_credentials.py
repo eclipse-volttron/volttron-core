@@ -143,7 +143,7 @@ class CredentialsFactory:
                                          publickey=obj["publickey"],
                                          secretkey=obj["secretkey"])
         else:
-            return Credentials.create(identity=identity)
+            return Credentials.create(identity=obj["identity"])
 
 
 class CredentialsCreator(ABC):
