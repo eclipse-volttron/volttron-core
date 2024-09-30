@@ -4,7 +4,6 @@ import os
 import re
 import shutil
 import sys
-import textwrap
 from typing import Callable, List
 
 # import argcomplete
@@ -62,14 +61,14 @@ def add_authz_parser(add_parser_fn, filterable):
     )
 
     # Create the 'add' subparser under 'rpc'
-    authz_add_parser = authz_operations.add_parser("add", help="Add or merge a role, group,  agent authorization, or protected topic")
+    authz_add_parser = authz_operations.add_parser("add", help="Add or merge a role, group,  agent authorization, or protected topics")
     # authz_add_parser.add_argument("identity_and_method", nargs="*", help="Format: 'identity.method_name'")
     # authz_add_parser.set_defaults(func=handel_role_parser)
 
-    #### Create subparser for node ('role', 'group', 'protected-topic', 'agent') under 'authz add'
+    #### Create subparser for node ('role', 'group', 'topics', 'agent') under 'authz add'
     add_node_parser = authz_add_parser.add_subparsers(
         title="Add or merge role, group, agent authorization or protected topic entry",
-        metavar="<NODE=role|group|topic|agent>",
+        metavar="<NODE=role|group|topics|agent>",
         dest="store_commands",
         required=True,
     )
@@ -118,7 +117,7 @@ rpc-capabilities:
     add_topic_command = add_node_parser.add_parser(
         "topics",
         help=(
-            "protect topic or topic pattern by adding it to the protected_topics list."
+            "protect one or more topic or topic pattern by adding it to the protected_topics list."
             "topic patterns(regular expression) should be enclose within // Example: /devices.*/. "
         ),
     )
@@ -149,10 +148,10 @@ rpc-capabilities:
         "remove", subparser=authz_operations, help="Remove authorization entries for a agent, group, role or protected topics"
     )
 
-    #### Create subparser for node ('role', 'group', 'protected-topic', 'agent') under 'authz remove'
+    #### Create subparser for node ('role', 'group', 'topics', 'agent') under 'authz remove'
     remove_node_parser = remove_authz_method.add_subparsers(
         title="top nodes",
-        metavar="<NODE=role|group|topic|agent>",
+        metavar="<NODE=role|group|topics|agent>",
         dest="store_commands",
         required=True,
     )
@@ -167,7 +166,7 @@ rpc-capabilities:
     remove_group_command.add_argument("group_name", help="name of the group to be removed")
     remove_group_command.set_defaults(func=authz_remove_group)
 
-    # Add a command "protected-topics" under 'authz remove'
+    # Add a command "topics" under 'authz remove'
     remove_topic_command = remove_node_parser.add_parser("topics", help="remove one or more topic or pattern from protected topics list")
     remove_topic_command.add_argument(
         "topic_names", nargs="+", help="space separated list of topic or topic pattern to remove"
@@ -187,7 +186,7 @@ rpc-capabilities:
     )
     list_node_parser = list_authz_method.add_subparsers(
         title="top nodes",
-        metavar="<NODE=role|group|topic|agent>",
+        metavar="<NODE=role|group|topics|agent>",
         dest="store_commands",
         required=False,
     )
@@ -196,7 +195,7 @@ rpc-capabilities:
     # Add a command "group" under 'authz remove'
     list_group_command = list_node_parser.add_parser("group", help="list group")
     # Add a command "protected-topics" under 'authz remove'
-    list_topic_command = list_node_parser.add_parser("topic", help="list topic")
+    list_topic_command = list_node_parser.add_parser("topics", help="list topic")
     # Add a command "agent" under 'authz remove'
     list_agent_command = list_node_parser.add_parser("agent", help="list agent")
     # list_authz_method.set_defaults(func=list_dummy)
@@ -237,7 +236,7 @@ def authz_list_dummy(opts):
         list_content = data.get("agents")
     elif opts.store_commands == "group":
         list_content = data.get("agent_groups")
-    elif opts.store_commands == "topic":
+    elif opts.store_commands == "topics":
         list_content = data.get("protected_topics")
     else:
         pass
