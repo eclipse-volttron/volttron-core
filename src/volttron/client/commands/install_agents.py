@@ -126,7 +126,7 @@ def _install_and_initialize_agent(opts: argparse.Namespace,
     cfg = None    # temp file if agent_config is a dict
     # if not a dict then config should be a filename
     if not isinstance(agent_config, dict):
-        config_file = agent_config
+        config_file = os.path.abspath(agent_config)
         if not Path(config_file).exists():
             raise InstallRuntimeError(f"Config file {config_file} does not exist!")
     else:
@@ -156,7 +156,7 @@ def _install_and_initialize_agent(opts: argparse.Namespace,
     agent_install = AgentInstallOptions(source=agent,
                                         identity=opts.vip_identity,
                                         data=agent_data,
-                                        agent_config=agent_config,
+                                        agent_config=config_dict,
                                         force=opts.force,
                                         allow_prerelease=opts.pre_release)
 
