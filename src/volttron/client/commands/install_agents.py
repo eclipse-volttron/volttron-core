@@ -126,7 +126,7 @@ def _install_and_initialize_agent(opts: argparse.Namespace,
     cfg = None    # temp file if agent_config is a dict
     # if not a dict then config should be a filename
     if not isinstance(agent_config, dict):
-        config_file = os.path.abspath(agent_config)
+        config_file = Path(agent_config).expand_user().as_posix()
         if not Path(config_file).exists():
             raise InstallRuntimeError(f"Config file {config_file} does not exist!")
     else:
