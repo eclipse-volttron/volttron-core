@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "volttron-core"
-version = "1.1.3"
+version = "2.0.0rc0"
 description = "VOLTTRON™ is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data."
 authors = ["volttron <volttron@pnnl.gov>"]
 license = "Apache-2.0"
