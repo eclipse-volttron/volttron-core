@@ -6,23 +6,25 @@ Eclipse VOLTTRON™ (VOLTTRON/volttron) is an open source platform for distribut
 [![Pytests](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml/badge.svg)](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml)
 [![pypi version](https://img.shields.io/pypi/v/volttron.svg)](https://pypi.org/project/volttron/)
 ## Pre-requisites
-git >= 2.25
 
-poetry >= 1.2.2
+- git >= 2.25
 
-python >= 3.10
+- poetry >= 1.2.2
 
-pip >= 24.0
+- python >= 3.10
 
-Note- Ubuntu 22.04 comes with python 3.10. To upgrade pip run ```python -m pip install --upgrade pip```
+- pip >= 24.0
+
+  Note- Ubuntu 22.04 comes with python 3.10. To upgrade pip run ```python -m pip install --upgrade pip```
  
 ## Installation
 This package is the core volttron server, client and utilities. in order to successfully start volttron at a minimum you would need a volttron message bus(volttron-lib-zmq) and volttron authentication library(volttron-lib-auth). You can install these as three separate steps or use the wrapper (volttron-zmq) that pulls all three packages
-It is recommended to use a virtual environment for installing volttron.
+
+It is highly recommended you use a virtual environment for installing volttron.
 
 ```shell
-python -m venv env
-source env/bin/activate
+python -m venv <directory name for your virtual env. for example .vemv>
+source .venv/bin/activate
 export VOLTTRON_HOME=</path/to/volttron/home>
 pip install volttron-zmq
 ```
@@ -31,20 +33,35 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
 
 ### Quick Start
 
- 1. Setup VOLTTRON_HOME environment variable: export VOLTTRON_HOME=/path/to/volttron_home/dir 
+ 1. **Setup VOLTTRON_HOME** environment variable: export VOLTTRON_HOME=/path/to/volttron_home/dir 
  
-    **NOTE** This is madatory if you have/had in the past, a monolithic    VOLTTRON version that used the default VOLTTRON_HOME $HOME/.volttron. This modular version of VOLTTRON cannot work with volttron_home used by monolithic version of VOLTTRON(version 8.3 or earlier)
+    **NOTE** This is madatory if you have/had in the past, a monolithic    VOLTTRON version that used the default VOLTTRON_HOME $HOME/.volttron. **This modular version of VOLTTRON cannot work with volttron_home used by monolithic version of VOLTTRON(version 8.3 or earlier)**
  
- 2. Start the platform
+ 2. **Start the platform:**
+    
     ```bash
     volttron -vv -l volttron.log &>/dev/null &
     ```
 
- 3. Install listener agent
+ 4. **Install agents**: 
+    For example, 
     ```bash
     vctl install volttron-listener --start
     ```
 
+ 5. **Install any optional libraries that your agents need:**
+    
+    Monolithic VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project (pyproject.toml file) in VOLTTRON_HOME directory and use that for keeping track of all installed packages. For example, when you ran "vctl install volttron-listener" an entry for that agent's package name and version gets added to $VOLTTRON_HOME/pyproject.toml.
+
+    If you are installing optional librabries, such as volttron-lib-bacnet-driver use poetry instead of pip
+    ```bash
+    poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver
+    ```
+
+    Poetry will check if the version of volttron-core (and other librabries) in your current activated environment is compatible with requirements of the version of volttron-lib-bacnet-driver you are installing.
+
+    **Warning:** You could use pip to install librabries, but pip will not check dependent library versions for compatibility and simply overwrite packages in the current environment. For example, if you are running volttron-core version 2.0.0 and volttron-lib-bacnet-driver has dependency on volttron-core version 1.0.0, ```pip install volttron-lib-bacnet-driver``` would overwrite volttron-core version 2.0.0 with version 1.0.0. However ```poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver``` will fail with version incompatibility error
+    
  4. View status of platform
     ```bash
     vctl status
@@ -55,7 +72,10 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
     vctl shutdown --platform
     ```
 
-Full VOLTTRON documentation available at [VOLTTRON Readthedocs](https://volttron.readthedocs.io)
+## Links to important documentation
+ - Known issues in this version <TODO - link>
+ - Important backward incompatible changes <TODO-link>
+ - Full VOLTTRON documentation available at [VOLTTRON Readthedocs](https://volttron.readthedocs.io)
 
 ## Contributing to VOLTTRON
 
