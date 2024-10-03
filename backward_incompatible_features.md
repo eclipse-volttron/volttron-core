@@ -10,15 +10,16 @@ The following highlights the key differences. For details about each of these fe
    - volttron-core(this repository)
    -  [volttron-lib-auth](https://github.com/eclipse-volttron/volttron-lib-auth)
    -  [volttron-lib-zmq](https://github.com/eclipse-volttron/volttron-lib-zmq)
-   All these are available as packages to be installed from pypi (or test-pypi if you want to get at latest development versions)
 
-2. Each agent and library is now housed in its own repository and published to pypi as a separate package - for example [volttron-listener source code repository](https://github.com/eclipse-volttron/volttron-listener]) and [volttron-listener pypi package](https://pypi.org/project/volttron-listener/]
+    All these are available as packages to be installed from pypi (or test-pypi if you want to get at latest development versions)
+
+3. Each agent and library is now housed in its own repository and published to pypi as a separate package - for example [volttron-listener source code repository](https://github.com/eclipse-volttron/volttron-listener]) and [volttron-listener pypi package](https://pypi.org/project/volttron-listener/]
    
-3. VOLTTRON now uses **Poetry for dependency management**. This is essential for ensuring there is no version mismatch in the set of libraries installed and working together in a given python environment. When VOLTTRON starts for the first time for a given VOLTTRON_HOME, it create a poetry project in VOLTTRON_HOME and uses the pyproject.toml to manage list of librabries. So when adding optional libraries to your environment, use "poetry add --directory" instead of "pip install". Example: ```poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver```
+4. VOLTTRON now uses **Poetry for dependency management**. This is essential for ensuring there is no version mismatch in the set of libraries installed and working together in a given python environment. When VOLTTRON starts for the first time for a given VOLTTRON_HOME, it create a poetry project in VOLTTRON_HOME and uses the pyproject.toml to manage list of librabries. So when adding optional libraries to your environment, use "poetry add --directory" instead of "pip install". Example: ```poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver```
    
-4. The default execution directory for VOLTTTRON process is $VOLTTRON_HOME and the default execution directory for agent is $VOLTTRON_HOME/agents/<vip-id>. See issue https://github.com/eclipse-volttron/volttron-core/issues/167
+5. The default execution directory for VOLTTTRON process is $VOLTTRON_HOME and the default execution directory for agent is $VOLTTRON_HOME/agents/<vip-id>. See issue https://github.com/eclipse-volttron/volttron-core/issues/167
    
-5. The structure of directories in VOLTTRON_HOME is different from earlier version, hence modular volttron cannot work with volttron home created by monolithic volttron
+6. The structure of directories in VOLTTRON_HOME is different from earlier version, hence modular volttron cannot work with volttron home created by monolithic volttron
    
 7.  Authentication and Authorization are now two separate functionalities and entries related to authentication and authorization are persisted in different files in $VOLTTRON_HOME
    
