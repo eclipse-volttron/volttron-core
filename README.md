@@ -51,7 +51,7 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
 
  5. **Install any optional libraries that your agents need:**
     
-    Monolithic VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project (pyproject.toml file) in VOLTTRON_HOME directory and use that for keeping track of all installed packages. For example, when you ran "vctl install volttron-listener" an entry for that agent's package name and version gets added to $VOLTTRON_HOME/pyproject.toml.
+    Modular VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project (pyproject.toml file) in VOLTTRON_HOME directory and use that for keeping track of all installed packages. For example, when you ran "vctl install volttron-listener" an entry for that agent's package name and version gets added to $VOLTTRON_HOME/pyproject.toml.
 
     If you are installing optional libraries, such as volttron-lib-bacnet-driver use poetry instead of pip
     ```bash
