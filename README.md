@@ -73,7 +73,7 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
     ```
 
 ## Links to important documentation
- - Known issues in this version 
+ - [Known issues in this version](https://github.com/eclipse-volttron/volttron-core/labels/2.0.0rc0) 
  - [Important backward incompatible changes](backward_incompatible_features.md)
  - Full VOLTTRON documentation available at [VOLTTRON Readthedocs](https://volttron.readthedocs.io)
 
