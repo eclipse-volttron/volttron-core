@@ -73,8 +73,8 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
     ```
 
 ## Links to important documentation
- - Known issues in this version <TODO - link>
- - Important backward incompatible changes <TODO-link>
+ - Known issues in this version 
+ - [Important backward incompatible changes](backward_incompatible_features.md)
  - Full VOLTTRON documentation available at [VOLTTRON Readthedocs](https://volttron.readthedocs.io)
 
 ## Contributing to VOLTTRON
