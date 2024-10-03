@@ -29,6 +29,12 @@ The following highlights the key differences. For details about each of these fe
     
 11.   Authorization does not depend on arbitrary capability strings and are defined using actual ```<vipid>.<method name>```
 
-12.   Topics can be both read and write protected. Topic protection is also done using vctl authz commands. There is **no separate protected_topics.json** 
+12.   Topics can be both read and write protected. Topic protection is also done using vctl authz commands. There is **no separate protected_topics.json**
+    
+14.   The Platform Driver agent has been redesigned significantly and includes many new features to improve polling, group points, etc. Please refer to [the platform driver agent's documentation](https://github.com/eclipse-volttron/volttron-platform-driver/blob/v10/README.md) for more details.
+    
+16.  **The platform driver now by default publishes to topics of the format ```devices/<campus>/<building>/<device>/multi```** instead of ```devices/<campus>/<building>/<device>/all```.
+    
+18.  The basehistorian now by default subscribes to ```devices/.*/multi``` instead of ```devices/.*/all```
 
    
