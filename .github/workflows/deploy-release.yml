@@ -1,0 +1,352 @@
+name: Deploy Release Artifacts
+
+on:
+  workflow_dispatch:  # Allows manual triggering from the UI
+    inputs:
+      merge-strategy:
+        description: 'Merge strategy and strategy options. Used only in case of merge conflicts'
+        required: false
+        default: ''
+        type: string
+      release-version:
+        description: 'Version number to use. If provided bump-rule will be ignored'
+        required: false
+        default: ''
+        type: string
+      bump-rule:
+        description: 'Bump rule for computing next release version number. Used when no release-version is given. Valid choices are: patch, minor, major, prepatch, preminor, premajor, prerelease'
+        required: false
+        default: 'prerelease'
+        type: string
+      run-tests-wait:
+        description: 'Wait time to run test after merge to main'
+        required: false
+        default: 600
+        type: number
+      publish-to-test-pypi:
+        description: 'Set to true if you want to publish to https://test.pypi.org/legacy/ instead of pypi.org'
+        required: false
+        default: false
+        type: boolean
+  workflow_call:
+    inputs:
+      merge-strategy:
+        description: 'Merge strategy and strategy options. Used only in case of merge conflicts'
+        required: false
+        default: ''
+        type: string
+      release-version:
+        description: 'Version number to use. If provided bump-rule will be ignored'
+        required: false
+        default: ''
+        type: string
+      bump-rule:
+        description: 'Bump rule for computing next release version number. Used when no release-version is given. Valid choices are: patch, minor, major, prepatch, preminor, premajor, prerelease'
+        required: false
+        default: 'prerelease'
+        type: string
+      run-tests-wait:
+        description: 'Wait time to run test after merge to main'
+        required: false
+        default: 600
+        type: number
+      publish-to-test-pypi:
+        description: 'Set to true if you want to publish to https://test.pypi.org/legacy/ instead of pypi.org'
+        required: false
+        default: false
+        type: boolean
+
+    secrets:
+      git-token:
+        required: true
+      pypi-token:
+        required: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  LANG: en_US.utf-8
+  LC_ALL: en_US.utf-8
+  PYTHON_VERSION: '3.10'
+
+jobs:
+
+  deploy-release:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write  # To push a branch
+      pull-requests: write  # To create a PR from that branch
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
+      #----------------------------------------------
+      #       check-out repo and set-up python
+      #----------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: develop
+          # token: ${{ secrets.git-token }}
+
+      - name: Do a git merge dry run
+        id: merge-dry-run
+        run: |
+          git config --global user.email "deploy-release-action@pnl.gov"
+          git config --global user.name "Deploy Release Github Action"
+          git checkout main
+          git merge --no-commit --no-ff develop
+        continue-on-error: true
+
+      - name: Abort merge dry-run
+        run: |
+          if [[ -f .git/MERGE_HEAD ]]; then
+            git merge --abort
+          fi
+
+      - name: Check if merge had conflicts.
+        # if there is conflict and there is no merge strategy set then abort merge and exit
+        if: steps.merge-dry-run.outcome != 'success' && github.event.inputs.merge-strategy == ''
+        run: |
+          echo "merge strategy is ${{ inputs.merge-strategy }}"
+          echo "Merge to main has conflicts. Either do a manual merge and release or set input merge-strategy and re-run action"
+          exit 1
+        
+      - name: Recheckout develop
+        run: |
+          git checkout develop
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      #----------------------------------------------
+      #  -----  install SBOM & generate SBOM artifact
+      #----------------------------------------------
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install cdxgen
+        run: npm install -g @cyclonedx/cdxgen
+
+      - name: Install depscan
+        run: pip install owasp-depscan
+
+      - name: Generate SBOM
+        run: cdxgen -t python .
+        # Generated files: bom.json
+
+      - name: Generate Vulnerability Data Report
+        run: depscan --bom bom.json
+        # Generated files: bom.vdr.json (if VDR is generated) and
+        # depscan-bom.json and depscan.html under ./reports/)
+
+      - name: Collect SBOM Artifact
+        run: |
+          # mkdir -p ./bom_reports 
+          # cp ./bom.* ./bom_reports/ 
+          # cp ./reports/* ./bom_reports/
+          TIMEOUT=10
+          while [ $TIMEOUT -gt 0 ]; do
+            if [ -f "./bom.vdr.json" ]; then
+              # cp ./bom.vdr.json ./reports/bom.vdr.json
+              mkdir -p ./bom_reports 
+              cp ./bom.* ./bom_reports/ 
+              cp ./reports/* ./bom_reports/
+              echo "VDR file generated and moved to bom_reports/ directory."
+              break
+            fi
+            echo "Waiting for bom.vdr.json..."
+            sleep 1
+            TIMEOUT=$((TIMEOUT-1))
+          done
+          if [ $TIMEOUT -eq 0 ]; then
+            echo "Timeout reached. No VDR file generated."
+          fi
+
+      #----------------------------------------------
+      #  -----  install & configure poetry  -----
+      #----------------------------------------------
+      - name: Install Poetry
+        uses: snok/install-poetry@v1.3.3
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+
+      #----------------------------------------------
+      # install your root project, if required
+      #----------------------------------------------
+      - name: Install library
+        run: |
+          poetry lock --no-update
+          poetry install --no-interaction 
+
+      - name: Use given release-version number
+        if: inputs.release-version != ''
+        run: |
+          release_version=${{ inputs.release-version }}
+          if [[ ${{ inputs.release-version }} == v* ]]; then
+              release_version=${release_version#?}
+              echo "Trimming initial 'v'. Using version ${release_version}"
+          fi
+          echo "Using given release version  ${release_version}"
+          poetry version ${release_version}
+
+          NEW_TAG=v$(poetry version --short)
+
+          # we want to be able to use the variable in later
+          # steps we set a NEW_TAG environmental variable
+          echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
+          # we don't want to update pyproject.toml yet. don't want this change to create merge conflict.
+          # we don't really persist right version in pyproject.toml to figure out the next version. we use git tags.
+          git restore pyproject.toml
+
+      #----------------------------------------------
+      # bump version number for patch
+      #----------------------------------------------
+      - name: Bump Version
+        if: inputs.release-version == ''
+        run: |
+          # current_tag is the last tagged release in the repository.   From there
+          # we need to remove the v from the beginning of the tag.
+          echo "Bump rule is ${{ inputs.bump-rule }}"
+          if ! $(git tag -l "v*" = ''); then
+            # uses -V which is version sort to keep it monotonically increasing.
+            current_tag=$(git tag -l "v*" | grep --invert-match '-' | sort --reverse -V  | sed -n 1p)
+            echo "current git tag is ${current_tag}"
+            current_tag=${current_tag#?}  
+            # current_tag is now the version we want to set our poetry version so
+            # that we can bump the version
+            poetry version ${current_tag}
+            poetry version ${{ inputs.bump-rule }} --no-interaction
+            
+          else
+            # very first release. start with inputs.release-version
+            echo "First release. Setting tag as 0.1.0rc0"
+            current_tag='0.1.0rc0'
+            poetry version ${current_tag}
+          fi
+          
+          NEW_TAG=v$(poetry version --short)
+
+          # Finally because we want to be able to use the variable in later
+          # steps we set a NEW_TAG environmental variable
+          echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
+          # we don't want to update pyproject.toml yet. don't want this change to create merge conflict.
+          # we don't really persist right version in pyproject.toml to figure out the next version. we use git tags.
+          git restore pyproject.toml
+          
+
+      #--------------------------------------------------------------
+      # Create a new releases/new_tag
+      #--------------------------------------------------------------
+      - name: Create a new releases branch
+        run: |
+          git checkout -b releases/${NEW_TAG}
+          git push --set-upstream origin releases/${NEW_TAG}
+
+      #--------------------------------------------------------------
+      # merge changes back to main
+      #--------------------------------------------------------------
+      - name: Merge changes back to main
+        run: |
+          git checkout main
+          git merge ${{ inputs.merge-strategy }} releases/${NEW_TAG}
+          git push 
+
+      - name: Run tests on main branch
+        id: run-tests-on-main
+        run: |
+          if [[ -d tests ]]; then
+            poetry add pytest-timeout --group dev
+            poetry install --no-interaction
+            poetry run pytest --timeout=${{ inputs.run-tests-wait }} tests
+          fi
+        continue-on-error: true
+
+      - name: Do something with a failing build
+        if: steps.run-tests-on-main.outcome != 'success'
+        run: |
+          echo "tests on main did not succeed. Outcome is ${{ steps.run-tests-on-main.outcome }}"
+          git reset --hard HEAD~1 
+          git push origin HEAD --force
+          git branch -d releases/${NEW_TAG}
+          git push origin --delete releases/${NEW_TAG}
+          echo "reverted changes to main and removed release branch"
+          exit 1
+
+      - name: Create build artifacts
+        run: |
+          # set the right version in pyproject.toml before build and publish
+          poetry version ${NEW_TAG#?} 
+          poetry build -vvv
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*.gz,dist/*.whl"
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
+          commit: ${{ github.ref }}
+          # check bump-rule and set accordingly
+          prerelease: ${{ inputs.bump-rule == 'prerelease'  }}
+          tag: ${{ env.NEW_TAG }}
+          token: ${{ secrets.git-token }}
+
+      - name: Publish to pypi
+        id: publish-to-pypi
+        if: ${{ ! inputs.publish-to-test-pypi }}
+        run: |
+          echo "POETRY_PUBLISH_OPTIONS=''" >> $GITHUB_ENV
+          poetry config pypi-token.pypi ${{ secrets.pypi-token }}
+          poetry publish
+        continue-on-error: true
+
+      - name: Publish to test-pypi
+        id: publish-to-test-pypi
+        if: ${{ inputs.publish-to-test-pypi  }}
+        run: |
+          poetry config repositories.test-pypi https://test.pypi.org/legacy/
+          poetry config pypi-token.test-pypi ${{ secrets.pypi-token }}
+          poetry publish -r test-pypi
+        continue-on-error: true
+
+      - name: if publish to pypi/test-pypi failed revert main and delete release branch
+        if: ${{ steps.publish-to-pypi.outcome != 'success' && steps.publish-to-test-pypi.outcome != 'success' }}
+        run: |
+          echo "publish to pypi/test-pypi did not succeed. Outcome for pypi = ${{ steps.publish-to-pypi.outcome }} outcome for test-pypi= ${{ steps.publish-to-test-pypi.outcome }}"
+          git reset --hard HEAD~1 
+          git push origin HEAD --force
+          git branch -d releases/${NEW_TAG}
+          git push origin --delete releases/${NEW_TAG}
+          echo "reverted changes to main and removed release branch"
+
+      - name: if publish to pypi/test-pypi failed delete release and tag on github
+        if: ${{ ! (steps.publish-to-pypi.outcome == 'success' || steps.publish-to-test-pypi.outcome == 'success') }}
+        uses: dev-drprasad/delete-tag-and-release@v0.2.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.git-token }}
+        with:
+          tag_name: ${{ env.NEW_TAG }}
+
+      - name: if publish to pypi/test-pypi failed exit with exit code 1
+        if: ${{ steps.publish-to-pypi.outcome != 'success' && steps.publish-to-test-pypi.outcome != 'success' }}
+        run: |
+          exit 1
+      #--------------------------------------------------------------
+      # merge changes back to develop
+      #--------------------------------------------------------------
+      - name: Merge changes back to develop
+        run: |
+          git checkout develop
+          git merge develop main
+          git push 
