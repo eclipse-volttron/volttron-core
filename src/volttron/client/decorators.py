@@ -123,7 +123,7 @@ def get_core_builder(name: Optional[str] = None, **kwargs) -> CoreBuilder:
 
             # __core_builder__ = importlib.import_module(new_package)
 
-        specs = inspect.getargspec(__core_builder__.__init__)
+        specs = inspect.getfullargspec(__core_builder__.__init__)
         # for k, v in kwargs.items():
         #     if k not in signature.parameters:
         #         raise ValueError(f"Invalid parameter {k} signature has {signature.parameters}")
