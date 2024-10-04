@@ -23,8 +23,8 @@
 # }}}
 
 __all__ = [
-    "execute_command", "vip_main", "is_volttron_running", "wait_for_volttron_startup",
-    "wait_for_volttron_shutdown", "start_agent_thread", "isapipe"
+    "execute_command", "vip_main", "is_volttron_running", "wait_for_volttron_startup", "wait_for_volttron_shutdown",
+    "start_agent_thread", "isapipe"
 ]
 
 import logging
@@ -37,7 +37,10 @@ import sys
 import gevent
 import psutil
 
-_log = logging.getLogger(__name__)
+from volttron.utils import get_logger
+from volttron.types import StrPath, get_path_from_strpath
+
+_log = get_logger()
 
 
 def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> str:
@@ -57,16 +60,12 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
     :raises RuntimeError: if the return code is not 0 from suprocess.run
     """
 
-    results = subprocess.run(cmds,
-                             env=env,
-                             cwd=cwd,
-                             stderr=subprocess.PIPE,
-                             stdout=subprocess.PIPE)
+    results = subprocess.run(cmds, env=env, cwd=cwd, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     if results.returncode != 0:
         err_prefix = err_prefix if err_prefix is not None else "Error executing command"
         err_message = ("\n{}: Below Command failed with non zero exit code.\n"
-                       "Command:{} \nStdout:\n{}\nStderr:\n{}\n".format(
-                           err_prefix, results.args, results.stdout, results.stderr))
+                       "Command:{} \nStdout:\n{}\nStderr:\n{}\n".format(err_prefix, results.args, results.stdout,
+                                                                        results.stderr))
         if logger:
             logger.exception(err_message)
             raise RuntimeError()
@@ -121,12 +120,9 @@ def vip_main(agent_class, version: str = "0.1", **kwargs):
 
         if not os.environ.get("_LAUNCHED_BY_PLATFORM"):
             if not creds:
-                raise ValueError(
-                    "Please set AGENT_CREDENTIALS to the credentials to connect to the server.")
+                raise ValueError("Please set AGENT_CREDENTIALS to the credentials to connect to the server.")
             if not address:
-                raise ValueError(
-                    "Please set VOLTTRON_PLATFORM_ADDRESS to the address for connecting to the server."
-                )
+                raise ValueError("Please set VOLTTRON_PLATFORM_ADDRESS to the address for connecting to the server.")
 
         if identity != creds.identity:
             raise ValueError("AGENT_VIP_IDENTITY and identity from credentials do not match!")
@@ -151,17 +147,19 @@ def vip_main(agent_class, version: str = "0.1", **kwargs):
         pass
 
 
-def is_volttron_running(volttron_home):
+def is_volttron_running(volttron_home: StrPath):
     """
     Checks if volttron is running for the given volttron home. Checks if a VOLTTRON_PID file exist and if it does
     check if the PID in the file corresponds to a running process. If so, returns True else returns False
-    :param vhome: volttron home
+
+    :param volttron_home: the VOLTTRON_HOME to look for the VOLTTRON_PID
     :return: True if VOLTTRON_PID file exists and points to a valid process id
     """
 
-    pid_file = os.path.join(volttron_home, "VOLTTRON_PID")
-    if os.path.exists(pid_file):
-        running = False
+    v_home = get_path_from_strpath(volttron_home)
+
+    pid_file = v_home / "VOLTTRON_PID"
+    if pid_file.exists():
         with open(pid_file, "r") as pf:
             pid = int(pf.read().strip())
             running = psutil.pid_exists(pid)
@@ -170,22 +168,22 @@ def is_volttron_running(volttron_home):
         return False
 
 
-def wait_for_volttron_startup(vhome, timeout):
+def wait_for_volttron_startup(volttron_home: StrPath, timeout: int):
     # Check for VOLTTRON_PID
+
     sleep_time = 0
-    while (not is_volttron_running(vhome)) and sleep_time < timeout:
+    while (not is_volttron_running(volttron_home)) and sleep_time < timeout:
         gevent.sleep(3)
         sleep_time += 3
     if sleep_time >= timeout:
-        raise Exception("Platform startup failed. Please check volttron.log in {}".format(vhome))
+        raise RuntimeError("Platform startup failed. Please check volttron.log in {}".format(volttron_home))
 
 
-def wait_for_volttron_shutdown(vhome, timeout):
+def wait_for_volttron_shutdown(volttron_home, timeout):
     # Check for VOLTTRON_PID
     sleep_time = 0
-    while (is_volttron_running(vhome)) and sleep_time < timeout:
+    while (is_volttron_running(volttron_home)) and sleep_time < timeout:
         gevent.sleep(1)
         sleep_time += 1
     if sleep_time >= timeout:
-        raise Exception(
-            "Platform shutdown failed. Please check volttron.cfg.log in {}".format(vhome))
+        raise RuntimeError("Platform shutdown failed. Please check volttron.cfg.log in {}".format(volttron_home))

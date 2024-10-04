@@ -54,7 +54,6 @@ class ServerOptions:
     """
     volttron_home: Path = None
     instance_name: str = None
-    local_address: str = None
     address: list[str] = field(default_factory=list)
     agent_isolation_mode: bool = False
     # Module that holds the zmq based classes, though we shorten it assuming

@@ -32,7 +32,7 @@ from .base import SubsystemBase
 
 __docformat__ = "reStructuredText"
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 

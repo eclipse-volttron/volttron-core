@@ -48,7 +48,7 @@ class InstallRuntimeError(RuntimeError):
     pass
 
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
@@ -80,14 +80,11 @@ def _build_from_pyproject(install_path: Path) -> Path:
     if match:
         return Path(match[-1])
     else:
-        raise InstallRuntimeError(
-            f"No .whl file found in {dist_path} after running command {' '.join(cmd)}. "
-            f"\nCommand returned stdout:\n{output}")
+        raise InstallRuntimeError(f"No .whl file found in {dist_path} after running command {' '.join(cmd)}. "
+                                  f"\nCommand returned stdout:\n{output}")
 
 
-def _install_and_initialize_agent(opts: argparse.Namespace,
-                                  wheel_file: Path = None,
-                                  pypi_string: str = None):
+def _install_and_initialize_agent(opts: argparse.Namespace, wheel_file: Path = None, pypi_string: str = None):
     """Create a new agent on the platform.
 
     This is the main installation function for sending/installing an agent on the platform. Depending
@@ -109,8 +106,7 @@ def _install_and_initialize_agent(opts: argparse.Namespace,
 
     assert opts.connection, "Connection must have been created to access this feature."
     assert wheel_file or pypi_string, "Either a wheel file or pypi string must be specified."
-    assert not (wheel_file
-                and pypi_string), "Only one of wheel_file or pypi_string can be specified."
+    assert not (wheel_file and pypi_string), "Only one of wheel_file or pypi_string can be specified."
 
     connection = opts.connection
 
@@ -281,8 +277,7 @@ def add_install_agent_parser(add_parser_fn: Callable):
     )
     install.add_argument(
         "--skip-requirements",
-        help=
-        "Skip installing requirements from a requirements.txt if present in the agent directory.",
+        help="Skip installing requirements from a requirements.txt if present in the agent directory.",
     )
     install.add_argument(
         "install_path",
@@ -299,8 +294,7 @@ def add_install_agent_parser(add_parser_fn: Callable):
         "-f",
         "--force",
         action="store_true",
-        help=
-        "agents are uninstalled by tag so force allows multiple agents to be removed at one go.",
+        help="agents are uninstalled by tag so force allows multiple agents to be removed at one go.",
     )
     install.add_argument(
         "--priority",

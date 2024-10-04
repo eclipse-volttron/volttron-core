@@ -28,7 +28,7 @@ from volttron.utils import get_address
 from volttron.utils.keystore import KeyStore, KnownHostsStore
 from volttron.client.vip.agent.connection import Connection
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
@@ -39,13 +39,7 @@ def get_known_host_serverkey(vip_address):
     return host_store.serverkey(vip_address)
 
 
-def build_connection(identity,
-                     peer="",
-                     address=None,
-                     publickey=None,
-                     secretkey=None,
-                     message_bus=None,
-                     **kwargs):
+def build_connection(identity, peer="", address=None, publickey=None, secretkey=None, message_bus=None, **kwargs):
     address = address if address is not None else get_address()
     if publickey is None or secretkey is None:
         publickey, secretkey = get_server_keys(publickey, secretkey)

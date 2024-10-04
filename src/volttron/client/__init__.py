@@ -40,10 +40,7 @@ for module, fn in patches:
     if not monkey.is_module_patched(module):
         fn()
 
-import logging
-from urllib.parse import urlparse
-
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 from volttron.client.vip.agent.core import Core
 from volttron.client.vip.agent.subsystems.auth import Auth
 from volttron.client.vip.agent.subsystems.configstore import ConfigStore
@@ -57,11 +54,10 @@ from volttron.client.vip.agent.subsystems.query import Query
 from volttron.client.vip.agent.subsystems.rpc import RPC
 from volttron.client.vip.agent import Agent
 from volttron.types import AbstractAgent
-from volttron.client.logs import setup_logging
 
 __all__: List[str] = [
     "AbstractAgent", "Core", "RPC", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health", "ConfigStore", "Auth",
-    "Query", "setup_logging"
+    "Query"
 ]
 
 _log = get_logger()

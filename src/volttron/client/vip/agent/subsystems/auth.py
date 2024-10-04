@@ -40,7 +40,7 @@ The auth subsystem allows an agent to quickly query authorization state
 __docformat__ = "reStructuredText"
 __version__ = "1.1"
 
-from volttron.client.logs import get_logger
+from volttron.utils import get_logger
 
 _log = get_logger()
 
@@ -363,8 +363,7 @@ class Auth(SubsystemBase):
         while self._dirty:
             self._dirty = False
             try:
-                self._user_to_capabilities = (self._rpc().call(
-                    AUTH, "get_user_to_capabilities").get(timeout=10))
+                self._user_to_capabilities = (self._rpc().call(AUTH, "get_user_to_capabilities").get(timeout=10))
                 _log.debug("self. user to cap {}".format(self._user_to_capabilities))
             except RemoteError:
                 self._dirty = True
