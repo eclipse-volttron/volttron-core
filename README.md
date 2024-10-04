@@ -5,7 +5,7 @@ Eclipse VOLTTRON™ (VOLTTRON/volttron) is an open source platform for distribut
 ![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
 [![Pytests](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml/badge.svg)](https://github.com/eclipse-volttron/volttron-core/actions/workflows/run-tests.yml)
 [![pypi version](https://img.shields.io/pypi/v/volttron.svg)](https://pypi.org/project/volttron/)
-## Pre-requisites
+## Prerequisites
 
 - git >= 2.25
 
@@ -18,12 +18,12 @@ Eclipse VOLTTRON™ (VOLTTRON/volttron) is an open source platform for distribut
   Note- Ubuntu 22.04 comes with python 3.10. To upgrade pip run ```python -m pip install --upgrade pip```
  
 ## Installation
-This package is the core volttron server, client and utilities. in order to successfully start volttron at a minimum you would need a volttron message bus(volttron-lib-zmq) and volttron authentication library(volttron-lib-auth). You can install these as three separate steps or use the wrapper (volttron-zmq) that pulls all three packages
+This package is the core volttron server, client and utilities. in order to successfully start VOLTTRON, you need a volttron message bus(volttron-lib-zmq) and volttron authentication library(volttron-lib-auth). You can install these as three separate steps or use the wrapper (volttron-zmq) that pulls all three packages
 
 It is highly recommended you use a virtual environment for installing volttron.
 
 ```shell
-python -m venv <directory name for your virtual env. for example .vemv>
+python -m venv <directory name for your virtual env. for example .venv>
 source .venv/bin/activate
 export VOLTTRON_HOME=</path/to/volttron/home>
 pip install volttron-zmq
@@ -35,7 +35,7 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
 
  1. **Setup VOLTTRON_HOME** environment variable: export VOLTTRON_HOME=/path/to/volttron_home/dir 
  
-    **NOTE** This is madatory if you have/had in the past, a monolithic    VOLTTRON version that used the default VOLTTRON_HOME $HOME/.volttron. **This modular version of VOLTTRON cannot work with volttron_home used by monolithic version of VOLTTRON(version 8.3 or earlier)**
+    **NOTE** This is mandatory if you have/had in the past, a monolithic    VOLTTRON version that used the default VOLTTRON_HOME $HOME/.volttron. **This modular version of VOLTTRON cannot work with volttron_home used by monolithic version of VOLTTRON(version 8.3 or earlier)**
  
  2. **Start the platform:**
     
@@ -51,9 +51,9 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
 
  5. **Install any optional libraries that your agents need:**
     
-    Monolithic VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project (pyproject.toml file) in VOLTTRON_HOME directory and use that for keeping track of all installed packages. For example, when you ran "vctl install volttron-listener" an entry for that agent's package name and version gets added to $VOLTTRON_HOME/pyproject.toml.
+    Modular VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project (pyproject.toml file) in VOLTTRON_HOME directory and use that for keeping track of all installed packages. For example, when you ran "vctl install volttron-listener" an entry for that agent's package name and version gets added to $VOLTTRON_HOME/pyproject.toml.
 
-    If you are installing optional librabries, such as volttron-lib-bacnet-driver use poetry instead of pip
+    If you are installing optional libraries, such as volttron-lib-bacnet-driver use poetry instead of pip
     ```bash
     poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver
     ```
@@ -73,7 +73,7 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
     ```
 
 ## Links to important documentation
- - Known issues in this version 
+ - [Known issues in this version](https://github.com/eclipse-volttron/volttron-core/labels/2.0.0rc0) 
  - [Important backward incompatible changes](backward_incompatible_features.md)
  - Full VOLTTRON documentation available at [VOLTTRON Readthedocs](https://volttron.readthedocs.io)
 
