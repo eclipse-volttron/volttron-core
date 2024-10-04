@@ -11,7 +11,7 @@ Eclipse VOLTTRON (eclipse-volttron/volttron-core) is an open source platform for
 ## Prerequisites
 
 - git >= 2.25
-- poetry >= 1.2.2
+- poetry >= 1.8.2
 - python >= 3.10
 - pip >= 24.0
 
