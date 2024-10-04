@@ -31,12 +31,15 @@ on:
         required: false
         default: 600
         type: number
-      publish-to-test-pypi:
-        description: 'Set to true if you want to publish to https://test.pypi.org/legacy/ instead of pypi.org'
+      publish-option:
+        description: 'Choose where to publish: pypi, test-pypi, or none'
         required: false
-        default: false
-        type: boolean
-      
+        default: 'none'
+        type: choice
+        options:
+          - pypi
+          - test-pypi
+          - none
 
 defaults:
   run:
@@ -59,7 +62,7 @@ jobs:
       release-version: ${{ inputs.release-version }}
       bump-rule: ${{ inputs.bump-rule }}
       run-tests-wait: 600
-      publish-to-test-pypi: false
+      publish-option: ${{ inputs.publish-option }}
     secrets:
       git-token: ${{ secrets.AUTO_PROJECT_PAT }}
       pypi-token: ${{ secrets.PYPI_TOKEN }}
