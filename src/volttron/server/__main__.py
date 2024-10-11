@@ -76,7 +76,7 @@ for arg in sys.argv:
         # Finally set the logging parameter to the absolute path
         sys.argv[index + 1] = logging_config.absolute().as_posix()
 
-    total_count += vcount
+        total_count += vcount
 
 logging.config.dictConfig(get_default_logging_config(level=total_count))
 
