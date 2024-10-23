@@ -117,7 +117,6 @@ def get_default_loggers_config(level: int) -> dict:
 
 
 def get_default_logging_config(level: int = logging.WARNING) -> dict:
-    print(f"Getting default_logging_config level: {level}")
     return {
         "version": 1,
         "disable_existing_loggers": False,
