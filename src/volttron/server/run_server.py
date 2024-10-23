@@ -107,8 +107,8 @@ def run_server():
 
     # create poetry project and poetry lock file in VOLTTRON_HOME
     if dev_mode:
-        if not os.path.isfile(server_options.poetry_project_path / "pyproject.toml"):
-            raise ValueError("VOLTTRON is run with --dev but unable to fund pyproject.toml is current directory - "
+        if not (server_options.poetry_project_path / "pyproject.toml").exists():
+            raise ValueError("VOLTTRON is run with --dev but unable to find pyproject.toml is current directory - "
                              f"{server_options.poetry_project_path}")
     else:
         setup_poetry_project(server_options.poetry_project_path)
@@ -116,15 +116,22 @@ def run_server():
     start_volttron_process(server_options)
 
 
-def setup_poetry_project(volttron_home):
+def setup_poetry_project(volttron_home: Path):
     toml = os.path.join(volttron_home, "pyproject.toml")
+    if os.path.isfile(toml):
+        return
+
     if not os.path.isfile(toml):
         cmd = [
             "poetry", "init", "--directory",
             volttron_home.as_posix(), "--name", "volttron", "--author", "volttron <volttron@pnnl.gov>", "--quiet"
         ]
         execute_command(cmd)
-        cmd = ["poetry", "--directory", volttron_home.as_posix(), "source", "add",  "--priority=supplemental", "test-pypi", "https://test.pypi.org/simple/"]
+        cmd = [
+            "poetry", "--directory",
+            volttron_home.as_posix(), "source", "add", "--priority=supplemental", "test-pypi",
+            "https://test.pypi.org/simple/"
+        ]
         execute_command(cmd)
 
     # now do multiple piped commands
@@ -134,7 +141,7 @@ def setup_poetry_project(volttron_home):
     # Third command
     poetry_cmd = ["xargs", "poetry", "add", "--directory", volttron_home.as_posix()]
 
-    err_msg =  ""
+    err_msg = ""
     # Execute the first command
     p1 = subprocess.Popen(pip_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p1_stdout, p1_stderr = p1.communicate()
@@ -144,7 +151,7 @@ def setup_poetry_project(volttron_home):
     else:
         # Execute the second command, with stdin from the first command's stdout
         p2 = subprocess.Popen(grep_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p2_stdout, p2_stderr = p2.communicate(input=p1_stdout)  # Use p1's output directly
+        p2_stdout, p2_stderr = p2.communicate(input=p1_stdout)    # Use p1's output directly
         # Check and print the output of the second command
         if p2.returncode != 0:
             err_msg = "Error from grep command:", p2_stderr.decode()
@@ -155,7 +162,7 @@ def setup_poetry_project(volttron_home):
             else:
                 # Execute the third command, with stdin from the second command's stdout
                 p3 = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                p3_stdout, p3_stderr = p3.communicate(input=p2_stdout)  # Use p2's output directly
+                p3_stdout, p3_stderr = p3.communicate(input=p2_stdout)    # Use p2's output directly
                 if p3.returncode != 0:
                     err_msg = "Error from poetry command:", p3_stderr.decode()
 

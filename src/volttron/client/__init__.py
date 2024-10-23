@@ -60,8 +60,8 @@ from volttron.types import AbstractAgent
 from volttron.client.logs import setup_logging
 
 __all__: List[str] = [
-    "AbstractAgent", "Core", "RPC", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health", "ConfigStore", "Auth",
-    "Query", "setup_logging"
+    "Agent", "AbstractAgent", "Core", "RPC", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health",
+    "ConfigStore", "Auth", "Query", "setup_logging"
 ]
 
 _log = get_logger()
