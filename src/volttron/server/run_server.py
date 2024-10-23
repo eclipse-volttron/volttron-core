@@ -107,10 +107,6 @@ def run_server():
 
     # create poetry project and poetry lock file in VOLTTRON_HOME
     if dev_mode:
-        # Allow an environmental variable to be passed for the location of the POETRY PROJECT Path.
-        if 'POETRY_PROJECT_PATH' in os.environ:
-            server_options.poetry_project_path = Path(os.environ['POETRY_PROJECT_PATH']).expanduser()
-
         if not (server_options.poetry_project_path / "pyproject.toml").exists():
             raise ValueError("VOLTTRON is run with --dev but unable to find pyproject.toml is current directory - "
                              f"{server_options.poetry_project_path}")
