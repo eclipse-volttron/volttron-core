@@ -1,12 +1,11 @@
 import argparse
 import json
-import os
 import re
-import shutil
-import sys
+
 from typing import Callable, List
 
-# import argcomplete
+from volttron.utils.context import ClientContext as cc
+
 import volttron.types.auth.authz_types as authz
 
 # Note: rpc call in volttron-lib-auth/src/volttron/services/auth/auth_service.py
@@ -18,7 +17,7 @@ def add_authz_parser(add_parser_fn, filterable):
     """Create and populate an argparse parser for the authz command.
 
     First create the top level parser for authz.  Then create a subparser for
-    the rpc subcommand.  Finally adds seperate arguments to the rpc subparser
+    the rpc subcommand.  Finally adds separate arguments to the rpc subparser
     for add, remove and list commands.
 
     The same method as above is how the pubsub subcommand will be added.
@@ -48,9 +47,7 @@ def add_authz_parser(add_parser_fn, filterable):
 
     # TODO: Verify that the filterable makes sense for the authz command.
 
-    authz_command = add_parser_fn(
-        "authz", help="Manage authorization for rpc methods and pubsub topics"
-    )
+    authz_command = add_parser_fn("authz", help="Manage authorization for rpc methods and pubsub topics")
 
     authz_operations = authz_command.add_subparsers(
         title="Authorization operations",
@@ -61,7 +58,8 @@ def add_authz_parser(add_parser_fn, filterable):
     )
 
     # Create the 'add' subparser under 'rpc'
-    authz_add_parser = authz_operations.add_parser("add", help="Add or merge a role, group,  agent authorization, or protected topics")
+    authz_add_parser = authz_operations.add_parser(
+        "add", help="Add or merge a role, group,  agent authorization, or protected topics")
     # authz_add_parser.add_argument("identity_and_method", nargs="*", help="Format: 'identity.method_name'")
     # authz_add_parser.set_defaults(func=handel_role_parser)
 
@@ -79,29 +77,32 @@ pubsub-capabilities:
 rpc-capabilities:
     {AuthZUtils.rpc_capability_format_requirement()}"""
     # Add a command "role" under 'authz add'
-    add_role_command = add_node_parser.add_parser("role", help="create a role or merge rules for an existing role",
+    add_role_command = add_node_parser.add_parser("role",
+                                                  help="create a role or merge rules for an existing role",
                                                   formatter_class=argparse.RawDescriptionHelpFormatter,
                                                   epilog=capabilities_epilog)
     add_role_command.add_argument("role_name", help="name of the role")
     add_role_command.add_argument(
-        "--pubsub-capabilities", "-ps", nargs="+", help="one or more pubsub-capabilities allowed for this role. see additional information"
-    )
-    add_role_command.add_argument(
-        "--rpc-capabilities", "-rpc", nargs="+", help="one or more rpc capabilities allowed for this role. see additional information"
-    )
+        "--pubsub-capabilities",
+        "-ps",
+        nargs="+",
+        help="one or more pubsub-capabilities allowed for this role. see additional information")
+    add_role_command.add_argument("--rpc-capabilities",
+                                  "-rpc",
+                                  nargs="+",
+                                  help="one or more rpc capabilities allowed for this role. see additional information")
     add_role_command.set_defaults(func=authz_add_role)
 
     # Add a command "group" under 'authz add'
-    add_group_command = add_node_parser.add_parser("group", help="create a group or merge rules for an existing group",
+    add_group_command = add_node_parser.add_parser("group",
+                                                   help="create a group or merge rules for an existing group",
                                                    formatter_class=argparse.RawDescriptionHelpFormatter,
                                                    epilog=capabilities_epilog)
     add_group_command.add_argument("group_name", help="name of the group")
     add_group_command.add_argument(
-        "identities", nargs="+", help="one or more agent identity to be added to group"
-    )  # "+" means one or more inputs are required,
-    add_group_command.add_argument(
-        "--role-names", "-rns", nargs="+", help="name of roles to be assigned to this group"
-    )
+        "identities", nargs="+",
+        help="one or more agent identity to be added to group")    # "+" means one or more inputs are required,
+    add_group_command.add_argument("--role-names", "-rns", nargs="+", help="name of roles to be assigned to this group")
     add_group_command.add_argument(
         "--pubsub-capabilities",
         "-ps",
@@ -109,32 +110,38 @@ rpc-capabilities:
         help="one or more pubsub-capabilities allowed for this group. see additional information",
     )
     add_group_command.add_argument(
-        "--rpc-capabilities", "-rpc", nargs="+", help="one or more rpc-capabilities allowed for this role. see additional information"
-    )
+        "--rpc-capabilities",
+        "-rpc",
+        nargs="+",
+        help="one or more rpc-capabilities allowed for this role. see additional information")
     add_group_command.set_defaults(func=authz_add_group)
 
     # Add a command "topics" under 'authz add'
     add_topic_command = add_node_parser.add_parser(
         "topics",
-        help=(
-            "protect one or more topic or topic pattern by adding it to the protected_topics list."
-            "topic patterns(regular expression) should be enclose within // Example: /devices.*/. "
-        ),
+        help=("protect one or more topic or topic pattern by adding it to the protected_topics list."
+              "topic patterns(regular expression) should be enclose within // Example: /devices.*/. "),
     )
-    add_topic_command.add_argument("topic_names", nargs="+", help="one or more topic name or topic pattern to be protected")
+    add_topic_command.add_argument("topic_names",
+                                   nargs="+",
+                                   help="one or more topic name or topic pattern to be protected")
     add_topic_command.set_defaults(func=authz_add_topic)
 
     # Add a command "agent" under 'authz add'
-    add_agent_command = add_node_parser.add_parser("agent", help="create or merge an agent's authorization rules",
+    add_agent_command = add_node_parser.add_parser("agent",
+                                                   help="create or merge an agent's authorization rules",
                                                    formatter_class=argparse.RawDescriptionHelpFormatter,
-                                                   epilog=capabilities_epilog
-                                                   )
+                                                   epilog=capabilities_epilog)
     add_agent_command.add_argument("identity", help="vip identity of the agent")
-    add_agent_command.add_argument("--role-names", "-rns", nargs="+",
+    add_agent_command.add_argument("--role-names",
+                                   "-rns",
+                                   nargs="+",
                                    help="name of role(s) to be assigned to this agent")
-    add_agent_command.add_argument("--protected-rpcs", "-pts", nargs="+",
+    add_agent_command.add_argument("--protected-rpcs",
+                                   "-pts",
+                                   nargs="+",
                                    help="rpc exported methods of this agent that needs to be protected by "
-                                        "authorization rules")
+                                   "authorization rules")
     add_agent_command.add_argument(
         "--pubsub-capabilities",
         "-ps",
@@ -142,15 +149,18 @@ rpc-capabilities:
         help="one or more pubsub-capabilities allowed for this group. see additional information",
     )
     add_agent_command.add_argument(
-        "--rpc-capabilities", "-rpc", nargs="+", help="one or more rpc-capabilities allowed for this group. see additional information"
-    )
+        "--rpc-capabilities",
+        "-rpc",
+        nargs="+",
+        help="one or more rpc-capabilities allowed for this group. see additional information")
     add_agent_command.add_argument("--comments", "-c", help="comment string")
     add_agent_command.set_defaults(func=authz_add_agent)
 
     ### REMOVE parser
     remove_authz_method = add_parser_fn(
-        "remove", subparser=authz_operations, help="Remove authorization entries for a agent, group, role or protected topics"
-    )
+        "remove",
+        subparser=authz_operations,
+        help="Remove authorization entries for a agent, group, role or protected topics")
 
     #### Create subparser for node ('role', 'group', 'topics', 'agent') under 'authz remove'
     remove_node_parser = remove_authz_method.add_subparsers(
@@ -171,23 +181,21 @@ rpc-capabilities:
     remove_group_command.set_defaults(func=authz_remove_group)
 
     # Add a command "topics" under 'authz remove'
-    remove_topic_command = remove_node_parser.add_parser("topics", help="remove one or more topic or pattern from protected topics list")
-    remove_topic_command.add_argument(
-        "topic_names", nargs="+", help="space separated list of topic or topic pattern to remove"
-    )
+    remove_topic_command = remove_node_parser.add_parser(
+        "topics", help="remove one or more topic or pattern from protected topics list")
+    remove_topic_command.add_argument("topic_names",
+                                      nargs="+",
+                                      help="space separated list of topic or topic pattern to remove")
     remove_topic_command.set_defaults(func=authz_remove_topic)
 
     # Add a command "agent" under 'authz remove'
     remove_agent_command = remove_node_parser.add_parser("agent", help="remove an agent authorization rules")
-    remove_agent_command.add_argument(
-        "identity", help="vip identity of the agent"
-    )  # "+" means one or more inputs are required,
+    remove_agent_command.add_argument("identity",
+                                      help="vip identity of the agent")    # "+" means one or more inputs are required,
     remove_agent_command.set_defaults(func=authz_remove_agent)
 
     ### LIST parser
-    list_authz_method = add_parser_fn(
-        "list", subparser=authz_operations, help="List authorized rpc methods."
-    )
+    list_authz_method = add_parser_fn("list", subparser=authz_operations, help="List authorized rpc methods.")
     list_node_parser = list_authz_method.add_subparsers(
         title="top nodes",
         metavar="<NODE=role|group|topics|agent>",
@@ -215,14 +223,15 @@ rpc-capabilities:
 #     return f"{opts=}"
 
 
-FILE_NAME = os.environ["VOLTTRON_HOME"] + "/authz.json"
+def get_local_authorizations() -> dict[str, dict]:
+    # TODO maybe cache this maybe not depending, but we have made it so that only one place deals with io.
+    with open(cc.get_volttron_home().join("/authz.json")) as fp:
+        return json.load(fp)
 
 
 def list_dummy(opts):
     """TODO: clean-up: Mock method for `vctl authz list` for now"""
-    with open(FILE_NAME, "r") as f:
-        # data = f.read()
-        data = json.load(f)
+    data = get_local_authorizations()
     # print(json.dumps(data, indent=4))
     print(data.keys())
     return data
@@ -230,8 +239,7 @@ def list_dummy(opts):
 
 def authz_list_dummy(opts):
     """TODO: clean-up: Mock method for `vctl authz list <node>` for now"""
-    with open(FILE_NAME, "r") as f:
-        data = json.load(f)
+    data = get_local_authorizations()
     list_content = data
     # opts.store_commands in ["role", "group", "topic", "agent"]:  #
     if opts.store_commands == "role":
@@ -259,12 +267,13 @@ def authz_add_role(opts):
     pubsub_capabilities = AuthZUtils.str_to_PubsubCapabilities(pubsub_capabilities_attr)
 
     rpc_method: Callable = VolttronAuthService.create_or_merge_role
-    res = opts.connection.server.vip.rpc.call(AUTH, rpc_method.__name__, name=role_name,
+    res = opts.connection.server.vip.rpc.call(AUTH,
+                                              rpc_method.__name__,
+                                              name=role_name,
                                               pubsub_capabilities=pubsub_capabilities,
                                               rpc_capabilities=rpc_capabilities).get()
     if res:
         print(f"Added Role: {rpc_capabilities_attr=}, {pubsub_capabilities_attr=} to {role_name=}.")
-
 
 
 def authz_remove_role(opts):
@@ -299,11 +308,9 @@ def authz_add_agent(opts):
         comments=comments,
     ).get()
     if res:
-        print(
-            f"Added Agent:  {role_names=}, \
+        print(f"Added Agent:  {role_names=}, \
 {rpc_capabilities_attr=}, {pubsub_capabilities_attr=}, \
-{comments=} to {identity=}."
-        )
+{comments=} to {identity=}.")
 
 
 def authz_remove_agent(opts):
@@ -344,9 +351,7 @@ def authz_remove_topic(opts):
         print(f"Removed Topic: {topic_names=}.")
     else:
         # TODO error with silence if no such topic exists.
-        print(
-            f"SOMEHTING WRONG, probabely, one of such topics {topic_names=} didn't exist."
-        )
+        print(f"SOMEHTING WRONG, probabely, one of such topics {topic_names=} didn't exist.")
 
 
 def authz_add_group(opts):
@@ -357,9 +362,7 @@ def authz_add_group(opts):
     rpc_capabilities_attr: List[str] | None = opts.rpc_capabilities
     pubsub_capabilities_attr: List[str] | None = opts.pubsub_capabilities
 
-    if not any(
-        [role_names, rpc_capabilities_attr, pubsub_capabilities_attr]
-    ):  # TODO: should we handle this here?
+    if not any([role_names, rpc_capabilities_attr, pubsub_capabilities_attr]):    # TODO: should we handle this here?
         raise ValueError(
             "agent group group1 should have non empty capabilities. Please pass non empty values for at least one of the three parameters - agent_roles, rpc_capabilities, pubsub_capabilities"
         )
@@ -370,21 +373,19 @@ def authz_add_group(opts):
 
     rpc_method: Callable = VolttronAuthService.create_or_merge_agent_group
     res = opts.connection.server.vip.rpc.call(
-        AUTH,  # "platform.auth",
+        AUTH,    # "platform.auth",
         rpc_method.__name__,
         name=group_name,
         identities=vip_ids,
-        # protected_rpcs=protected_rpcs,
+    # protected_rpcs=protected_rpcs,
         roles=roles,
         pubsub_capabilities=pubsub_capabilities,
         rpc_capabilities=rpc_capabilities,
     ).get()
     if res:
-        print(
-            f"Added Group: {role_names=}, \
+        print(f"Added Group: {role_names=}, \
 {rpc_capabilities_attr=}, {pubsub_capabilities_attr=}, \
-to {group_name=}."
-        )
+to {group_name=}.")
 
 
 def authz_remove_group(opts):
@@ -399,12 +400,11 @@ def authz_remove_group(opts):
         print(f"Removed Group: {group_name=}.")
     else:
         # TODO error with silence if no such topic exists.
-        print(
-            f"SOMEHTING WRONG, probabely, one of such groups {group_name=} didn't exist."
-        )
+        print(f"SOMEHTING WRONG, probabely, one of such groups {group_name=} didn't exist.")
 
 
 class AuthZUtils:
+
     @staticmethod
     def is_rpc_capability_format_valid(cap_attr: str) -> bool:
         """
@@ -476,7 +476,7 @@ class AuthZUtils:
         return bytes(
             f"Can contain letters, '/', '.', '*', brackets, hyphens, and plus signs. {example_usage=}",
             "utf-8",
-        ).decode("unicode_escape")  # Manually interpreting escape sequences
+        ).decode("unicode_escape")    # Manually interpreting escape sequences
 
     @staticmethod
     def is_pubsub_constrain_valid(pubsub_constrain: str) -> bool:
@@ -510,9 +510,7 @@ class AuthZUtils:
 
         # Validate each part
         topic_pattern, pubsub_constrain = parts
-        return cls.is_topic_pattern_valid(
-            topic_pattern
-        ) and cls.is_pubsub_constrain_valid(pubsub_constrain)
+        return cls.is_topic_pattern_valid(topic_pattern) and cls.is_pubsub_constrain_valid(pubsub_constrain)
 
     @staticmethod
     def topic_pattern_pubsub_constrain_valid_requirement() -> str:
@@ -534,13 +532,11 @@ class AuthZUtils:
             f"regular expression enclosed within //\n"
             f"{example_usage}",
             "utf-8",
-        ).decode("unicode_escape")  # Manually interpreting escape sequences
+        ).decode("unicode_escape")    # Manually interpreting escape sequences
 
     # TODO: this method (str_to_RPCCapabilities and str_to_xx methods) should be adopted by authz.RPCCapabilities itself.
     @staticmethod
-    def str_to_RPCCapabilities(
-        rpc_capabilities_attr: List[str] | None,
-    ) -> authz.RPCCapabilities | None:
+    def str_to_RPCCapabilities(rpc_capabilities_attr: List[str] | None, ) -> authz.RPCCapabilities | None:
         if rpc_capabilities_attr is None:
             return None
         # check rpc_cap in "id.rpc1" format
@@ -566,22 +562,18 @@ class AuthZUtils:
             topic_pattern = pubsub_cap.split(":")[0]
             topic_access = pubsub_cap.split(":")[-1]
             if not AuthZUtils.is_topic_pattern_valid(topic_pattern):
-                raise ValueError(f"Input '<{topic_pattern=}>:<pubsub_constraint>' in {pubsub_capabilities_attr} does not meet the required format: {AuthZUtils.topic_pattern_requirement()}")
+                raise ValueError(
+                    f"Input '<{topic_pattern=}>:<pubsub_constraint>' in {pubsub_capabilities_attr} does not meet the required format: {AuthZUtils.topic_pattern_requirement()}"
+                )
             if not AuthZUtils.is_pubsub_constrain_valid(topic_access):
                 raise ValueError(
                     f"Input '<topic_pattern>:<{topic_access=}>:' in {pubsub_capabilities_attr} does not meet the required format: {AuthZUtils.pubsub_constrain_requirement()}"
                 )
-            pubsub_caps.append(
-                authz.PubsubCapability(
-                    topic_pattern=topic_pattern, topic_access=topic_access
-                )
-            )
+            pubsub_caps.append(authz.PubsubCapability(topic_pattern=topic_pattern, topic_access=topic_access))
         return authz.PubsubCapabilities(pubsub_caps)
 
     @staticmethod
-    def str_to_topic_patterns(
-        topic_names: List[str] | None,
-    ) -> List[str] | None:
+    def str_to_topic_patterns(topic_names: List[str] | None, ) -> List[str] | None:
         if topic_names is None:
             return None
         protected_rpcs: List[str] = []
@@ -597,7 +589,5 @@ class AuthZUtils:
     def str_to_AgentRoles(role_names: List[str] | None) -> authz.AgentRoles | None:
         if role_names is None:
             return None
-        roles = authz.AgentRoles(
-            [authz.AgentRole(role_name=role_name) for role_name in role_names]
-        )
+        roles = authz.AgentRoles([authz.AgentRole(role_name=role_name) for role_name in role_names])
         return roles
