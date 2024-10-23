@@ -1,14 +1,17 @@
+import inspect
 import logging
 import warnings
 from logging import Logger
 import sys
 import os
+
 import volttron.utils.jsonapi as jsonapi
-import volttron.utils as utils
 
 
 def get_logger() -> Logger:
-    return utils.get_logger()
+    frame = inspect.stack()[1]
+    module = inspect.getmodule(frame[0])
+    return logging.getLogger(module.__name__)
 
 
 def get_default_client_log_config(level=logging.DEBUG) -> dict:

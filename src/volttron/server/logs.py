@@ -86,37 +86,38 @@ if HAS_SYSLOG:
             return "<{}>".format(level) + super(SyslogFormatter, self).format(record)
 
 
-def get_default_loggers_config() -> dict:
+def get_default_loggers_config(level: int) -> dict:
+    level_server = logging.ERROR
+    level_client = logging.WARNING
+    match level:
+        case 1:
+            level_server = logging.WARNING
+            level_client = logging.INFO
+        case 2:
+            level_server = logging.INFO
+            level_client = logging.DEBUG
+        case 3:
+            level_client = logging.DEBUG
+            level_server = logging.DEBUG
+
     return {
+        "volttron.messagebus": {
+            "level": logging.getLevelName(level_server)
+        },
         "volttron.server": {
-            "level": "WARNING"
+            "level": logging.getLevelName(level_server)
         },
         "volttron.services": {
-            "level": "INFO"
+            "level": logging.getLevelName(level_server)
         },
         "volttron.client": {
-            "level": "INFO"
+            "level": logging.getLevelName(level_client)
         }
-    # "volttron.server.decorators": {
-    #     "level": "WARNING"
-    # },
-
-    # "volttron.server.containers": {
-    #     "level": "WARNING"
-    # },
-    # "volttron.loader": {
-    #     "level": "WARNING"
-    # },
-    # "volttron.server.run_server": {
-    #     "level": "WARNING"
-    # },
-    # "volttron.client.decorators": {
-    #     "level": "WARNING"
-    # }
     }
 
 
 def get_default_logging_config(level: int = logging.WARNING) -> dict:
+    print(f"Getting default_logging_config level: {level}")
     return {
         "version": 1,
         "disable_existing_loggers": False,
@@ -141,7 +142,7 @@ def get_default_logging_config(level: int = logging.WARNING) -> dict:
                 "mode": "a"
             }
         },
-        "loggers": get_default_loggers_config(),
+        "loggers": get_default_loggers_config(level),
         "root": {
             "level": level,
             "handlers": ["console"]
@@ -231,8 +232,7 @@ def log_to_file(file, level=logging.WARNING, handler_class=logging.StreamHandler
     """Direct log output to a file (or something like one)."""
     handler = handler_class(file)
     handler.setLevel(level)
-    handler.setFormatter(
-        AgentFormatter("%(asctime)s %(composite_name)s %(levelname)s: %(message)s"))
+    handler.setFormatter(AgentFormatter("%(asctime)s %(composite_name)s %(levelname)s: %(message)s"))
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)
