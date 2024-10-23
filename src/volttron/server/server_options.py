@@ -153,7 +153,7 @@ class ServerOptions:
             try:
                 # Don't save volttron_home within the config file.
                 if field.name not in ('volttron_home', 'services', 'config_file', 'initialized', 'service_address',
-                                      "poetry_project_path"):
+                                      "poetry_project_path", "local_address"):
                     # More than one address can be present, so we must be careful
                     # with it.
                     if field.name == 'address':

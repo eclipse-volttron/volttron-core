@@ -44,6 +44,8 @@ from pathlib import Path
 
 Identity = str
 Tag = str
+AgentUUID = str
+PathStr = Path | str
 
 
 class AbstractAgent(ABC):
@@ -83,7 +85,51 @@ class AbstractCore(ABC):
 class CoreLoop(ABC):
 
     @abstractmethod
+    def setup(self):
+        ...
+
+    @property
+    @abstractmethod
+    def configuration(self):
+        ...
+
+    @property
+    @abstractmethod
+    def onsetup(self):
+        ...
+
+    @property
+    @abstractmethod
+    def onstart(self):
+        ...
+
+    @property
+    @abstractmethod
+    def ondisconnected(self):
+        ...
+
+    @property
+    @abstractmethod
+    def onconnected(self):
+        ...
+
+    @property
+    @abstractmethod
+    def identity(self) -> str:
+        ...
+
+    @property
+    @abstractmethod
+    def connection(self) -> Connection:
+        ...
+
+    @abstractmethod
     def loop(self, running_event):
+        ...
+
+    @property
+    @abstractmethod
+    def register(self, subsystem: str, handle_subsystem: Callable, handle_error: Callable):
         ...
 
 

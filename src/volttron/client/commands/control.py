@@ -1447,7 +1447,7 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, priorit
                         agent.uuid[:n],
                         agent.name,
                         name_width,
-                        agent.vip_identity,
+                        agent.identity,
                         identity_width,
                         agent.tag or "",
                         tag_width,
@@ -1490,17 +1490,17 @@ def _show_filtered_agents_status(opts, status_callback, health_callback, priorit
     else:
         json_obj = {}
         for agent in agents:
-            json_obj[agent.vip_identity] = {
+            json_obj[agent.identity] = {
                 "agent_uuid": agent.uuid,
                 "name": agent.name,
-                "identity": agent.vip_identity,
+                "identity": agent.identity,
                 "agent_tag": agent.tag or "",
                 "status": status_callback(agent),
                 "health": health_callback(agent),
             }
             if cc.is_secure_mode():
-                json_obj[agent.vip_identity]["agent_user"] = (
-                    agent.agent_user if json_obj[agent.vip_identity]["status"].startswith("running") else "")
+                json_obj[agent.identity]["agent_user"] = (
+                    agent.agent_user if json_obj[agent.identity]["status"].startswith("running") else "")
         _stdout.write(f"{jsonapi.dumps(json_obj, indent=2)}\n")
 
 
@@ -2417,9 +2417,9 @@ def main():
 
     # with gevent.Timeout(opts.timeout):
     #     return opts.func(opts)
-    with gevent.Timeout(opts.timeout):
-        return opts.func(opts)
-    sys.exit(0)
+    # with gevent.Timeout(opts.timeout):
+    #     return opts.func(opts)
+    # sys.exit(0)
     try:
         with gevent.Timeout(opts.timeout):
             return opts.func(opts)

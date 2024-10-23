@@ -26,13 +26,7 @@ from gevent import monkey
 
 monkey.patch_all()
 
-import logging
-
 from volttron.utils import get_version
-
-from volttron.client.logs import get_logger
-
-_log = get_logger()
 
 __version__ = get_version()
 

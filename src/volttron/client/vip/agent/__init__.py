@@ -29,11 +29,14 @@ import os
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.agent_context import AgentContext, AgentOptions
 from volttron.types import AbstractAgent
+from volttron.utils import get_logger
 
 from .core import *
 from .decorators import *
 from .errors import *
 from .subsystems import *
+
+_log = get_logger()
 
 
 class Agent(AbstractAgent):
@@ -65,68 +68,11 @@ class Agent(AbstractAgent):
 
             self.auth = Auth(owner, core, self.rpc)
 
-    def __init__(self,
-                 *,
-                 credentials: Credentials = None,
-                 options: AgentOptions = None,
-                 address: str = None,
-                 **kwargs):
-        # TODO: Try to create them if possible
-        # if credentials is None:
-        #     if 'vip_identity' in kwargs:
-        #         pass
-        #     elif "identity" in kwargs:
-        #         pass
-        #     else:
-        #         raise ValueError("Credentials or identity must be passed to the agent.")
+    def __init__(self, *, credentials: Credentials = None, options: AgentOptions = None, address: str = None, **kwargs):
 
-        # if options is None:
-        #     options = AgentOptions()
-        #     for fld in options.__dataclass_fields__:
-        #         if fld in kwargs:
-        #             setattr(options, fld, kwargs.pop(fld))
-
-        # raise ValueError("Either credentials or options must be provided.")
-
-        #     identity=None,
-        #     address=None,
-        #     context=None,
-        #     publickey=None,
-        #     secretkey=None,
-        #     serverkey=None,
-        # # Since heartbeat is now 100% tied to status on the vctl change the defaults
-        # # to auto start the heartbeat.
-        #     heartbeat_autostart=True,
-        #     heartbeat_period=60,
-        #     volttron_home=None,
-        #     agent_uuid=None,
-        #     enable_store=True,
-        #     enable_web=False,
-        #     enable_channel=False,
-        #     reconnect_interval=None,
-        #     version="0.1",
-        #     _instance_name=None,
-        #     message_bus=None,
-        #     volttron_central_address=None,
-        #     volttron_central_instance_name=None,
-        #     tag_vip_id=None,
-        #     tag_refresh_interval=-1
-        # ):
-
-        # if volttron_home is None:
-        #     volttron_home = cc.get_volttron_home()
         from volttron.client.decorators import (get_connection_builder, get_core_builder)
 
         factory = get_core_builder(**kwargs)
-
-        # if credentials.identity is None:
-        #     raise ValueError("Agent identity is required.")
-
-        # identity = credentials.identity
-        # if identity is not None and not is_valid_identity(identity):
-        #     _log.warning("Deprecation warning")
-        #     _log.warning(
-        #         "All characters in {identity} are not in the valid set.".format(identity=identity))
 
         if options is None:
             options = AgentOptions()
@@ -140,19 +86,9 @@ class Agent(AbstractAgent):
         # TODO: We need to be able to get the address from environment probably here.
         context = AgentContext(credentials=credentials, options=options, address=address)
 
+        # Build the core based upon what was loaded in the factory above.
         self.core = factory.build(owner=self, context=context)
-        # self.core = get_core_instance(credentials=credentials)
-        # self.core = core_cls(address=address, credentials=credentials, options=options)
 
-        # if not tag_vip_id:
-        #     # no value was sent, use what is configured in server config or default returned by cc
-        #     tag_vip_id = cc.get_tag_vip_id()
-        # if tag_refresh_interval == -1:
-        #     # no value was sent, use what is configured in server config or default returned by cc
-        #     tag_refresh_interval = cc.get_tag_refresh_interval()
-
-        # self.vip = Agent.Subsystems(self, self.core, heartbeat_autostart, heartbeat_period, enable_store,
-        #                             enable_web, enable_channel, message_bus, tag_vip_id, tag_refresh_interval)
         self.vip = Agent.Subsystems(owner=self, core=self.core, options=options)
         self.core.setup()
         self.vip.rpc.export(self.core.version, "agent.version")
