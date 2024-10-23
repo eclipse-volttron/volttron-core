@@ -27,15 +27,9 @@ import os
 import sys
 import collections
 
-#from volttron.platform import get_home, jsonapi
 from volttron.utils import jsonapi
 from volttron.client.known_identities import AUTH
 from volttron.types.auth import AuthException
-
-# from volttron.platform.agent.known_identities import AUTH
-# from volttron.platform.auth import AuthEntry, AuthException
-#from volttron.platform.control.control_utils import _ask_yes_no, _print_two_columns, _show_filtered_agents
-#from volttron.platform.keystore import KeyStore, KnownHostsStore
 
 # TODO Look and see what query subsystem is going to work
 #from volttron.platform.vip.agent.subsystems.query import Query
@@ -45,52 +39,8 @@ _log = logging.getLogger(__name__)
 _stdout = sys.stdout
 _stderr = sys.stderr
 
-# def gen_keypair(opts):
-#     keypair = KeyStore.generate_keypair_dict()
-#     _stdout.write("{}\n".format(jsonapi.dumps(keypair, indent=2)))
-#
-#
-# def add_server_key(opts):
-#     store = KnownHostsStore()
-#     store.add(opts.host, opts.serverkey)
-#     _stdout.write("server key written to {}\n".format(store.filename))
-#
-#
-# def list_known_hosts(opts):
-#     store = KnownHostsStore()
-#     entries = store.load()
-#     if entries:
-#         _print_two_columns(entries, "HOST", "CURVE KEY")
-#     else:
-#         _stdout.write("No entries in {}\n".format(store.filename))
-#
-#
-# def remove_known_host(opts):
-#     store = KnownHostsStore()
-#     store.remove(opts.host)
-#     _stdout.write('host "{}" removed from {}\n'.format(opts.host, store.filename))
 
-# def show_serverkey(opts):
-#     """
-#     write serverkey to standard out.
-#
-#     return 0 if success, 1 if false
-#     """
-#     conn = opts.connection
-#     if not conn:
-#         _stderr.write("VOLTTRON is not running. This command "
-#                       "requires VOLTTRON platform to be running\n")
-#         return 1
-#     q = Query(conn.server.core)
-#     pk = q.query("serverkey").get(timeout=2)
-#     del q
-#     if pk is not None:
-#         _stdout.write("%s\n" % pk)
-#         return 0
-#
-#     return 1
-
-
+# TODO: Re-evaluate for usage
 def list_remotes(opts):
     """Lists remote certs and credentials.
     Can be filters using the '--status' option, specifying
@@ -101,6 +51,7 @@ def list_remotes(opts):
         status of the credential or cert (either APPROVED, DENIED, or PENDING)
 
     """
+
     conn = opts.connection
     if not conn:
         _stderr.write("VOLTTRON is not running. This command "
@@ -189,6 +140,7 @@ def list_remotes(opts):
             ))
 
 
+# TODO: Re-evaluate for usage
 def approve_remote(opts):
     """Approves either a pending CSR or ZMQ credential.
     The platform must be running for this command to succeed.
@@ -203,6 +155,7 @@ def approve_remote(opts):
     conn.server.vip.rpc.call(AUTH, "approve_authorization", opts.user_id).get(timeout=4)
 
 
+# TODO: Re-evaluate for usage
 def deny_remote(opts):
     """Denies either a pending CSR or ZMQ credential.
     The platform must be running for this command to succeed.
@@ -217,6 +170,7 @@ def deny_remote(opts):
     conn.server.vip.rpc.call(AUTH, "deny_authorization", opts.user_id).get(timeout=4)
 
 
+# TODO: Re-evaluate for usage
 def delete_remote(opts):
     """Deletes either a pending CSR or ZMQ credential.
     The platform must be running for this command to succeed.
@@ -239,6 +193,7 @@ def delete_remote(opts):
 #     _show_filtered_agents(opts, "PUBLICKEY", get_key)
 
 
+# TODO: Re-evaluate for usage
 def list_auth(opts, indices=None):
     _stdout.write("This method is under development\n")
     return
@@ -260,6 +215,7 @@ def list_auth(opts, indices=None):
     #     _stdout.write("No entries in {}\n".format(os.path.join(get_home(), "auth.json")))
 
 
+# TODO: Re-evaluate for usage
 def _ask_for_auth_fields(
     domain=None,
     address=None,
