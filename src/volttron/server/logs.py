@@ -132,14 +132,15 @@ def get_default_logging_config(level: int = logging.WARNING) -> dict:
                 "level": level,
                 "formatter": "simple",
                 "stream": "ext://sys.stdout"
-            },
-            "file": {
-                "class": "logging.FileHandler",
-                "level": "INFO",
-                "formatter": "simple",
-                "filename": "myapp.log",
-                "mode": "a"
             }
+    # ,
+    # "file": {
+    #     "class": "logging.FileHandler",
+    #     "level": "INFO",
+    #     "formatter": "simple",
+    #     "filename": "myapp.log",
+    #     "mode": "a"
+    # }
         },
         "loggers": get_default_loggers_config(level),
         "root": {
