@@ -40,6 +40,7 @@ This is the main entry point to the VOLTTRON server. The first thing that
 should happen is setting up of logging and verbosity for the server.  After
 that we hand off to the run_server method, which will start the server process.
 """
+import logging
 import logging.config
 import os
 from pathlib import Path
@@ -47,18 +48,23 @@ import sys
 
 import yaml
 
-from volttron.server.logs import get_default_logging_config
+from volttron.server.logs import get_default_logging_config, log_to_file
 
+file_to_log_to: str | None = None
 total_count: int = 0
 logging_config: Path | str | None = None
 
-for arg in sys.argv:
+arg_iter = iter(sys.argv)
+for arg in arg_iter:
     vcount = 0
 
     if arg.startswith("-v"):
         vcount = arg.count("v")
     elif arg == "--verbose":
         vcount = 1
+    elif arg == "--log" or arg == "-l":
+        file_to_log_to = next(arg_iter)
+
     elif arg == "--log-config" or arg == "-L":
         # Find the index of the log configuration so we can replace the
         # file with absolute path.
@@ -78,20 +84,21 @@ for arg in sys.argv:
 
     total_count += vcount
 
-logging.config.dictConfig(get_default_logging_config(level=total_count))
-
+# If the user has specified a logging configuration then allow them full access to all the
+# responsibility of logging.
 if logging_config:
     with open(logging_config, 'rt') as f:
         cfg = yaml.safe_load(f.read())
 
     logging.config.dictConfig(cfg)
 
-# from volttron.utils.logs import enable_trace, setup_logging
+# The user wants to output all to a file so we can do that for them.
+if file_to_log_to:
+    log_to_file(file_to_log_to, total_count, handler_class=logging.handlers.WatchedFileHandler)
 
-# setup_logging(total_count)
-
-# if total_count <= logging.DEBUG:
-#     enable_trace()
+# Normal here just use the default stream handler setup.
+else:
+    logging.config.dictConfig(get_default_logging_config(level=total_count))
 
 from volttron.server.run_server import _main
 
