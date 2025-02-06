@@ -25,16 +25,20 @@
 import logging
 import weakref
 
-from .base import SubsystemBase
-from ..dispatch import Signal
-from ..results import ResultsDictionary
-from volttron.utils import jsonapi
 from zmq import ZMQError
 from zmq.green import ENOTSOCK
 
+from volttron.utils import jsonapi
+
+from ..dispatch import Signal
+from ..results import ResultsDictionary
+from .base import SubsystemBase
+
 __all__ = ["PeerList"]
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 class PeerList(SubsystemBase):

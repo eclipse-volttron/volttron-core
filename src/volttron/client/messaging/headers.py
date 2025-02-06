@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """VOLTTRON platform™ messaging header name constants."""
 
 __author__ = "Brandon Carpenter <brandon.carpenter@pnnl.gov>"

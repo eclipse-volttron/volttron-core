@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """Advanced argument parser.
 
 Fully compatible with argparse, and can be used as a drop-in
@@ -39,7 +38,9 @@ import os as _os
 import re as _re
 import shlex as _shlex
 import sys as _sys
-from volttron.platform.instance_setup import main
+
+# TODO deal with instance setup
+# from volttron.platform.instance_setup import main
 
 
 def expandall(string):

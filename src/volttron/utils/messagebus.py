@@ -22,9 +22,9 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-from configparser import ConfigParser
 import logging
 import os
+from configparser import ConfigParser
 
 from volttron.utils import ClientContext as cc
 
@@ -48,7 +48,7 @@ def store_message_bus_config(message_bus, instance_name):
     if os.path.exists(config_path):
         config = ConfigParser()
         config.read(config_path)
-        config.set("volttron", "message-bus", message_bus)
+        config.set("volttron", "messagebus", message_bus)
         config.set("volttron", "instance-name", instance_name)
         with open(config_path, "w") as configfile:
             config.write(configfile)
@@ -57,7 +57,7 @@ def store_message_bus_config(message_bus, instance_name):
             os.makedirs(v_home, 0o755)
         config = ConfigParser()
         config.add_section("volttron")
-        config.set("volttron", "message-bus", message_bus)
+        config.set("volttron", "messagebus", message_bus)
         config.set("volttron", "instance-name", instance_name)
 
         with open(config_path, "w") as configfile:

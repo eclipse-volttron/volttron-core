@@ -26,28 +26,31 @@ import base64
 import hashlib
 import logging.config
 import os
+from pathlib import Path
 import shutil
+import sys
 import tempfile
 from datetime import timedelta
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import gevent
 import gevent.event
-import sys
 
-from volttron.client.messaging.health import Status, STATUS_BAD
-from volttron.client.vip.agent import (
-    Core,
-    RPC,
-)
+from volttron.utils import set_agent_identity
+
+from volttron.client.known_identities import CONTROL
+from volttron.client.messaging.health import STATUS_BAD, Status
+from volttron.client.vip.agent import RPC, Agent, Core
 from volttron.client.vip.agent.subsystems.query import Query
-from volttron.types import ServiceInterface
-from volttron.utils import (
-    ClientContext as cc,
-    get_aware_utc_now,
-)
-from volttron.utils import jsonapi
+from volttron.server.aip import AIPplatform
+from volttron.server.decorators import service
+from volttron.server.server_options import ServerOptions
+from volttron.utils import ClientContext as cc
+from volttron.utils import get_aware_utc_now, jsonapi
 from volttron.utils.scheduling import periodic
+from volttron.types.auth import Credentials
+from volttron.types.agent_context import AgentInstallOptions
+from volttron.types import Identity
 
 # noinspection PyUnresolvedReferences
 # TODO: Fix requests issues
@@ -70,13 +73,18 @@ _stderr = sys.stderr
 
 _log = logging.getLogger(os.path.basename(sys.argv[0]) if __name__ == "__main__" else __name__)
 
+_log.setLevel(logging.DEBUG)
 message_bus = cc.get_messagebus()
 rmq_mgmt = None
 
 CHUNK_SIZE = 4096
 
 
-class ControlService(ServiceInterface):
+@service
+class ControlService(Agent):
+
+    class Meta:
+        identity = CONTROL
 
     @classmethod
     def get_kwargs_defaults(cls) -> Dict[str, Any]:
@@ -86,30 +94,22 @@ class ControlService(ServiceInterface):
         """
         return {"agent-monitor-frequency": 10}
 
-    def __init__(self, aip, **kwargs):
+    def __init__(self, aip: AIPplatform, options: ServerOptions, **kwargs):
+        kwargs["enable_store"] = False
+        kwargs["identity"] = self.Meta.identity
 
         tracker = kwargs.pop("tracker", None)
         # Control config store not necessary right now
         kwargs["enable_store"] = False
-        kwargs["enable_channel"] = True
+
         agent_monitor_frequency = kwargs.pop("agent-monitor-frequency", 10)
-        super(ControlService, self).__init__(**kwargs)
+
+        with set_agent_identity(self.Meta.identity):
+            super().__init__(address=options.service_address, **kwargs)
         self._aip = aip
         self._tracker = tracker
         self.crashed_agents = {}
         self.agent_monitor_frequency = int(agent_monitor_frequency)
-
-        if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-                _,
-            ) = self.core._get_keys_from_addr()
-        if self.core.publickey is None or self.core.secretkey is None:
-            (
-                self.core.publickey,
-                self.core.secretkey,
-            ) = self.core._get_keys_from_keystore()
 
     @Core.receiver("onsetup")
     def _setup(self, sender, **kwargs):
@@ -185,12 +185,12 @@ class ControlService(ServiceInterface):
         peer_list = self.vip.peerlist().get(timeout=5)
         return peer_list
 
-    @RPC.export
-    def serverkey(self):
-        q = Query(self.core)
-        pk = q.query("serverkey").get(timeout=1)
-        del q
-        return pk
+    # @RPC.export
+    # def serverkey(self):
+    #     q = Query(self.core)
+    #     pk = q.query("serverkey").get(timeout=1)
+    #     del q
+    #     return pk
 
     @RPC.export
     def clear_status(self, clear_all=False):
@@ -262,10 +262,17 @@ class ControlService(ServiceInterface):
 
     @RPC.export
     def shutdown(self):
+        """
+        Shutdown the agents of the platform.  This rpc does not shut the platform itself down
+        there is another call to stop_platform that does this.
+        """
         self._aip.shutdown()
 
     @RPC.export
     def stop_platform(self):
+        """
+        Stops the platform by sending quit to the router.  The router in this case is our "" entity on the bus.
+        """
         # XXX: Restrict call as it kills the process
         self.core.connection.send_vip("", "quit")
 
@@ -302,12 +309,9 @@ class ControlService(ServiceInterface):
                             "got {!r} from identity: {}".format(type(uuid).__name__, identity))
 
         identity = self.agent_vip_identity(uuid)
-        # Because we are using send_vip we should pass frames that have
-        # bytes rather than
-        # strings.
         frames = [identity]
 
-        # Send message to router that agent is shutting down
+        # Send message to router that agent needs to shut down
         self.core.connection.send_vip("", "agentstop", args=frames)
         self._aip.remove_agent(uuid, remove_auth=remove_auth)
 
@@ -334,30 +338,31 @@ class ControlService(ServiceInterface):
             identity = bytes(self.vip.rpc.context.vip_message.peer).decode("utf-8")
             raise TypeError("expected a string for 'uuid';"
                             "got {!r} from identity: {}".format(type(uuid).__name__, identity))
-        return self._aip.uuid_vip_id_map[uuid]
+        # TODO: Have an accessor wrapper around this.
+        return self._aip._uuid_vip_id_map[uuid]
 
-    @RPC.export
-    def get_all_agent_publickeys(self):
-        """
-        RPC method to retrieve the public keys of all the agents installed
-        on the VOLTTRON instance.
-
-        This method does not differentiate between running and not running
-        agents.
-
-        .. note::
-
-            This method will only retrieve a publickey for an installed agents.
-            It is recommended that dynamic agents use the context of the
-            containing agent's publickey for connections to external instances.
-
-        :return: mapping of identity to agent publickey
-        :rtype: dict
-        """
-        result = {}
-        for vip_identity in self._aip.vip_id_uuid_map:
-            result[vip_identity] = self._aip.__get_agent_keystore__(vip_identity).public
-        return result
+    # @RPC.export
+    # def get_all_agent_publickeys(self):
+    #     """
+    #     RPC method to retrieve the public keys of all the agents installed
+    #     on the VOLTTRON instance.
+    #
+    #     This method does not differentiate between running and not running
+    #     agents.
+    #
+    #     .. note::
+    #
+    #         This method will only retrieve a publickey for an installed agents.
+    #         It is recommended that dynamic agents use the context of the
+    #         containing agent's publickey for connections to external instances.
+    #
+    #     :return: mapping of identity to agent publickey
+    #     :rtype: dict
+    #     """
+    #     result = {}
+    #     for vip_identity in self._aip._vip_id_uuid_map:
+    #         result[vip_identity] = self._aip.__get_agent_keystore__(vip_identity).public
+    #     return result
 
     @RPC.export
     def identity_exists(self, identity):
@@ -366,246 +371,147 @@ class ControlService(ServiceInterface):
 
         return self._vip_identity_exists(identity)
 
+    # @RPC.export
+    # def receive_wheel(self, wheel: dict):
+    #     from pathlib import Path
+    #     path = Path(os.curdir).absolute().as_posix()
+    #     with open("wheel.whl", 'wb') as fp:
+    #         fp.write(base64.b64decode(wheel['data']))
+
+    # @RPC.export
+    # def install_agent_from_message_bus(self,
+    #                                    agent: str,
+    #                                    topic: str,
+    #                                    response_topic: str,
+    #                                    credentials: Credentials,
+    #                                    force: bool = False,
+    #                                    pre_release: bool = False,
+    #                                    agent_config: str = None):
+    #     """
+    #     Install the agent through the rmq message bus.
+    #     """
+    #     if isinstance(credentials, dict):
+    #         credentials = Credentials.from_dict(credentials)
+    #     peer = self.vip.rpc.context.vip_message.peer
+    #     protocol_request_size = 16
+    #     protocol_message = None
+    #     protocol_headers = None
+    #     response_received = False
+    #
+    #     def protocol_subscription(peer, sender, bus, topic, headers, message):
+    #         nonlocal protocol_message, protocol_headers, response_received
+    #         _log.debug(f"Received topic, message topic {topic}, {message}")
+    #         protocol_message = message
+    #         protocol_message = base64.b64decode(protocol_message.encode("utf-8"))
+    #         protocol_headers = headers
+    #         response_received = True
+    #
+    #     #self._raise_error_if_identity_exists_without_force(vip_identity, force)
+    #     # if not agent.endswith(".whl"):
+    #     #     # agent passed is package name to install from pypi.
+    #     #     return self._aip.install_agent(agent, vip_identity, agent_config, force, pre_release)
+    #
+    #     # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
+    #     tmpdir = None
+    #     try:
+    #         tmpdir = tempfile.mkdtemp()
+    #         path = os.path.join(tmpdir, os.path.basename(agent))
+    #         store = open(path, "wb")
+    #         sha512 = hashlib.sha512()
+    #
+    #         try:
+    #             request_checksum = base64.b64encode(jsonapi.dumps(["checksum"]).encode("utf-8")).decode("utf-8")
+    #             request_fetch = base64.b64encode(jsonapi.dumps(["fetch",
+    #                                                             protocol_request_size]).encode("utf-8")).decode("utf-8")
+    #
+    #             _log.debug(f"Server subscribing to {topic}")
+    #             self.vip.pubsub.subscribe(peer="pubsub", prefix=topic, callback=protocol_subscription).get(timeout=5)
+    #             gevent.sleep(5)
+    #             while True:
+    #
+    #                 _log.debug(f"Requesting data {request_fetch} sending to "
+    #                            f"{response_topic}")
+    #                 response_received = False
+    #
+    #                 # request a chunk of the file
+    #                 self.vip.pubsub.publish("pubsub", topic=response_topic, message=request_fetch)
+    #                 gevent.sleep(1)
+    #                 # chunk binary representation of the bytes read from
+    #                 # the other side of the connection
+    #                 with gevent.Timeout(30):
+    #                     _log.debug("Waiting for chunk")
+    #                     while not response_received:
+    #                         gevent.sleep(0.1)
+    #
+    #                 # Chunk will be bytes
+    #                 chunk = protocol_message
+    #                 _log.debug(f"chunk received is:\n{chunk}")
+    #                 if chunk == b"complete":
+    #                     _log.debug(f"File transfer complete!")
+    #                     break
+    #
+    #                 sha512.update(chunk)
+    #                 store.write(chunk)
+    #
+    #                 with gevent.Timeout(30):
+    #                     _log.debug("Requesting checksum")
+    #                     response_received = False
+    #                     self.vip.pubsub.publish("pubsub", topic=response_topic, message=request_checksum).get(timeout=5)
+    #
+    #                     while not response_received:
+    #                         gevent.sleep(0.1)
+    #
+    #                     checksum = protocol_message
+    #                     assert checksum == sha512.digest()
+    #
+    #             _log.debug("Outside of while loop in install agent service.")
+    #
+    #         except AssertionError:
+    #             _log.warning("Checksum mismatch on received file")
+    #             raise
+    #         except gevent.Timeout:
+    #             _log.warning("Gevent timeout trying to receive data")
+    #             raise
+    #         finally:
+    #             store.close()
+    #             self.vip.pubsub.unsubscribe("pubsub", response_topic, protocol_subscription)
+    #             _log.debug("Unsubscribing on server")
+    #
+    #         agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force,
+    #                                              pre_release)
+    #         return agent_uuid
+    #     finally:
+    #         shutil.rmtree(tmpdir, ignore_errors=True)
+
     @RPC.export
-    def install_agent_rmq(self,
-                          agent: str,
-                          topic: str,
-                          response_topic: str,
-                          vip_identity: str = None,
-                          publickey: str = None,
-                          secretkey: str = None,
-                          force: bool = False,
-                          pre_release: bool = False,
-                          agent_config: str = None):
+    def install_agent(self, install_options: AgentInstallOptions | dict) -> str:
 
-        """
-        Install the agent through the rmq message bus.
-        """
-        peer = self.vip.rpc.context.vip_message.peer
-        protocol_request_size = 8192
-        protocol_message = None
-        protocol_headers = None
-        response_received = False
+        if isinstance(install_options, dict):
+            options = AgentInstallOptions.from_dict(install_options)
+        else:
+            options = install_options
 
-        def protocol_subscription(peer, sender, bus, topic, headers, message):
-            nonlocal protocol_message, protocol_headers, response_received
-            _log.debug(f"Received topic, message topic {topic}, {message}")
-            protocol_message = message
-            protocol_message = base64.b64decode(protocol_message.encode("utf-8"))
-            protocol_headers = headers
-            response_received = True
+        if not options.source.endswith(".whl"):
+            return self._aip.install_agent(agent=options.source,
+                                           vip_identity=options.identity,
+                                           agent_config=options.agent_config,
+                                           force=options.force,
+                                           pre_release=options.allow_prerelease)
 
-        self._raise_error_if_identity_exists_without_force(vip_identity, force)
-        if not agent.endswith(".whl"):
-            # agent passed is package name to install from pypi.
-            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force, pre_release)
+        wheelhouse = Path("wheelhouse").absolute()
+        wheelhouse.mkdir(exist_ok=True)
+        filepath = wheelhouse / options.source
 
-        # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
-        tmpdir = None
-        try:
-            tmpdir = tempfile.mkdtemp()
-            path = os.path.join(tmpdir, os.path.basename(agent))
-            store = open(path, "wb")
-            sha512 = hashlib.sha512()
+        with open(filepath, 'wb') as fp:
+            fp.write(base64.b64decode(options.data))
 
-            try:
-                request_checksum = base64.b64encode(jsonapi.dumps(
-                    ["checksum"]).encode("utf-8")).decode("utf-8")
-                request_fetch = base64.b64encode(
-                    jsonapi.dumps(["fetch",
-                                   protocol_request_size]).encode("utf-8")).decode("utf-8")
+        return self._aip.install_agent(agent=filepath.as_posix(),
+                                       vip_identity=options.identity,
+                                       agent_config=options.agent_config,
+                                       force=options.force,
+                                       pre_release=options.allow_prerelease)
 
-                _log.debug(f"Server subscribing to {topic}")
-                self.vip.pubsub.subscribe(peer="pubsub",
-                                          prefix=topic,
-                                          callback=protocol_subscription).get(timeout=5)
-                gevent.sleep(5)
-                while True:
-
-                    _log.debug(f"Requesting data {request_fetch} sending to "
-                               f"{response_topic}")
-                    response_received = False
-
-                    # request a chunk of the file
-                    self.vip.pubsub.publish("pubsub", topic=response_topic,
-                                            message=request_fetch).get(timeout=5)
-                    # chunk binary representation of the bytes read from
-                    # the other side of the connection
-                    with gevent.Timeout(30):
-                        _log.debug("Waiting for chunk")
-                        while not response_received:
-                            gevent.sleep(0.1)
-
-                    # Chunk will be bytes
-                    chunk = protocol_message
-                    _log.debug(f"chunk received is:\n{chunk}")
-                    if chunk == b"complete":
-                        _log.debug(f"File transfer complete!")
-                        break
-
-                    sha512.update(chunk)
-                    store.write(chunk)
-
-                    with gevent.Timeout(30):
-                        _log.debug("Requesting checksum")
-                        response_received = False
-                        self.vip.pubsub.publish("pubsub",
-                                                topic=response_topic,
-                                                message=request_checksum).get(timeout=5)
-
-                        while not response_received:
-                            gevent.sleep(0.1)
-
-                        checksum = protocol_message
-                        assert checksum == sha512.digest()
-
-                _log.debug("Outside of while loop in install agent service.")
-
-            except AssertionError:
-                _log.warning("Checksum mismatch on received file")
-                raise
-            except gevent.Timeout:
-                _log.warning("Gevent timeout trying to receive data")
-                raise
-            finally:
-                store.close()
-                self.vip.pubsub.unsubscribe("pubsub", response_topic, protocol_subscription)
-                _log.debug("Unsubscribing on server")
-
-            agent_uuid = self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force,
-                                                 pre_release)
-            return agent_uuid
-        finally:
-            shutil.rmtree(tmpdir, ignore_errors=True)
-
-    @RPC.export
-    def install_agent(self,
-                      agent: str,
-                      channel_name: str,
-                      vip_identity: str = None,
-                      publickey: str = None,
-                      secretkey: str = None,
-                      force: bool = False,
-                      pre_release: bool = False,
-                      agent_config: str = None):
-        """
-        Installs an agent on the instance.
-
-        The installation of an agent through this method involves sending
-        the binary data of the agent file through a channel.  The following
-        example is the protocol for sending the agent across the wire:
-
-        Example Protocol:
-
-        .. code-block:: python
-
-            # client creates channel to this agent (control)
-            channel = agent.vip.channel('control', 'channel_name')
-
-            # Begin sending data
-            sha512 = hashlib.sha512()
-            while True:
-                request, file_offset, chunk_size = channel.recv_multipart()
-
-                # Control has all the file. Send hash for it to verify.
-                if request == b'checksum':
-                    channel.send(hash)
-                assert request == b'fetch'
-
-                # send a chunk of the file
-                file_offset = int(file_offset)
-                chunk_size = int(chunk_size)
-                file.seek(file_offset)
-                data = file.read(chunk_size)
-                sha512.update(data)
-                channel.send(data)
-
-            agent_uuid = agent_uuid.get(timeout=10)
-            # close and delete the channel
-            channel.close(linger=0)
-            del channel
-
-        :param:string:filename:
-            The name of the agent packaged file that is being written.
-        :param:string:channel_name:
-            The name of the channel that the agent file will be sent on.
-        :param:string:publickey:
-            Encoded public key the installed agent will use
-        :param:string:secretkey:
-            Encoded secret key the installed agent will use
-        :param:bool:force:
-            If true overwrite currently installed agent with same vip identity. defaults to false
-        :param:dict:agent_config:
-            Optional agent configuration
-        """
-
-        if agent_config is None:
-            agent_config = dict()
-        # TODO ship config
-
-        # at this point if agent_uuid is populated then there is an
-        # identity of that already available.
-        self._raise_error_if_identity_exists_without_force(vip_identity, force)
-
-        if not agent.endswith(".whl"):
-            # agent passed is package name to install from pypi.
-            return self._aip.install_agent(agent, vip_identity, publickey, secretkey, agent_config, force, pre_release)
-
-        # Else it is a .whl file that needs to be transferred from client to server before calling aip.install_agent
-        peer = self.vip.rpc.context.vip_message.peer
-        channel = self.vip.channel(peer, channel_name)
-        tmpdir = None
-        try:
-            tmpdir = tempfile.mkdtemp()
-            path = os.path.join(tmpdir, os.path.basename(agent))
-            store = open(path, "wb")
-            sha512 = hashlib.sha512()
-
-            try:
-                request_checksum = jsonapi.dumpb(["checksum"])
-                request_fetch = jsonapi.dumpb(["fetch", 1024])
-                while True:
-
-                    # request a chunk of the file
-                    channel.send(request_fetch)
-
-                    # chunk binary representation of the bytes read from
-                    # the other side of the connectoin
-                    with gevent.Timeout(30):
-                        chunk = channel.recv()
-                        if chunk == b"complete":
-                            _log.debug(f"File transfer complete!")
-                            break
-
-                    sha512.update(chunk)
-                    store.write(chunk)
-
-                    with gevent.Timeout(30):
-                        channel.send(request_checksum)
-                        checksum = channel.recv()
-
-                        assert checksum == sha512.digest()
-
-            except AssertionError:
-                _log.warning("Checksum mismatch on received file")
-                raise
-            except gevent.Timeout:
-                _log.warning("Gevent timeout trying to receive data")
-                raise
-            finally:
-                store.close()
-                _log.debug("Closing channel on server")
-                channel.close(linger=0)
-                del channel
-
-            _log.debug("After transferring wheel to us now to do stuff.")
-            agent_uuid = self._aip.install_agent(path, vip_identity, publickey, secretkey, agent_config, force,
-                                                 pre_release)
-            return agent_uuid
-        finally:
-            shutil.rmtree(tmpdir, ignore_errors=True)
-
-    def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
+    def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool) -> Identity:
         """
         This will raise a ValueError if the identity passed exists but
         force was not True when this function is called.
@@ -629,4 +535,4 @@ class ControlService(ServiceInterface):
         function returns the agent uuid of the agent with the passed
         vip identity.  If the identity  doesn't exist then returns None.
         """
-        return self._aip.vip_id_uuid_map.get(vip_identity)
+        return self._aip._vip_id_uuid_map.get(vip_identity)

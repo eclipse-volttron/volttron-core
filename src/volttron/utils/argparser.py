@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """
 Advanced argument parser.
 
@@ -329,6 +328,11 @@ class ArgumentParser(_argparse.ArgumentParser):
         self.register("action", "store_list", ListAction)
         self.register("action", "parse_config", ConfigFileAction)
         self.register("action", "parsers", SubParsersAction)
+
+    def error(self, message):
+        _sys.stderr.write('error: %s\n' % message)
+        self.print_help()
+        _sys.exit(2)
 
     def _parse_known_args(self, arg_strings, namespace):
         # replace arg strings that are file references

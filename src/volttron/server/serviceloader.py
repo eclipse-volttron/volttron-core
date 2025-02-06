@@ -29,11 +29,11 @@ import logging
 import pkgutil
 from copy import copy
 from types import ModuleType
-from typing import List, Tuple, Dict, Set, KeysView
+from typing import Dict, KeysView, List, Set, Tuple
 
 from volttron.types.server_config import ServerConfig
-from volttron.types import ServiceInterface
-from volttron.utils import get_subclasses, get_module, get_class
+from volttron.types.service_interface import ServiceInterface
+from volttron.utils import get_class, get_module, get_subclasses
 
 _log = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ __disabled_plugins__: Set[str] = set()
 
 __all__ = ["get_service_names", "init_services", "discover_services"]
 
-__service_interface_class__ = get_class('volttron.types', 'ServiceInterface')
+__service_interface_class__ = get_class('volttron.types.service_interface', 'ServiceInterface')
 
 
 def get_service_names() -> KeysView[str]:
@@ -67,7 +67,6 @@ def start_service(service_name: str):
 
 
 def init_services(config: ServerConfig) -> List[Tuple[str, ServiceInterface]]:
-
     default_kwargs = dict(enable_store=False,
                           address=config.internal_address,
                           heartbeat_autostart=True)

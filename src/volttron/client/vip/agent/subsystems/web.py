@@ -32,7 +32,9 @@ from .base import SubsystemBase
 
 __docformat__ = "reStructuredText"
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 class ResourceType(Enum):

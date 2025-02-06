@@ -22,50 +22,50 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import logging
 from collections import defaultdict
 from datetime import datetime
-import logging
 
-from volttron.client.known_identities import CONTROL_CONNECTION, PROCESS_IDENTITIES
-from volttron.types import ServiceInterface
-from volttron.utils import format_timestamp
-from volttron.client.vip.agent import Agent, Core, RPC
-
+from volttron.client.known_identities import (CONTROL_CONNECTION, PLATFORM_HEALTH,
+                                              PROCESS_IDENTITIES, CONTROL)
+from volttron.client.vip.agent import RPC, Agent, Core
+from volttron.server.decorators import service
 # TODO: rmq addition
 # from volttron.utils.rmq_config_params import RMQConfig
 # from volttron.utils.rmq_setup import start_rabbit, RabbitMQStartError
-from volttron.services.auth.auth_service import AuthFile, AuthEntry
+# from volttron.services.auth.auth_service import AuthEntry, AuthFile
+from volttron.types import Service
+from volttron.types.service_interface import ServiceInterface
+from volttron.utils import format_timestamp, set_agent_identity
+from volttron.server.server_options import ServerOptions
 
 _log = logging.getLogger(__name__)
 
 
-class HealthService(ServiceInterface):
+@service
+class HealthService(Agent):
 
-    def __init__(self, **kwargs):
-        super(HealthService, self).__init__(**kwargs)
+    class Meta:
+        identity = PLATFORM_HEALTH
 
-        # Store the health stats for given peers in a dictionary with
-        # keys being the identity of the connected agent.
-        self._health_dict = defaultdict(dict)
-        entry = AuthEntry(
-            credentials=self.core.publickey,
-            user_id=self.core.identity,
-            capabilities=[{
-                "edit_config_store": {
-                    "identity": self.core.identity
-                }
-            }],
-            comments="Automatically added on health service init"
-        )
-        AuthFile().add(entry, overwrite=True)
+    def __init__(self, options: ServerOptions, **kwargs):
+        kwargs["identity"] = self.Meta.identity
 
-    def peer_added(self, peer):
+        with set_agent_identity(self.Meta.identity):
+            super().__init__(address=options.service_address, **kwargs)
+
+        self._health_dict: dict = {}
+
+    def peer_added(self, peer: str):
         """
         The `peer_added` method should be called whenever an agent is connected to the
         platform.
 
         :param peer: The identity of the agent connected to the platform
         """
+        if peer not in self._health_dict:
+            self._health_dict[peer] = dict()
+
         health = self._health_dict[peer]
 
         health["peer"] = peer
@@ -101,11 +101,15 @@ class HealthService(ServiceInterface):
 
         :return:
         """
+        agents = {}
         # Ignore the connection from control in the health as it will only be around for a short while.
-        agents = {
-            k: v
-            for k, v in self._health_dict.items() if not v.get("peer") == CONTROL_CONNECTION
-        }
+        if len(self._health_dict.items()) > 0:
+            agents = {
+                k: v
+                for k, v in self._health_dict.items()
+                if isinstance(v, dict) and v.get("peer") != CONTROL_CONNECTION
+            }
+        _log.debug(f"get_platform_health() -> {agents}")
         return agents
 
     def _heartbeat_updates(self, peer, sender, bus, topic, headers, message):
@@ -121,6 +125,11 @@ class HealthService(ServiceInterface):
         :param message:
         :return:
         """
+        # TODO: workaround for not getting notified by message bus when new peer connects
+        #  should be ok for now as client side will cache and clear cache after sometime
+        if sender not in self._health_dict:
+            self._health_dict[sender] = dict()
+
         health = self._health_dict[sender]
         time_now = format_timestamp(datetime.now())
         if not health:
@@ -133,5 +142,7 @@ class HealthService(ServiceInterface):
 
     @Core.receiver("onstart")
     def onstart(self, sender, **kwargs):
-        # Start subscribing to heartbeat topic to get updates from the health subsystem.
         self.vip.pubsub.subscribe("pubsub", "heartbeat", callback=self._heartbeat_updates)
+        # pl = self.vip.rpc.call(CONTROL, "peerlist").get()
+        # for peer in pl:
+        #     self._health_dict[peer] =

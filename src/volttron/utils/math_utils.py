@@ -21,7 +21,6 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """Math functions for VOLTTRON platform™ agents.
 
 Not meant to replace numpy in all cases. A basic set common math

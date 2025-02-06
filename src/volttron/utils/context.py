@@ -44,8 +44,8 @@ class ClientContext:
 
     __volttron_home__: Optional[Path] = None
     __config__: dict = {}
-    __config_keys__ = ("vip-address", "bind-web-address", "instance-name", "message-bus",
-                       "web-ssl-cert", "web-ssl-key", "web-secret-key", "secure-agent-users")
+    __config_keys__ = ("vip-address", "bind-web-address", "instance-name", "message-bus", "web-ssl-cert", "web-ssl-key",
+                       "web-secret-key", "secure-agent-users")
 
     @classmethod
     def __load_config__(cls: "ClientContext"):
@@ -155,9 +155,9 @@ class ClientContext:
         return instance_name
 
     @classmethod
-    def is_web_enabled(cls):
-        """Returns True if web enabled, False otherwise"""
-        if cls.get_config_param("bind-web-address"):
+    def is_auth_enabled(cls):
+        """Returns True if auth has been installed and is enabled."""
+        if cls.get_config_param("auth-enabled"):
             return True
         return False
 
@@ -169,20 +169,12 @@ class ClientContext:
             secure_mode = secure_mode.upper() == "TRUE"
         return secure_mode
 
-    @classmethod
-    def get_server_key(cls):
-        """Returns server key"""
-        from volttron.utils.keystore import KeyStore
-        keystore_path = os.path.join(cls.get_volttron_home(), "keystore")
-        keystore = KeyStore(keystore_path)
-        return keystore.public
-
-    @classmethod
-    def get_agent_keys(cls, vip_id):
-        from volttron.utils.keystore import KeyStore
-        keystore_path = os.path.join(cls.get_volttron_home(), "agents", vip_id, "keystore.json")
-        keystore = KeyStore(keystore_path)
-        return keystore.public, keystore.secret
+    # @classmethod
+    # def get_agent_keys(cls, vip_id):
+    #     from volttron.utils.keystore import KeyStore
+    #     keystore_path = os.path.join(cls.get_volttron_home(), "agents", vip_id, "keystore.json")
+    #     keystore = KeyStore(keystore_path)
+    #     return keystore.public, keystore.secret
 
     @classmethod
     def get_tag_refresh_interval(cls):

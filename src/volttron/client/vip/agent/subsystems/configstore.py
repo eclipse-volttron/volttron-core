@@ -37,7 +37,8 @@ from volttron.client.known_identities import CONFIGURATION_STORE
 
 from collections import defaultdict
 from copy import deepcopy
-"""The configstore subsystem manages the agent side of the configuration store.
+"""
+The configstore subsystem manages the agent side of the configuration store.
 It is responsible for processing change notifications from the platform
  and triggering the correct callbacks with the contents of a configuration.
 """
@@ -45,7 +46,9 @@ It is responsible for processing change notifications from the platform
 __docformat__ = "reStructuredText"
 __version__ = "1.0"
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 VALID_ACTIONS = ("NEW", "UPDATE", "DELETE")
 
@@ -78,8 +81,7 @@ class ConfigStore(SubsystemBase):
         def onsetup(sender, **kwargs):
             rpc.export(self._update_config, "config.update")
             rpc.export(self._initial_update, "config.initial_update")
-            rpc.allow("config.update", "sync_agent_config")
-            rpc.allow("config.initial_update", "sync_agent_config")
+            
 
         core.onsetup.connect(onsetup, self)
         core.configuration.connect(self._onconfig, self)
@@ -87,7 +89,8 @@ class ConfigStore(SubsystemBase):
     def _onconfig(self, sender, **kwargs):
         if not self._initialized:
             try:
-                self._rpc().call(CONFIGURATION_STORE, "initialize_configs", self.vip_identity).get()
+                self._rpc().call(CONFIGURATION_STORE, "initialize_configs",
+                                 self.vip_identity).get()
             except errors.Unreachable as e:
                 _log.error("Connected platform does not support the Configuration Store feature.")
                 return
@@ -147,7 +150,8 @@ class ConfigStore(SubsystemBase):
                 elif isinstance(value, str):
                     config_name = check_for_config_link(value)
                     if config_name is not None:
-                        config_contents[key] = self._gather_child_configs(config_name, already_gathered)
+                        config_contents[key] = self._gather_child_configs(
+                            config_name, already_gathered)
         elif isinstance(config_contents, list):
             for i, value in enumerate(config_contents):
                 if isinstance(value, (dict, list)):
@@ -155,7 +159,8 @@ class ConfigStore(SubsystemBase):
                 elif isinstance(value, str):
                     config_name = check_for_config_link(value)
                     if config_name is not None:
-                        config_contents[i] = self._gather_child_configs(config_name, already_gathered)
+                        config_contents[i] = self._gather_child_configs(
+                            config_name, already_gathered)
 
     def _gather_child_configs(self, config_name, already_gathered):
         if config_name in already_gathered:
@@ -255,6 +260,7 @@ class ConfigStore(SubsystemBase):
             if config_name == "config":
                 continue
             self._process_callbacks_one_config(config_name, action, all_map)
+        _log.debug("Finished processing callbacks.")
 
     def _process_callbacks_one_config(self, config_name, action, name_map):
         callbacks = set()
@@ -286,7 +292,8 @@ class ConfigStore(SubsystemBase):
         # Handle case were we are called during "onstart".
         if not self._initialized:
             try:
-                self._rpc().call(CONFIGURATION_STORE, "initialize_configs", self.vip_identity).get()
+                self._rpc().call(CONFIGURATION_STORE, "initialize_configs",
+                                 self.vip_identity).get()
             except errors.Unreachable as e:
                 _log.error("Connected platform does not support the Configuration Store feature.")
             except errors.VIPError as e:
@@ -318,7 +325,8 @@ class ConfigStore(SubsystemBase):
         # may be a default configuration to grab.
         if not self._initialized:
             try:
-                self._rpc().call(CONFIGURATION_STORE, "initialize_configs", self.vip_identity).get()
+                self._rpc().call(CONFIGURATION_STORE, "initialize_configs",
+                                 self.vip_identity).get()
             except errors.Unreachable as e:
                 _log.error("Connected platform does not support the Configuration Store feature.")
             except errors.VIPError as e:
@@ -334,7 +342,9 @@ class ConfigStore(SubsystemBase):
             # Don't create any unneeded references to frame objects.
             for frame, *_ in frame_records:
                 if self._process_callbacks_code_object is frame.f_code:
-                    raise RuntimeError("Cannot request changes to the config store from a configuration callback.")
+                    raise RuntimeError(
+                        "Cannot request changes to the config store from a configuration callback."
+                    )
         finally:
             del frame_records
 
@@ -364,10 +374,17 @@ class ConfigStore(SubsystemBase):
             config_type = 'raw'
             raw_data = contents
         else:
-            raise ValueError("Unsupported configuration content type: {}".format(str(type(contents))))
+            raise ValueError("Unsupported configuration content type: {}".format(
+                str(type(contents))))
 
-        self._rpc().call(CONFIGURATION_STORE, "set_config", self.vip_identity, config_name, raw_data,
-                         config_type, trigger_callback=trigger_callback, send_update=send_update).get(timeout=10.0)
+        self._rpc().call(CONFIGURATION_STORE,
+                         "set_config",
+                         self.vip_identity,
+                         config_name,
+                         raw_data,
+                         config_type,
+                         trigger_callback=trigger_callback,
+                         send_update=send_update).get(timeout=10.0)
 
     def set_default(self, config_name, contents):
         """Called to set the contents of a default configuration file. Default configurations are used if the
@@ -426,7 +443,10 @@ class ConfigStore(SubsystemBase):
         """
         self._check_call_from_process_callbacks()
 
-        self._rpc().call(CONFIGURATION_STORE, "delete_config", self.vip_identity, config_name,
+        self._rpc().call(CONFIGURATION_STORE,
+                         "delete_config",
+                         self.vip_identity,
+                         config_name,
                          trigger_callback=trigger_callback,
                          send_update=send_update).get(timeout=10.0)
 

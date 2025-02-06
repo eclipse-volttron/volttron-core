@@ -25,26 +25,30 @@ import inspect
 import logging
 import re
 import weakref
-from base64 import b64encode, b64decode
+from base64 import b64decode, b64encode
 from collections import defaultdict
+from functools import partial
 
 import gevent
 from gevent.queue import Queue
 
-from volttron.utils import jsonapi
+from volttron.client.known_identities import PLATFORM_TAGGING, AUTH
+from volttron.client.messaging.health import STATUS_BAD
+from volttron.types.auth import AuthException
+from volttron.utils import jsonapi, get_logger
 from volttron.utils.scheduling import periodic
-from .base import SubsystemBase
+from volttron.types.message import Message
+
 from ..decorators import annotate, annotations, dualmethod, spawn
 from ..results import ResultsDictionary
-from volttron.client.known_identities import PLATFORM_TAGGING
+from .base import SubsystemBase
 
 __all__ = ["PubSub"]
 
 min_compatible_version = "3.0"
 max_compatible_version = ""
 
-# utils.setup_logging()
-_log = logging.getLogger(__name__)
+_log = get_logger()
 
 
 def encode_peer(peer):
@@ -65,10 +69,15 @@ class PubSub(SubsystemBase):
     """
 
     def __init__(self, core, rpc_subsys, peerlist_subsys, owner, tag_vip_id=PLATFORM_TAGGING, tag_refresh_interval=-1):
-        self.core = weakref.ref(core)
-        self.rpc = weakref.ref(rpc_subsys)
-        self.peerlist = weakref.ref(peerlist_subsys)
-        self._owner = owner
+        self.__core__ = weakref.ref(core)
+        self.__rpc__ = weakref.ref(rpc_subsys)
+        self.__peerlist__ = weakref.ref(peerlist_subsys)
+        self.__owner__ = owner
+
+        self._create_message_for_router = partial(Message.create_message,
+                                                  peer="",
+                                                  user=self.__core__().identity,
+                                                  subsystem="pubsub")
 
         def platform_subscriptions():
             return defaultdict(subscriptions)
@@ -88,23 +97,24 @@ class PubSub(SubsystemBase):
         self._my_subscriptions_by_tags = defaultdict(platform_subscriptions)
 
         core.register("pubsub", self._handle_subsystem, self._handle_error)
-        self.vip_socket = None
+        # self.vip_socket = None
         self._results = ResultsDictionary()
         self._event_queue = Queue()
         self._retry_period = 300.0
         self._processgreenlet = None
         self.tag_refresh_interval = tag_refresh_interval
         self.tag_vip_id = tag_vip_id
+        self._connection = core.connection
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
             self._processgreenlet = gevent.spawn(self._process_loop)
             core.onconnected.connect(self._connected)
-            self.vip_socket = self.core().socket
+
+            #self.vip_socket = self.core().socket
 
             def subscribe(member):    # pylint: disable=redefined-outer-name
-                for peer, bus, prefix, all_platforms, queue in annotations(
-                        member, set, "pubsub.subscriptions"):
+                for peer, bus, prefix, all_platforms, queue in annotations(member, set, "pubsub.subscriptions"):
                     # XXX: needs updated in light of onconnected signal
                     self._add_subscription("prefix", prefix, member, bus, all_platforms)
                     _log.debug("SYNC ZMQ: all_platforms {}".format(self._my_subscriptions['internal'][bus][prefix]))
@@ -112,8 +122,13 @@ class PubSub(SubsystemBase):
                 for peer, bus, tag_condition, topic_source, all_platforms, queue in annotations(
                         member, set, "pubsub.subscription_by_tags"):
                     # XXX: needs updated in light of onconnected signal
-                    self.subscribe_by_tags(peer='pubsub', tag_condition=tag_condition, callback=member,
-                                           topic_source=topic_source, bus=bus, all_platforms=all_platforms)
+                    self.subscribe_by_tags(peer='pubsub',
+                                           tag_condition=tag_condition,
+                                           callback=member,
+                                           topic_source=topic_source,
+                                           bus=bus,
+                                           all_platforms=all_platforms)
+
             inspect.getmembers(owner, subscribe)
 
         core.onsetup.connect(setup, self)
@@ -180,6 +195,7 @@ class PubSub(SubsystemBase):
 
     @spawn
     def refresh_tag_subscriptions(self):
+
         def platform_subscriptions():
             return defaultdict(subscriptions)
 
@@ -223,7 +239,9 @@ class PubSub(SubsystemBase):
 
         sync_msg = jsonapi.dumpb(dict(subscriptions=subscriptions_prefix_and_tag))
         frames = ["synchronize", "connected", sync_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self.__core__().send_vip_message(message)
 
     def list(
         self,
@@ -262,7 +280,9 @@ class PubSub(SubsystemBase):
             ))
 
         frames = ["list", list_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self.__core__().send_vip_message(message=message)
         return result
 
     def _add_subscription(self, subscription_type, prefix, callback, bus="", all_platforms=False):
@@ -282,23 +302,20 @@ class PubSub(SubsystemBase):
         else:
             subscription_dict["all"][bus][prefix].add(callback)
             # _log.debug("SYNC: add subscriptions: {}".format(self._my_subscriptions['internal'][bus][prefix]))
-        
+
     def call_server_subscribe(self, all_platforms, bus, prefix):
         result = next(self._results)
         sub_msg = jsonapi.dumpb(dict(prefix=prefix, bus=bus, all_platforms=all_platforms))
         frames = ["subscribe", sub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self.__core__().connection.send_vip_message(message=message)
+        #
+        # self._connection.send_vip_message(message=message)
         return result
 
     @dualmethod
     @spawn
-    def subscribe(self,
-                  peer,
-                  prefix,
-                  callback,
-                  bus="",
-                  all_platforms=False,
-                  **kwargs):
+    def subscribe(self, peer, prefix, callback, bus="", all_platforms=False, **kwargs):
         """Subscribe to topic and register callback.
 
         Subscribes to topics beginning with prefix. If callback is
@@ -323,9 +340,22 @@ class PubSub(SubsystemBase):
         :Return Values:
         Success or Failure
         """
-
-        self._add_subscription("prefix", prefix, callback, bus, all_platforms)
-        return self.call_server_subscribe(all_platforms, bus, prefix)
+        authorized = True
+        identity = self.__core__().identity
+        if AUTH in self.__peerlist__().list().get():
+            authorized = self.__rpc__().call("platform.auth",
+                                             "check_pubsub_authorization",
+                                             identity=identity,
+                                             topic_pattern=prefix,
+                                             access="subscribe").get()
+        if authorized:
+            self._add_subscription("prefix", prefix, callback, bus, all_platforms)
+            return self.call_server_subscribe(all_platforms, bus, prefix)
+        else:
+            self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {prefix}")
+            # no harm in publishing so we don't wait till next heart beat for status update
+            self.__owner__.health.publish()
+            _log.error(f"{identity} is not authorized to subscribe to protected topic {prefix}")
 
     @dualmethod
     @spawn
@@ -405,8 +435,13 @@ class PubSub(SubsystemBase):
         return decorate
 
     @subscribe_by_tags.classmethod
-    def subscribe_by_tags(cls, peer, tag_condition, bus="", all_platforms=False,
-                          persistent_queue=None, topic_source="devices"):
+    def subscribe_by_tags(cls,
+                          peer,
+                          tag_condition,
+                          bus="",
+                          all_platforms=False,
+                          persistent_queue=None,
+                          topic_source="devices"):
 
         def decorate(method):
             annotate(
@@ -516,7 +551,9 @@ class PubSub(SubsystemBase):
         subscriptions[platform] = dict(prefix=topics, bus=bus)
         unsub_msg = jsonapi.dumpb(subscriptions)
         frames = ["unsubscribe", unsub_msg]
-        self.vip_socket.send_vip("", "pubsub", frames, result.ident, copy=False)
+
+        message = self._create_message_for_router(msg_id=result.ident, args=frames)
+        self._connection.send_vip_message(message=message)
         return result
 
     def unsubscribe(self, peer, prefix, callback, bus="", all_platforms=False, **kwargs):
@@ -633,7 +670,8 @@ class PubSub(SubsystemBase):
         return success_list, failure_list
 
     def publish(self, peer: str, topic: str, headers=None, message=None, bus="", **kwargs):
-        """Publish a message to a given topic via a peer.
+        """
+        Publish a message to a given topic via a peer.
 
         Publish headers and message to all subscribers of topic on bus.
         If peer is None, use self. Adds volttron platform version
@@ -659,14 +697,36 @@ class PubSub(SubsystemBase):
 
         if peer is None:
             peer = "pubsub"
-
+        authorized = True
+        identity = self.__core__().identity
+        if AUTH in self.__peerlist__().list().get():
+            authorized = self.__rpc__().call("platform.auth",
+                                             "check_pubsub_authorization",
+                                             identity=identity,
+                                             topic_pattern=topic,
+                                             access="publish").get()
         result = next(self._results)
-        args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
-        self.vip_socket.send_vip("", "pubsub", args, result.ident, copy=False)
+        if authorized:
+            args = ["publish", topic, dict(bus=bus, headers=headers, message=message)]
+            message = self._create_message_for_router(msg_id=result.ident, args=args)
+            _log.debug(f"sending pubsub message created for router is: {message}")
+            self.__core__().connection.send_vip_message(message=message)
+        else:
+            self.__owner__.health.set_status(STATUS_BAD, f"{identity} is not authorized to subscribe to {topic}")
+            self.__owner__.health.publish()
+            _log.error(f"{identity} is not authorized to subscribe to protected topic {topic}")
+
         return result
 
-    def publish_by_tags(self, peer: str, tag_condition: str, headers=None, message=None, bus="",
-                        max_publish_count=1, topic_source="devices", **kwargs):
+    def publish_by_tags(self,
+                        peer: str,
+                        tag_condition: str,
+                        headers=None,
+                        message=None,
+                        bus="",
+                        max_publish_count=1,
+                        topic_source="devices",
+                        **kwargs):
         """Publish a message to a topic that matches the give tag_condition via a peer. If tag_condition resolves to
         more than one topic then throw an error if publish_multiple is False. Publish to multiple matching topics if
         publish_multiple parameter is True
@@ -716,6 +776,7 @@ class PubSub(SubsystemBase):
         param message: VIP message from PubSubService
         type message: dict
         """
+        _log.debug(f"Putting message in event queue for {self.__core__().identity} {message}")
         self._event_queue.put(message)
 
     @spawn
@@ -726,23 +787,17 @@ class PubSub(SubsystemBase):
         """
         op = message.args[0]
 
+        _log.debug(f"Processing {self.__core__().identity}: op: {op}, message: {message}")
+        response = None
         if op == "request_response":
             result = None
             try:
                 result = self._results.pop(message.id)
             except KeyError:
                 pass
-
+            _log.debug(f"Result is: {result}")
             response = message.args[1]
-            import struct
 
-            if not isinstance(response, int):
-                if len(response) == 4:    # integer
-                    response = struct.unpack("I", response.encode("utf-8"))
-                    response = response[0]
-                elif len(response) == 1:    # bool
-                    response = struct.unpack("?", response.encode("utf-8"))
-                    response = response[0]
             if result:
                 result.set(response)
 
@@ -760,6 +815,7 @@ class PubSub(SubsystemBase):
             except KeyError as exc:
                 _log.error("Missing keys in pubsub message: {}".format(exc))
             else:
+                response = message
                 self._process_callback(sender, bus, topic, headers, message)
 
         elif op == "list_response":
@@ -774,9 +830,13 @@ class PubSub(SubsystemBase):
         else:
             _log.error("Unknown operation ({})".format(op))
 
+        if response is not None:
+            _log.debug(f"Processed {op} response was {response}")
+
     def _process_loop(self):
         """Incoming message processing loop"""
         for msg in self._event_queue:
+            _log.debug(f"Handling pubsub message: {msg}")
             self._process_incoming_message(msg)
 
     def _handle_error(self, sender, message, error, **kwargs):
@@ -794,28 +854,3 @@ class PubSub(SubsystemBase):
         except KeyError:
             return
         result.set_exception(error)
-
-
-class ProtectedPubSubTopics(object):
-    """Simple class to contain protected pubsub topics"""
-
-    def __init__(self):
-        self._dict = {}
-        self._re_list = []
-
-    def add(self, topic, capabilities):
-        if isinstance(capabilities, str):
-            capabilities = [capabilities]
-        if len(topic) > 1 and topic[0] == topic[-1] == "/":
-            regex = re.compile("^" + topic[1:-1] + "$")
-            self._re_list.append((regex, capabilities))
-        else:
-            self._dict[topic] = capabilities
-
-    def get(self, topic):
-        if topic in self._dict:
-            return self._dict[topic]
-        for regex, capabilities in self._re_list:
-            if regex.match(topic):
-                return capabilities
-        return None

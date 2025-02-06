@@ -25,32 +25,50 @@ import logging
 
 import gevent
 
-from volttron.utils import ClientContext as cc
-from volttron.client.known_identities import CONTROL_CONNECTION, CONTROL
+from volttron.client.known_identities import CONTROL, CONTROL_CONNECTION
 from volttron.client.vip.agent import Agent as BaseAgent
+from volttron.types.agent_context import AgentContext, AgentOptions
+from volttron.utils import ClientContext as cc
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 class ControlConnection(object):
 
-    def __init__(self, address, peer=CONTROL):
+    def __init__(self, address: str, peer=CONTROL):
         self.address = address
-        _log.debug(f"Address is: {address}")
+        _log.debug(f"Address is: {address} peer is: {peer}")
         self.peer = peer
         message_bus = cc.get_messagebus()
-        self._server = BaseAgent(
-            address=self.address,
-            enable_store=False,
-            identity=CONTROL_CONNECTION,
-            message_bus=message_bus,
-            enable_channel=True,
-        )
+
+        from pathlib import Path
+
+        from volttron.types.auth import Credentials, VolttronCredentials
+        from volttron.utils import jsonapi
+        credentials_path = Path(
+            cc.get_volttron_home()) / "credentials_store" / f"{CONTROL_CONNECTION}.json"
+        if not credentials_path.exists():
+            raise ValueError(f"Control connection credentials not found at {credentials_path}")
+
+        credjson = jsonapi.load(credentials_path.open("r"))
+
+        credentials = VolttronCredentials(**credjson)
+        options = AgentOptions(heartbeat_autostart=False,
+                               volttron_home=cc.get_volttron_home(),
+                               enable_store=False)
+        self._server = BaseAgent(credentials=credentials, options=options, address=address)
         self._greenlet = None
 
     @property
     def server(self):
         if self._greenlet is None:
+            # event = gevent.event.Event()
+            # with gevent.Timeout(2):
+            #     self._greenlet = gevent.spawn(self._server.core.run, event)
+            #     event.wait()
+
             event = gevent.event.Event()
             self._greenlet = gevent.spawn(self._server.core.run, event)
             event.wait()

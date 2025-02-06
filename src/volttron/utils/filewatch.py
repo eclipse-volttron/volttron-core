@@ -32,8 +32,8 @@ __all__ = [
 import logging
 import os
 
-from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
+from watchdog.observers import Observer
 
 from volttron.utils import ClientContext as cc
 
@@ -53,7 +53,7 @@ class VolttronHomeFileReloader(PatternMatchingEventHandler):
         _log.debug(f"patterns is {cc.get_volttron_home()}/{filetowatch}")
         self._callback = callback
 
-    def on_any_event(self, event):
+    def on_closed(self, event):
         _log.debug("Calling callback on event {}. Calling {}".format(event, self._callback))
         try:
             self._callback()
@@ -79,7 +79,7 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
     def watchfile(self):
         return self._filetowatch
 
-    def on_any_event(self, event):
+    def on_closed(self, event):
         _log.debug("Calling callback on event {}. Calling {}".format(event, self._callback))
         try:
             self._callback(self._filetowatch)

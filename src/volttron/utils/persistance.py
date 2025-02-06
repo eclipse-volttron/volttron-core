@@ -1,5 +1,6 @@
 # Module copied from
 # http://code.activestate.com/recipes/576642-persistent-dict-with-multiple-standard-file-format/
+from __future__ import annotations
 import csv
 import os
 import shutil
@@ -14,13 +15,14 @@ from volttron.utils import jsonapi
 _log = logging.getLogger(__name__)
 
 
-def load_create_store(filename):
+def load_create_store(filename: str) -> PersistentDict:
     persist = PersistentDict(filename=filename, flag="c", format="json")
     return persist
 
 
 class PersistentDict(dict):
-    """Persistent dictionary with an API compatible with shelve and anydbm.
+    """
+    Persistent dictionary with an API compatible with shelve and anydbm.
 
     The dict is kept in memory, so the dictionary operations run as fast as
     a regular dictionary.
@@ -30,13 +32,12 @@ class PersistentDict(dict):
     Input file format is automatically discovered.
     Output file format is selectable between pickle, json, and csv.
     All three serialization formats are backed by fast C implementations.
-
     """
 
     _event_queue = Queue()
     _process_thread = None
 
-    def __init__(self, filename, flag="c", mode=None, format="pickle", *args, **kwds):
+    def __init__(self, filename: str, flag="c", mode=None, format="pickle", *args, **kwds):
         self.flag = flag    # r=readonly, c=create, or n=new
         self.mode = mode    # None or an octal triple like 0644
         self.format = format    # 'csv', 'json', or 'pickle'

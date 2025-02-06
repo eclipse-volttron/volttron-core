@@ -32,7 +32,9 @@ from zmq.green import ENOTSOCK
 
 __all__ = ["Hello"]
 
-_log = logging.getLogger(__name__)
+from volttron.client.logs import get_logger
+
+_log = get_logger()
 
 
 class Hello(SubsystemBase):
@@ -94,8 +96,10 @@ class Hello(SubsystemBase):
             self.core().connection.send_vip_object(message, copy=False)
         elif op == "welcome":
             try:
+                _log.debug(f"Poping {message.id} from results")
                 result = self._results.pop(message.id)
             except KeyError:
+                _log.debug(f"KeyError: {message.id}")
                 return
             result.set([arg for arg in message.args[1:]])
         else:

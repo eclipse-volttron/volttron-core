@@ -29,6 +29,7 @@ __all__ = [
 
 import logging
 import os
+from pathlib import Path
 import subprocess
 import stat
 import sys
@@ -49,7 +50,7 @@ def execute_command(cmds, env=None, cwd=None, logger=None, err_prefix=None) -> s
     :param cmds:list of commands to pass to subprocess.run
     :param env: environment to run the command with
     :param cwd: working directory for the command
-    :param logger: a logger to use if errors occure
+    :param logger: a logger to use if errors occur
     :param err_prefix: an error prefix to allow better tracing through the error message
     :return: stdout string if successful
 
@@ -94,9 +95,11 @@ def isapipe(fd):
     return stat.S_ISFIFO(os.fstat(fd).st_mode)
 
 
-def vip_main(agent_class, identity=None, version="0.1", **kwargs):
+def vip_main(agent_class, version: str = "0.1", **kwargs):
     """Default main entry point implementation for VIP agents."""
+    from volttron.client.vip.agent import Agent
     from volttron.utils import (ClientContext as cc, is_valid_identity, get_address)
+    from volttron.types.auth.auth_credentials import CredentialsFactory
     try:
         # If stdout is a pipe, re-open it line buffered
         if isapipe(sys.stdout):
@@ -109,67 +112,31 @@ def vip_main(agent_class, identity=None, version="0.1", **kwargs):
         Hub = gevent.hub.Hub
         Hub.NOT_ERROR = Hub.NOT_ERROR + (KeyboardInterrupt, )
 
-        config = os.environ.get("AGENT_CONFIG")
-        identity = os.environ.get("AGENT_VIP_IDENTITY", identity)
-        publickey = kwargs.pop("publickey", None)
-        if not publickey:
-            publickey = os.environ.get("AGENT_PUBLICKEY")
-        secretkey = kwargs.pop("secretkey", None)
-        if not secretkey:
-            secretkey = os.environ.get("AGENT_SECRETKEY")
-        serverkey = kwargs.pop("serverkey", None)
-        if not serverkey:
-            serverkey = os.environ.get("VOLTTRON_SERVERKEY")
+        config = os.environ.pop("AGENT_CONFIG", {})
+        identity = os.environ.pop("AGENT_VIP_IDENTITY", None)
+        address = os.environ.pop("VOLTTRON_PLATFORM_ADDRESS", None)
 
-        # AGENT_PUBLICKEY and AGENT_SECRETKEY must be specified
-        # for the agent to execute successfully.  aip should set these
-        # if the agent is run from the platform.  If run from the
-        # run command it should be set automatically from vctl and
-        # added to the server.
-        #
-        # TODO: Make required for all agents.  Handle it through vctl and aip.
+        creds = CredentialsFactory.load_from_environ()
+        del os.environ["AGENT_CREDENTIALS"]
+
         if not os.environ.get("_LAUNCHED_BY_PLATFORM"):
-            if not publickey or not secretkey:
-                raise ValueError("AGENT_PUBLIC and AGENT_SECRET environmental variables must "
-                                 "be set to run without the platform.")
+            if not creds:
+                raise ValueError(
+                    "Please set AGENT_CREDENTIALS to the credentials to connect to the server.")
+            if not address:
+                raise ValueError(
+                    "Please set VOLTTRON_PLATFORM_ADDRESS to the address for connecting to the server."
+                )
 
-        message_bus = os.environ.get("MESSAGEBUS", "zmq")
+        if identity != creds.identity:
+            raise ValueError("AGENT_VIP_IDENTITY and identity from credentials do not match!")
+
         if identity is not None:
             if not is_valid_identity(identity):
-                _log.warning("Deprecation warining")
+                _log.warning("Deprecation warning")
                 _log.warning(f"All characters in {identity} are not in the valid set.")
 
-        address = get_address()
-        agent_uuid = os.environ.get("AGENT_UUID")
-        volttron_home = cc.get_volttron_home()
-
-        # TODO Bring back certs
-        # from volttron.client.certs import Certs
-        # certs = Certs()
-        if agent_class.__name__ == "Agent":
-            agent = agent_class(config_path=config,
-                                identity=identity,
-                                address=address,
-                                agent_uuid=agent_uuid,
-                                volttron_home=volttron_home,
-                                version=version,
-                                message_bus=message_bus,
-                                publickey=publickey,
-                                secretkey=secretkey,
-                                serverkey=serverkey,
-                                **kwargs)
-        else:
-            agent = agent_class(config_path=config,
-                                identity=identity,
-                                address=address,
-                                agent_uuid=agent_uuid,
-                                volttron_home=volttron_home,
-                                version=version,
-                                message_bus=message_bus,
-                                publickey=publickey,
-                                secretkey=secretkey,
-                                serverkey=serverkey,
-                                **kwargs)
+        agent = agent_class(credentials=creds, config_path=config, address=address, **kwargs)
 
         try:
             run = agent.run

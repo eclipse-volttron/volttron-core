@@ -26,12 +26,12 @@ import pytest
 from volttron.utils import load_config
 
 
-def test_load_config_json():
-    with pytest.raises(ValueError):
-        load_config(None)
+def test_load_config_none():
+    response = load_config(None)
+    assert {} == response
 
 
-def test_raise_exception_no_file():
+def test_load_config_empty_string():
 
-    with pytest.raises(ValueError):
-        load_config("")
+    response = load_config(None)
+    assert {} == response

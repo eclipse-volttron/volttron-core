@@ -1,6 +1,6 @@
 [tool.poetry]
-name = "volttron"
-version = "10.1.0"
+name = "volttron-core"
+version = "2.0.0rc4"
 description = "VOLTTRON™ is an open source platform for distributed sensing and control. The platform provides services for collecting and storing data from buildings and devices and provides an environment for developing applications which interact with that data."
 authors = ["volttron <volttron@pnnl.gov>"]
 license = "Apache-2.0"
@@ -19,34 +19,42 @@ classifiers = [
 ]
 
 packages = [
-    { include = "volttron", from = "src" }
+    { include = "volttron", from = "src" },
+    { include = "volttron/py.typed", from = "src" }
 ]
 
 include = [
     "bom_reports/**/*"
 ]
 
+[tool.poetry.group.dev]
+optional = true
+
 [tool.poetry.dependencies]
-poetry = "^1.2.2"
+poetry = "^1.8.2"
 python = "^3.10"
-pyzmq = "^25.0.2"
-gevent = "^22.10.2"
+gevent = ">=24.2.1,<24.3"
 PyYAML = "^6.0"
 toml = "^0.10.2"
 dateutils = "^0.6.12"
 tzlocal = "^4.1"
 psutil = "^5.9.0"
-cryptography = "^36.0.1"
+cryptography = "^43.0.1"
 watchdog-gevent = "^0.1.1"
-pip = "22.2.2"
+pip = "^24.0"
 pytest-timeout = "^2.1.0"
 pytest-mock = "^3.10.0"
 deprecated = "^1.2.14"
+blinker = "^1.7.0"
+dataclass-wizard = "^0.22.3"
+returns = "^0.22.0"
+pyzmq = "^25.1.2"
+cattrs = "^23.2.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^6.2.5"
 mock = "^4.0.3"
-pre-commit = "^2.17.0"
+pre-commit = "^4.0.1"
 yapf = "^0.32.0"
 toml = "^0.10.2"
 mypy = "^1.2.0"
@@ -73,7 +81,7 @@ ignore_patterns = [
 [tool.yapf]
 based_on_style = "pep8"
 spaces_before_comment = 4
-column_limit = 99
+column_limit = 120
 split_before_logical_operator = true
 
 [tool.mypy]

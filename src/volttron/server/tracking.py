@@ -21,12 +21,11 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
 """Utilities for tracking VIP message statistics at the router."""
 
 import gevent
 
-from volttron.server.router import UNROUTABLE, ERROR, INCOMING
+from volttron.messagebus.zmq.router import ERROR, INCOMING, UNROUTABLE
 
 __all__ = ["Tracker"]
 
