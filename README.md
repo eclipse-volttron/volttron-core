@@ -14,7 +14,7 @@ Eclipse VOLTTRON (eclipse-volttron/volttron-core) is an open source platform for
 - python >= 3.10
 - pip >= 24.0
 
-  Note: Ubuntu 22.04 comes with python 3.10. To upgrade pip run ```python -m pip install --upgrade pip```
+Note: Ubuntu 22.04 comes with python 3.10. To upgrade pip run ```python -m pip install --upgrade pip```
 
 ## Installation
 
