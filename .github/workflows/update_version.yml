@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - develop
-  merge_group:
 
 env:
   LANG: en_US.utf-8
