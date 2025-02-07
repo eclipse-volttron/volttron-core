@@ -71,7 +71,7 @@ class AbsolutePathFileReloader(PatternMatchingEventHandler):
     """
 
     def __init__(self, filetowatch, callback):
-        super(AbsolutePathFileReloader, self).__init__([filetowatch])
+        super(AbsolutePathFileReloader, self).__init__(patterns=[filetowatch])
         self._callback = callback
         self._filetowatch = filetowatch
 
