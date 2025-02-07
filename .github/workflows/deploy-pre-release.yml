@@ -72,35 +72,46 @@
           - name: Install library
             run: |
               poetry install --no-interaction
-    
-          - name: Bump Version
+
+          - name: bump pyproject.toml version
             run: |
-              # current_tag is the last tagged release in the repository.   From there
-              # we need to remove the v from the beginning of the tag.
-              echo "Bump rule is prerelease"
-              if ! $(git tag -l "v*" = ''); then
-                # uses -V which is version sort to keep it monotonically increasing.
-                current_tag=$(git tag -l "v*" | grep --invert-match '-' | sort --reverse -V  | sed -n 1p)
-                echo "current git tag is ${current_tag}"
-                current_tag=${current_tag#?}  
-                # current_tag is now the version we want to set our poetry version so
-                # that we can bump the version
-                poetry version ${current_tag}
+                current_version=$(poetry version --short)
+                echo $current_version
                 poetry version prerelease --no-interaction
-                
-              else
-                # very first release. start with inputs.first-release-version
-                echo "First release. Setting tag as v0.0.1rc0"
-                current_tag=v0.0.1rc0
-                poetry version ${current_tag}
-              fi
-              
-              NEW_TAG=v$(poetry version --short)
+                NEW_TAG=v$(poetry version --short)
+                echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
+          - uses: stefanzweifel/git-auto-commit-action@v5
+            with:
+              commit_message: bumped pre-release version
     
-              # Finally because we want to be able to use the variable in later
-              # steps we set a NEW_TAG environmental variable
-              echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
-    
+#          - name: Bump Version
+#            run: |
+#              # current_tag is the last tagged release in the repository.   From there
+#              # we need to remove the v from the beginning of the tag.
+#              echo "Bump rule is prerelease"
+#              if ! $(git tag -l "v*" = ''); then
+#                # uses -V which is version sort to keep it monotonically increasing.
+#                current_tag=$(git tag -l "v*" | grep --invert-match '-' | sort --reverse -V  | sed -n 1p)
+#                echo "current git tag is ${current_tag}"
+#                current_tag=${current_tag#?}
+#                # current_tag is now the version we want to set our poetry version so
+#                # that we can bump the version
+#                poetry version ${current_tag}
+#                poetry version prerelease --no-interaction
+#
+#              else
+#                # very first release. start with inputs.first-release-version
+#                echo "First release. Setting tag as v0.0.1rc0"
+#                current_tag=v0.0.1rc0
+#                poetry version ${current_tag}
+#              fi
+#
+#              NEW_TAG=v$(poetry version --short)
+#
+#              # Finally because we want to be able to use the variable in later
+#              # steps we set a NEW_TAG environmental variable
+#              echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
+#
           #---------------------------------------------------------------
           # create build artifacts to be included as part of release
           #---------------------------------------------------------------
