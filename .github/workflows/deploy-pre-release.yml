@@ -28,7 +28,7 @@ jobs:
         run: echo " Skipping pre-release as  source is ${{github.ref_name}} or labels (${{github.event.issue.labels.*.name}} contains 'Documentation' "
 
       - name: else test
-        if: ! ${{ startsWith(github.ref_name, 'releases/') || github.ref_name == 'main' || contains(github.event.issue.labels.*.name, 'Documentation') }}
+        if: ! startsWith(github.ref_name, 'releases/') && github.ref_name != 'main' && ! contains(github.event.issue.labels.*.name, 'Documentation') }}
         run: echo "calling pre-release"
 #  test-with-latest-volttron:
 #    uses: schandrika/github-tooling/.github/workflows/deploy-pre-release.yml@pre_release_update
