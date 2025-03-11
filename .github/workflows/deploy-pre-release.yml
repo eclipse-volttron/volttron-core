@@ -18,5 +18,10 @@ env:
   POETRY_VERSION: '2.1'
 
 jobs:
-  test-with-latest-volttron:
-    uses: schandrika/github-tooling/.github/workflows/deploy-pre-release.yml@pre_release_update
+  test-job:
+    steps:
+      - run: echo "Branch is ${{ github.ref_name }}"
+    runs-on: ubuntu-22.04
+
+#  test-with-latest-volttron:
+#    uses: schandrika/github-tooling/.github/workflows/deploy-pre-release.yml@pre_release_update
