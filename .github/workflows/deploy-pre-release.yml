@@ -20,7 +20,7 @@ env:
 jobs:
   test-job:
     steps:
-      - run: echo "Branch is ${{ github.ref_name }}"
+      - run: echo "On direct push Current branch is ${{ github.ref_name }}"
     runs-on: ubuntu-22.04
 
 #  test-with-latest-volttron:
