@@ -3,6 +3,8 @@ name: Deploy Pre-Release Artifacts
 
 on:
   pull_request:
+    types:
+      - closed
     branches:
       - develop_test
 
