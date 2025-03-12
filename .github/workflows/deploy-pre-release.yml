@@ -94,7 +94,8 @@ jobs:
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: bumped pre-release version
+          commit_message: bumped pre-release version to ${{ env.NEW_TAG }}
+          branch: ${{ github.ref_name }}
 
 #  test-with-latest-volttron:
 #    uses: schandrika/github-tooling/.github/workflows/deploy-pre-release.yml@pre_release_update
