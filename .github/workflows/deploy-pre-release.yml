@@ -2,7 +2,7 @@
 name: Deploy Pre-Release Artifacts
 
 on:
-  push:
+  pull_request:
     branches:
       - develop_test
 
@@ -19,6 +19,7 @@ env:
 
 jobs:
   test-job:
+    if: github.event.pull_request.merged
     runs-on: ubuntu-22.04
     steps:
       - run: echo "On direct push Current branch is ${{github.ref_name}} labels  ${{github.event.label.name}}"
