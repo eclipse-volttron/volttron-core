@@ -24,15 +24,7 @@ jobs:
     if: github.event.pull_request.merged
     runs-on: ubuntu-22.04
     steps:
-      - run: echo "On direct push Current branch is ${{github.ref_name}} labels  ${{toJSON(github.event.pull_request.labels)}}"
-
-      - name: Get PR labels
-        id: pr-labels
-        uses: joerick/pr-labels-action@v1.0.9
-
-      - name: pr label test
-        if: contains(steps.pr-labels.outputs.labels, ' documentation ')
-        run: echo "${{ steps.pr-labels.outputs.labels}}"
+      - run: echo "Current branch is ${{github.ref_name}} labels  ${{toJSON(github.event.pull_request.labels)}}"
 
       - name: test
         if: startsWith(github.ref_name, 'releases/') || github.ref_name == 'main' || contains(github.event.pull_request.labels.*.name, 'documentation')
@@ -41,5 +33,68 @@ jobs:
       - name: else test
         if: ${{ ! startsWith(github.ref_name, 'releases/') && github.ref_name != 'main' && ! contains(github.event.pull_request.labels.*.name, 'documentation') }}
         run: echo "calling pre-release"
+
+      #----------------------------------------------
+      #       check-out repo and set-up python
+      #----------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v3.5.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      #----------------------------------------------
+      #  -----  install & configure poetry  -----
+      #----------------------------------------------
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ env.POETRY_VERSION }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      #----------------------------------------------
+      #       load cached venv if cache exists
+      #----------------------------------------------
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v3
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      #----------------------------------------------
+      # install dependencies if cache does not exist
+      #----------------------------------------------
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      #----------------------------------------------
+      # install your root project, if required
+      #----------------------------------------------
+      - name: Install library
+        run: |
+          poetry install --no-interaction
+
+      - name: bump pyproject.toml version
+        run: |
+          current_version=$(poetry version --short)
+          echo $current_version
+          poetry version prerelease --no-interaction
+          NEW_TAG=v$(poetry version --short)
+          echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
+          echo "source branch is ${{ github.ref_name }}"
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: bumped pre-release version
+
 #  test-with-latest-volttron:
 #    uses: schandrika/github-tooling/.github/workflows/deploy-pre-release.yml@pre_release_update
