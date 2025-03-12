@@ -19,7 +19,6 @@ env:
   OWNER: eclipse-volttron
   POETRY_VERSION: '2.1.1'
 
-
 jobs:
   test-job:
     if: ${{ github.event.pull_request.merged && ! startsWith(github.ref_name, 'releases/') && github.ref_name != 'main' && ! contains(github.event.pull_request.labels.*.name, 'documentation') }}
