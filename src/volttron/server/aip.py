@@ -680,13 +680,9 @@ class AIPplatform:
                                    f"Or manually remove agent and install agent with specific version")
 
             # No exception. Worst case we can revert so safely uninstall current version.
-            # if agent.endswith(".whl"):
-            #     cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "remove",
-            #            f"{agent}"]
-            # else:
             cmd = [
                 "poetry", "--directory",
-                self._server_opts.poetry_project_path.as_posix(), "remove", f"{agent_name}=={current_version}"
+                self._server_opts.poetry_project_path.as_posix(), "remove", f"{agent_name}"
             ]
             execute_command(cmd)
 

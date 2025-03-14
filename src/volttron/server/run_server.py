@@ -124,7 +124,9 @@ def setup_poetry_project(volttron_home: Path):
     if not os.path.isfile(toml):
         cmd = [
             "poetry", "init", "--directory",
-            volttron_home.as_posix(), "--name", "volttron", "--author", "volttron <volttron@pnnl.gov>", "--quiet"
+            volttron_home.as_posix(), "--name", "volttron",
+            "--python", ">=3.10,<4.0",
+            "--author", "volttron <volttron@pnnl.gov>", "--quiet"
         ]
         execute_command(cmd)
         cmd = [
