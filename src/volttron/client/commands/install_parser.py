@@ -226,6 +226,95 @@ def _install_and_initialize_agent(opts: argparse.Namespace,
         sys.stdout.write("%s\n%s\n" % (keyline, valueline))
 
 
+def _install_lib(opts: argparse.Namespace,
+                 wheel_file: Path = None,
+                 pypi_string: str = None):
+    """Create a new agent on the platform.
+
+    This is the main installation function for sending/installing an agent on the platform. Depending
+    on the arguments, the agent will be installed from a wheel file or from pypi.  The options will be
+    retrieved from the opts namespace argument.
+
+    This function calls the server's install_library method which return a Boolean
+
+    :param opts: The command line options for the command.
+    :type opts: argparse.Namespace
+    :param wheel_file: If a path is specified ".whl" file will be sent, defaults to None
+    :type wheel_file: Path, optional
+    :param pypi_string: A string to install from pypi, defaults to None
+    :type pypi_string: str, optional
+    :raises ValueError: Raised if the library was not installed properly.
+    """
+
+    assert opts.connection, "Connection must have been created to access this feature."
+    assert wheel_file or pypi_string, "Either a wheel file or pypi string must be specified."
+    assert not (wheel_file
+                and pypi_string), "Only one of wheel_file or pypi_string can be specified."
+
+    connection = opts.connection
+
+    if wheel_file and not wheel_file.exists():
+        raise InstallRuntimeError(f"Wheel file {wheel_file} does not exist!")
+
+    lib_data = None  # Holds the base64 encoded data of the wheel file.
+    if wheel_file:
+        with open(wheel_file, "rb") as fp:
+            lib_data = base64.b64encode(fp.read()).decode("utf-8")
+        source = wheel_file.name
+    else:
+        source = pypi_string
+    lib_name = connection.call("install_library", source=source, data=lib_data, force=opts.force,
+                             allow_prerelease=opts.pre_release)
+
+    if not lib_name:
+        raise ValueError(f"Library was not installed properly.")
+
+    if isinstance(lib_name, AsyncResult):
+        lib_name = lib_name.get()
+    sys.stdout.write(f"Installed {lib_name} \n")
+
+
+
+def install_lib_vctl(opts: argparse.Namespace, callback=None):
+    """
+    The `install_lib_vctl` function is called from the volttron-ctl or vctl install-lib
+    sub-parser.
+
+    This function uses the `opts` namespace install_path and wheel attributes to install
+    the library on the connected platform instance.  The `opts`.connection attribute must
+    be set and connected prior to calling this function.
+
+    If an error occurs during this function it will be passed up the stack and the callback
+    function will not be called.
+
+    :param opts: The namespace object containing the install_path and wheel attributes.
+    :type opts: argparse.Namespace
+    :param callback: A callback function to call after the agent is successful installation.
+    :type callback: function
+    """
+
+    assert opts.connection, "Connection must have been created to access this feature."
+
+    try:
+        install_path = Path(opts.install_path)
+    except AttributeError:
+        install_path = Path(opts.wheel)
+
+    if install_path.is_dir():
+        print(f"Building from {install_path}")
+        install_path = _build_from_pyproject(install_path)
+
+    if install_path.is_file() and install_path.suffix == ".whl":
+        print(f"Installing from wheel {install_path}")
+        _install_lib(opts, wheel_file=install_path)
+    else:
+        print(f"Installing from pypi {install_path}")
+        _install_lib(opts, pypi_string=install_path.as_posix())
+
+    if callback:
+        callback()
+
+
 def install_agent_vctl(opts: argparse.Namespace, callback=None):
     """
     The `install_agent_vctl` function is called from the volttron-ctl or vctl install
@@ -240,7 +329,7 @@ def install_agent_vctl(opts: argparse.Namespace, callback=None):
 
     :param opts: The namespace object containing the install_path and wheel attributes.
     :type opts: argparse.Namespace
-    :param callback: A callback function to call after the agent is successfullly installed.
+    :param callback: A callback function to call after the agent is successful installation.
     :type callback: function
     """
 
@@ -260,14 +349,14 @@ def install_agent_vctl(opts: argparse.Namespace, callback=None):
         _install_and_initialize_agent(opts, wheel_file=install_path)
     else:
         print(f"Installing from pypi {install_path}")
-        _install_and_initialize_agent(opts, pypi_string=install_path)
+        _install_and_initialize_agent(opts, pypi_string=install_path.as_posix())
 
     if callback:
         callback()
 
 
 def add_install_agent_parser(add_parser_fn: Callable):
-    """Creat and add the parser for the install command.
+    """Create and add the parser for vctl install command.
 
     :param add_parser_fn: A
     :type add_parser_fn: _type_
@@ -344,3 +433,40 @@ def add_install_agent_parser(add_parser_fn: Callable):
     )
 
     install.set_defaults(func=install_agent_vctl, verify_agents=True)
+
+def add_install_lib_parser(add_parser_fn: Callable):
+    """Create and add the parser for vctl install-lib command.
+
+    :param add_parser_fn: A
+    :type add_parser_fn: _type_
+    """
+    install = add_parser_fn(
+        "install-lib",
+        help="install volttron library by name or path",
+    )
+    install.add_argument(
+        "--skip-requirements",
+        help=
+        "Skip installing requirements from a requirements.txt if present in the agent directory.",
+    )
+    install.add_argument(
+        "install_path",
+        help="path to agent wheel or directory for agent installation",
+    )
+    install.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help=
+        "uninstall and reinstall given library version",
+    )
+    install.add_argument(
+        "--pre-release",
+        "--pre",
+        "--allow-prereleases",
+        action="store_true",
+        help="enables installation of pre-releases and development releases",
+    )
+
+    install.set_defaults(func=install_lib_vctl)
+

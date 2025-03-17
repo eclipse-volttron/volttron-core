@@ -499,7 +499,7 @@ class AIPplatform:
         # This should happen before install of source.
         backup_agent_file = self.backup_agent_data(agent_uuid, vip_identity)
 
-        agent_name, site_package_dir = self.install_agent_source(agent, force, pre_release)
+        agent_name, site_package_dir = self.install_agent_or_lib_source(agent, force, pre_release)
 
         if agent_uuid:
             _log.info('Removing previous version of agent "{}"\n'.format(vip_identity))
@@ -580,6 +580,16 @@ class AIPplatform:
 
         return agent_uuid
 
+
+    def install_library(self, library, force=False, pre_release=False):
+        """
+        Adds the library to the current pyproject toml project, which in turn installs the library in the current
+        venv
+        """
+        name, _ = self.install_agent_or_lib_source(library, force, pre_release)
+        return name
+        
+
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
         """
         This will raise a ValueError if the identity passed exists but
@@ -597,40 +607,39 @@ class AIPplatform:
             raise ValueError("Identity already exists, but not forced!")
         return agent_uuid
 
-    def install_agent_source(self, agent: str, force: bool = False, pre_release: bool = False):
-        _log.info(f"AGENT_WHEEL: {agent}")
-        agent_name = None
-        if agent.endswith(".whl") and os.path.isfile(agent):
-            agent_name = self._construct_package_name_from_agent_wheel(agent)
+    def install_agent_or_lib_source(self, source: str, force: bool = False, pre_release: bool = False):
+        agent_or_lib_name = None
+        if source.endswith(".whl") and os.path.isfile(source):
+            agent_or_lib_name = self._construct_package_name_from_wheel(source)
         else:
             # this is a pypi package.
             # if vctl install got source dir, it would have got built into a whl before getting shipped to server
             # it could be just a package-name(ex. volttron-listner)
             # or package-name with version constraints- ex. volttron-agent@latest, volttron-agent>=1.0.0
             # so match till we hit a character that is NOT alpha numeric character or  _ or -
-            m = re.match("[\w\-]+", agent)
+            m = re.match("[\w\-]+", source)
             if m:
-                agent_name = m[0]
+                agent_or_lib_name = m[0]
 
-        if agent_name is None:
+        if agent_or_lib_name is None:
             # ideally we should never get here! if we get here we haven't handled some specific input format.
-            raise RuntimeError(f"Unexpected Error: Unable to get agent_name based on {agent}")
+            raise RuntimeError(f"Unexpected Error: Unable to get agent or library name based on {source}")
 
         cmd_add = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix()]
         if pre_release:
             cmd_add.append("--allow-prereleases")
         cmd_add.append("add")
-        cmd_add.append(agent)
+        cmd_add.append(source)
 
         current_version = None
         if force:
             # check if there is even a current version to uninstall
             try:
-                cmd = ["pip", "show", agent_name]
+                cmd = ["pip", "show", agent_or_lib_name]
                 response = execute_command(cmd)
                 current_version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
             except RuntimeError as e:
-                # unable to find any existing agent to uninstall so make force = False
+                # unable to find any existing agent or lib to uninstall so make force = False
                 force = False
 
         if force and current_version:
@@ -641,13 +650,13 @@ class AIPplatform:
             try:
                 cmd_dry_run = [
                     "poetry", "--directory",
-                    self._server_opts.poetry_project_path.as_posix(), "remove", agent_name, "--dry-run"
+                    self._server_opts.poetry_project_path.as_posix(), "remove", agent_or_lib_name, "--dry-run"
                 ]
                 # we only care about the return code. is return code is non-zero below will raise exception
                 execute_command(cmd_dry_run)
             except RuntimeError as r:
-                raise RuntimeError(f"Attempting to remove current version of agent {agent_name} using poetry fails "
-                                   f"with following error: {r}")
+                raise RuntimeError(f"Attempting to remove current version of agent or library {agent_or_lib_name} "
+                                   f"using poetry fails with following error: {r}")
 
             try:
                 cmd_dry_run = []
@@ -656,7 +665,8 @@ class AIPplatform:
                 # we only care about the return code. is return code is non-zero below will raise exception
                 execute_command(cmd_dry_run)
             except RuntimeError as r:
-                raise RuntimeError(f"Attempt to install {agent_name} using poetry fails with following error:{r}")
+                raise RuntimeError(f"Attempt to install {agent_or_lib_name} using poetry fails "
+                                   f"with following error:{r}")
 
             # but that alone won't be enough For ex. if agent to be installed is just a name without version, and there
             # is already a version of the agent installed, then doing "poetry add agent_name --dry-run"
@@ -668,21 +678,22 @@ class AIPplatform:
             try:
                 cmd_dry_run = [
                     "poetry", "--directory",
-                    self._server_opts.poetry_project_path.as_posix(), "add", f"{agent_name}=={current_version}",
+                    self._server_opts.poetry_project_path.as_posix(), "add", f"{agent_or_lib_name}=={current_version}",
                     "--dry-run"
                 ]
                 execute_command(cmd_dry_run)
             except RuntimeError as r:
-                raise RuntimeError(f"Unable to find currently installed version of {agent_name} ({current_version}) "
-                                   f"in pypi. Aborting --force install of {agent} as we dont have any way of reverting "
-                                   f"to existing version in case of failure. If you are using agent without version "
-                                   f"number. Try using agent_name@latest or agent_name==version to install."
-                                   f"Or manually remove agent and install agent with specific version")
+                raise RuntimeError(f"Unable to find currently installed version of {agent_or_lib_name} "
+                                   f"({current_version}) in pypi. Aborting --force install of {source} as we dont have "
+                                   f"any way of reverting to existing version in case of failure. If you are using "
+                                   f"agent/library without version number. Try using name@latest or name==version to "
+                                   f"install. Or manually remove agent/library and install with specific version")
 
             # No exception. Worst case we can revert so safely uninstall current version.
+            _log.warning(f"Removing current version of {agent_or_lib_name}")
             cmd = [
                 "poetry", "--directory",
-                self._server_opts.poetry_project_path.as_posix(), "remove", f"{agent_name}"
+                self._server_opts.poetry_project_path.as_posix(), "remove", f"{agent_or_lib_name}"
             ]
             execute_command(cmd)
 
@@ -697,41 +708,42 @@ class AIPplatform:
         except RuntimeError as e:
             _log.error("Install agent failed", e)
             if force and current_version:
-                _log.info("--force was used. Attempting to reinstall agent version that was previously present in env"
-                          f"({agent_name}=={current_version})")
+                _log.info("--force was used. Attempting to reinstall agent/library version that was previously "
+                          f"present in env ({agent_or_lib_name}=={current_version})")
                 try:
                     cmd = [
                         "poetry", "--directory",
-                        self._server_opts.poetry_project_path.as_posix(), "add", f"{agent_name}=={current_version}"
+                        self._server_opts.poetry_project_path.as_posix(), "add",
+                        f"{agent_or_lib_name}=={current_version}"
                     ]
                     execute_command(cmd)
                 except RuntimeError as e:
                     # We are in trouble. we are not able to install give agent version and unable to roll back to the
                     # version that was already there either!
                     raise RuntimeError(
-                        "ERROR: --force was used. we successfully uninstalled current version of agent"
-                        f"{agent_name}=={current_version}. But there was error installing {agent} and "
+                        "ERROR: --force was used. we successfully uninstalled current version of agent/library"
+                        f"{agent_or_lib_name}=={current_version}. But there was error installing {source} and "
                         f"we are unable to reinstall current version either. \n", e)
             else:
                 raise e
 
         # now get the version installed, because poetry add could have been for volttron-agent@latest.
         # we need to find the specific version installed
-        cmd = ["pip", "show", agent_name]
+        cmd = ["pip", "show", agent_or_lib_name]
         response = execute_command(cmd)
         version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
         site_package_dir = re.search(".*\nLocation: (.*)", response).groups()[0].strip()
         if site_package_dir is None:
             # we should not get here unless pip changed format of pip show output.
-            raise RuntimeError(f"Unable to find installed location of {agent} based on pip show command")
+            raise RuntimeError(f"Unable to find installed location of {source} based on pip show command")
         if version is None:
             # we should not get here unless pip changed format of pip show output.
-            raise RuntimeError(f"Unable to find installed version of {agent} based on pip show command")
+            raise RuntimeError(f"Unable to find installed version of {source} based on pip show command")
 
-        return agent_name + "-" + version, site_package_dir
+        return agent_or_lib_name + "-" + version, site_package_dir
 
     @staticmethod
-    def _construct_package_name_from_agent_wheel(agent_wheel):
+    def _construct_package_name_from_wheel(agent_wheel):
         agent_name = agent_wheel
         if agent_wheel.endswith(".whl"):
             wheel = agent_wheel.split("/")[-1]

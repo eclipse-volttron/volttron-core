@@ -511,6 +511,22 @@ class ControlService(Agent):
                                        force=options.force,
                                        pre_release=options.allow_prerelease)
 
+    @RPC.export
+    def install_library(self, source, data, force, allow_prerelease) -> str:
+        _source = source
+        if source.endswith(".whl"):
+            wheelhouse = Path("wheelhouse").absolute()
+            wheelhouse.mkdir(exist_ok=True)
+            filepath = wheelhouse / source
+
+            with open(filepath, 'wb') as fp:
+                fp.write(base64.b64decode(data))
+            _source = filepath.as_posix()
+
+        return self._aip.install_library(library=_source,
+                                         force=force,
+                                         pre_release=allow_prerelease)
+
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool) -> Identity:
         """
         This will raise a ValueError if the identity passed exists but
