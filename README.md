@@ -35,7 +35,9 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
 
  1. **Setup VOLTTRON_HOME** environment variable: export VOLTTRON_HOME=/path/to/volttron_home/dir
 
-    **NOTE** This is mandatory if you have/had in the past, a monolithic    VOLTTRON version that used the default VOLTTRON_HOME $HOME/.volttron. **This modular version of VOLTTRON cannot work with volttron_home used by monolithic version of VOLTTRON(version 8.3 or earlier)**
+    **NOTE** This is mandatory if you have/had in the past, a monolithic    VOLTTRON version that used the default 
+    VOLTTRON_HOME $HOME/.volttron. 
+    **This modular version of VOLTTRON cannot work with volttron_home used by monolithic version of VOLTTRON(version 8.3 or earlier)**
 
  1. **Start the platform:**
 
@@ -45,7 +47,9 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
 
  1. **Install agents and optional libraries**:
 
-    Each volttron agent is in it own repository. Each agent's repository will have its own readme with instructions on how to install the agent and any optional libarires that could be used with the agent. But in general, agents should be installed using vctl install command. 
+    Each volttron agent is in it own repository. Each agent's repository will have its own readme with instructions on 
+    how to install the agent and any optional libraries that could be used with the agent. But in general, agents should 
+    be installed using vctl install command. 
     
     For example, 
     ```bash
@@ -56,15 +60,29 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
     
     **Optional Libraries**
 
-    In addition to mandatory libraries that are automatically installed during agent install, some agents could have optional features that are enabled or disabled based on availability of additional libraries. For example, an agent could support unit conversion if the python pint library is installed in the python environment. In order to install optional libraries use
+    In addition to mandatory libraries that are automatically installed during agent install, some agents could have 
+    optional features that are enabled or disabled based on availability of additional libraries. For example, an agent 
+    could support unit conversion if the python pint library is installed in the python environment. In order to 
+    install optional libraries use
     ```bash
-    poetry add --directory $VOLTTRON_HOME <library name>
+    vctl install-lib <library name>
     ```
     
-    Modular VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project (pyproject.toml file) in VOLTTRON_HOME directory and uses that for keeping track of all installed packages. For example, when you run ```vctl install volttron-listener``` an entry for that agent's package name and version gets added to $VOLTTRON_HOME/pyproject.toml.
-    If you are installing optional libraries, such as pint use ```poetry add --directory $VOLTTORN_HOME pint``` instead of pip.  Poetry will check if the version of volttron-core (and other librabries) in your current activated environment is compatible with requirements of the version of volttron-lib-bacnet-driver you are installing.
+    Modular VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project 
+    (pyproject.toml file) in VOLTTRON_HOME directory and uses that for keeping track of all installed packages. 
+    For example, when you run ```vctl install volttron-listener``` an entry for that agent's package name and version 
+    gets added to $VOLTTRON_HOME/pyproject.toml.
+    If you are installing optional libraries, such as pint use ```vctl install-lib pint``` instead of pip install. 
+    ```vctl install-lib``` will internally use poetry and poetry will check if the version of volttron-core 
+    (and other librabries) in your current activated environment is compatible with requirements of the version 
+    of library you are installing.
 
-    **Warning:** You could use pip to install librabries, but pip will not check dependent library versions for compatibility and simply overwrite packages in the current environment. For example, if you are running volttron-core version 2.0.0 and volttron-lib-bacnet-driver has dependency on volttron-core version 1.0.0, ```pip install volttron-lib-bacnet-driver``` would overwrite volttron-core version 2.0.0 with version 1.0.0. However ```poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver``` will fail because of a version incompatibility error.
+    **Warning:** You could use pip to install librabries, but pip will not check dependent library versions for 
+    compatibility and simply overwrite packages in the current environment. For example, if you are running 
+    volttron-core version 2.0.0 and volttron-lib-bacnet-driver has dependency on 
+    volttron-core version 1.0.0, ```pip install volttron-lib-bacnet-driver``` would overwrite volttron-core version 
+    2.0.0 with version 1.0.0. However ```poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver``` will 
+    fail because of a version incompatibility error.
     
 
 
