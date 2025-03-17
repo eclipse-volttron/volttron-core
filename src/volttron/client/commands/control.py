@@ -48,7 +48,7 @@ from volttron.client.commands.rpc_parser import add_rpc_agent_parser
 from volttron.client.commands.auth_parser import add_auth_parser
 from volttron.client.commands.authz_parser import add_authz_parser
 from volttron.client.commands.config_store_parser import add_config_store_parser
-from volttron.client.commands.install_agents import add_install_agent_parser
+from volttron.client.commands.install_parser import add_install_agent_parser, add_install_lib_parser
 from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
 from volttron.client.vip.agent.errors import Unreachable, VIPError
 from volttron.client.vip.agent.subsystems.query import Query
@@ -2254,6 +2254,7 @@ def main():
         return subparser.add_parser(*args, **kwargs)
 
     add_install_agent_parser(add_parser)
+    add_install_lib_parser(add_parser)
     add_rpc_agent_parser(add_parser)
 
     add_auth_parser(add_parser, filterable=filterable)

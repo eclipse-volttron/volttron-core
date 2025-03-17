@@ -116,22 +116,22 @@ def run_server():
     start_volttron_process(server_options)
 
 
-def setup_poetry_project(volttron_home: Path):
-    toml = os.path.join(volttron_home, "pyproject.toml")
+def setup_poetry_project(python_project_path: Path):
+    toml = os.path.join(python_project_path, "pyproject.toml")
     if os.path.isfile(toml):
         return
 
     if not os.path.isfile(toml):
         cmd = [
             "poetry", "init", "--directory",
-            volttron_home.as_posix(), "--name", "volttron",
+            python_project_path.as_posix(), "--name", "volttron",
             "--python", ">=3.10,<4.0",
             "--author", "volttron <volttron@pnnl.gov>", "--quiet"
         ]
         execute_command(cmd)
         cmd = [
             "poetry", "--directory",
-            volttron_home.as_posix(), "source", "add", "--priority=supplemental", "test-pypi",
+            python_project_path.as_posix(), "source", "add", "--priority=supplemental", "test-pypi",
             "https://test.pypi.org/simple/"
         ]
         execute_command(cmd)
@@ -141,7 +141,7 @@ def setup_poetry_project(volttron_home: Path):
     # Second command
     grep_cmd = ["grep", "-v", "volttron=="]
     # Third command
-    poetry_cmd = ["xargs", "poetry", "add", "--directory", volttron_home.as_posix()]
+    poetry_cmd = ["xargs", "poetry", "add", "--directory", python_project_path.as_posix()]
 
     err_msg = ""
     # Execute the first command
@@ -169,7 +169,7 @@ def setup_poetry_project(volttron_home: Path):
                     err_msg = "Error from poetry command:", p3_stderr.decode()
 
     if err_msg:
-        err_msg = (f"Unable to update pyproject.toml in {volttron_home.as_posix()} with venv's current list of "
+        err_msg = (f"Unable to update pyproject.toml in {python_project_path.as_posix()} with venv's current list of "
                    f"libs. {err_msg}")
         raise RuntimeError(err_msg)
 
