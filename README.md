@@ -77,7 +77,8 @@ Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib
     (and other librabries) in your current activated environment is compatible with requirements of the version 
     of library you are installing.
 
-    **Warning:** You could use pip to install librabries, but pip will not check dependent library versions for 
+    > [!WARNING]  
+    > You could use pip to install libraries, but pip will not check dependent library versions for 
     compatibility and simply overwrite packages in the current environment. For example, if you are running 
     volttron-core version 2.0.0 and volttron-lib-bacnet-driver has dependency on 
     volttron-core version 1.0.0, ```pip install volttron-lib-bacnet-driver``` would overwrite volttron-core version 
