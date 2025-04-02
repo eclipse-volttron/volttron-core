@@ -53,6 +53,7 @@ import os
 import inspect
 import logging
 import os
+from pathlib import Path
 import stat
 import sys
 import syslog
@@ -304,6 +305,8 @@ def configure_logging(conf_path):
 
     YAML formatted configuration files require the PyYAML package.
     """
+    if isinstance(conf_path, Path):
+        conf_path = conf_path.as_posix()
 
     conf_format = "ini"
     if conf_path.startswith("ini:"):
