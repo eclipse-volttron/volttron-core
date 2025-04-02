@@ -48,7 +48,7 @@ import sys
 
 import yaml
 
-from volttron.server.logs import get_default_logging_config, log_to_file
+from volttron.server.logs import get_default_logging_config, log_to_file, configure_logging
 
 file_to_log_to: str | None = None
 total_count: int = 0
@@ -84,21 +84,33 @@ for arg in arg_iter:
 
     total_count += vcount
 
+if os.environ.get("VOLTTRON_HOME") is None:
+    os.environ["VOLTTRON_HOME"] = os.path.expanduser("~/.volttron")
+
+# Create the volttron home if it doesn't exist.
+os.makedirs(os.path.join(os.environ["VOLTTRON_HOME"]), exist_ok=True)
+
+if logging_config and total_count > 0:
+    sys.stderr.write("Cannot specify both --log-config and --verbose options")
+    sys.exit(1)
+
+if logging_config and file_to_log_to:
+    sys.stderr.write("Cannot specify both --log and --log-config options")
+    sys.exit(1)
+
 # If the user has specified a logging configuration then allow them full access to all the
 # responsibility of logging.
 if logging_config:
-    with open(logging_config, 'rt') as f:
-        cfg = yaml.safe_load(f.read())
-
-    logging.config.dictConfig(cfg)
-
-# The user wants to output all to a file so we can do that for them.
-if file_to_log_to:
-    log_to_file(file_to_log_to, total_count, handler_class=logging.handlers.WatchedFileHandler)
-
-# Normal here just use the default stream handler setup.
+    configure_logging(logging_config)
+    
 else:
-    logging.config.dictConfig(get_default_logging_config(level=total_count))
+    # The user wants to output all to a file so we can do that for them.
+    if file_to_log_to:
+        log_to_file(file_to_log_to, total_count, handler_class=logging.handlers.WatchedFileHandler)
+
+    # Normal here just use the default stream handler setup.
+    else:
+        logging.config.dictConfig(get_default_logging_config(level=total_count))
 
 from volttron.server.run_server import _main
 
