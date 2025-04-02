@@ -235,7 +235,7 @@ def _install_lib(opts: argparse.Namespace,
     on the arguments, the agent will be installed from a wheel file or from pypi.  The options will be
     retrieved from the opts namespace argument.
 
-    This function calls the server's install_library method which return a Boolean
+    This function calls the server's install_library method which return the installed library name.
 
     :param opts: The command line options for the command.
     :type opts: argparse.Namespace
