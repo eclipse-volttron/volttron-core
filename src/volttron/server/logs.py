@@ -320,6 +320,8 @@ def configure_logging(conf_path):
         conf_format = "py"
     elif conf_path.endswith(".yaml"):
         conf_format = "yaml"
+    elif conf_path.endswith(".yml"):
+        conf_format = "yaml"
 
     if conf_format == "ini":
         try:
@@ -351,7 +353,8 @@ def configure_logging(conf_path):
                     "loading logging configuration from a YAML file.",
                 )
             try:
-                conf_dict = yaml.safe_load(conf_file.read())
+                expanded_conf = os.path.expanduser(os.path.expandvars(conf_file.read()))
+                conf_dict = yaml.safe_load(expanded_conf)
             except yaml.YAMLError as exc:
                 return conf_path, exc
     try:
