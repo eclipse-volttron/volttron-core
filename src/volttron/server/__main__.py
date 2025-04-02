@@ -91,18 +91,20 @@ if os.environ.get("VOLTTRON_HOME") is None:
 os.makedirs(os.path.join(os.environ["VOLTTRON_HOME"]), exist_ok=True)
 
 if logging_config and total_count > 0:
-    sys.stderr.write("Cannot specify both --log-config and --verbose options")
+    sys.stderr.write("Cannot specify both --log-config and --verbose options\n"
+                     "Update the logging config file to set the verbosity level")
     sys.exit(1)
 
 if logging_config and file_to_log_to:
-    sys.stderr.write("Cannot specify both --log and --log-config options")
+    sys.stderr.write("Cannot specify both --log and --log-config options\n"
+                     "Update the logging config file to specify the log file")
     sys.exit(1)
 
 # If the user has specified a logging configuration then allow them full access to all the
 # responsibility of logging.
 if logging_config:
     configure_logging(logging_config)
-    
+
 else:
     # The user wants to output all to a file so we can do that for them.
     if file_to_log_to:
