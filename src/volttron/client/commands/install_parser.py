@@ -289,7 +289,7 @@ def install_lib_vctl(opts: argparse.Namespace, callback=None):
 
     :param opts: The namespace object containing the install_path and wheel attributes.
     :type opts: argparse.Namespace
-    :param callback: A callback function to call after the agent is successful installation.
+    :param callback: A callback function to call after the agent is successfully installed.
     :type callback: function
     """
 
