@@ -495,11 +495,20 @@ class AIPplatform:
         if agent_config is None:
             agent_config = dict()
 
-        agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
-        # This should happen before install of source.
-        backup_agent_file = self.backup_agent_data(agent_uuid, vip_identity)
+        name, name_with_version, site_package_dir = self.install_agent_or_lib_source(agent, force, pre_release)
+        # get default vip_identity if vip_identity is not passed
+        # default value will be in "agent_name-default-vip-id" file in site-packages dir
+        if vip_identity is None:
+            # get default vip id if one is specified in src
+            default_vip_id_file = os.path.join(site_package_dir, f"{name}-default-vip-id")
+            _log.info(f"Default vip id file is {default_vip_id_file}")
+            if os.path.isfile(default_vip_id_file):
+                with open(str(default_vip_id_file)) as fin:
+                    vip_identity = fin.read().strip()
 
-        agent_name, site_package_dir = self.install_agent_or_lib_source(agent, force, pre_release)
+        agent_uuid = self._raise_error_if_identity_exists_without_force(vip_identity, force)
+        # This should happen before install of source. why?
+        backup_agent_file = self.backup_agent_data(agent_uuid, vip_identity)
 
         if agent_uuid:
             _log.info('Removing previous version of agent "{}"\n'.format(vip_identity))
@@ -507,17 +516,7 @@ class AIPplatform:
             # in install_agent_source
             self.remove_agent(agent_uuid, remove_auth=False, remove_unused_src=False)
 
-        # get default vip_identity if vip_identity is not passed
-        # default value will be in "agent_name-default-vip-id" file in site-packages dir
-        if vip_identity is None:
-            # get default vip id if one is specified in src
-            default_vip_id_file = os.path.join(site_package_dir, f"{agent_name}-default-vip-id")
-            _log.info(f"Default vip id file is {default_vip_id_file}")
-            if os.path.isfile(default_vip_id_file):
-                with open(str(default_vip_id_file)) as fin:
-                    vip_identity = fin.read().strip()
-
-        final_identity = self._setup_agent_vip_id(agent_name, vip_identity=vip_identity)
+        final_identity = self._setup_agent_vip_id(name_with_version, vip_identity=vip_identity)
 
         if self._secure_agent_user:
             _log.info("Installing secure Volttron agent...")
@@ -538,7 +537,7 @@ class AIPplatform:
             with open(os.path.join(agent_path, "UUID"), "w") as f:
                 f.write(agent_uuid)
             with open(os.path.join(agent_path, "NAME"), "w") as f:
-                f.write(agent_name)
+                f.write(name_with_version)
             with open(os.path.join(agent_path, "config"), "w") as f:
                 yaml.dump(agent_config, f)
         except OSError as exc:
@@ -585,9 +584,10 @@ class AIPplatform:
         """
         Adds the library to the current pyproject toml project, which in turn installs the library in the current
         venv
+        Return installed agent or library name with version. example volttron-listener-2.0.0rc2
         """
-        name, _ = self.install_agent_or_lib_source(library, force, pre_release)
-        return name
+        name, name_with_version, _ = self.install_agent_or_lib_source(library, force, pre_release)
+        return name_with_version
         
 
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
@@ -608,15 +608,20 @@ class AIPplatform:
         return agent_uuid
 
     def install_agent_or_lib_source(self, source: str, force: bool = False, pre_release: bool = False):
+        """
+        Installs a agent or library from wheel or pypi
+        Returns installed agent/library's name, name-<version>, package directory in which this is installed
+        """
         agent_or_lib_name = None
+        _log.debug(f"Agent source is: {source}")
         if source.endswith(".whl") and os.path.isfile(source):
             agent_or_lib_name = self._construct_package_name_from_wheel(source)
         else:
             # this is a pypi package.
             # if vctl install got source dir, it would have got built into a whl before getting shipped to server
-            # it could be just a package-name(ex. volttron-listner)
+            # it could be just a package-name(ex. volttron-listener)
             # or package-name with version constraints- ex. volttron-agent@latest, volttron-agent>=1.0.0
-            # so match till we hit a character that is NOT alpha numeric character or  _ or -
+            # so match till we hit a character that is NOT alphanumeric character or  _ or -
             m = re.match("[\w\-]+", source)
             if m:
                 agent_or_lib_name = m[0]
@@ -740,7 +745,7 @@ class AIPplatform:
             # we should not get here unless pip changed format of pip show output.
             raise RuntimeError(f"Unable to find installed version of {source} based on pip show command")
 
-        return agent_or_lib_name + "-" + version, site_package_dir
+        return agent_or_lib_name, agent_or_lib_name + "-" + version, site_package_dir
 
     @staticmethod
     def _construct_package_name_from_wheel(agent_wheel):
