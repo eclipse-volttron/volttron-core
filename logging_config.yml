@@ -8,22 +8,24 @@ formatters:
 handlers:
   console:
     class: logging.StreamHandler
-    level: DEBUG
     formatter: simple
     stream: ext://sys.stdout
 
   file:
     class: logging.FileHandler
-    level: INFO
     formatter: simple
     filename: "${VOLTTRON_HOME}/volttron.log"
 
 loggers:
-  volttron:
-    level: DEBUG
+  volttron.server:
+    level: WARNING
     handlers: [file]
     propagate: no
-  
+  volttron.client:
+    level: WARNING
+    handlers: [ file ]
+    propagate: no
+
 root:
   level: WARNING
-  handlers: [console]
+  handlers: [console, file]
