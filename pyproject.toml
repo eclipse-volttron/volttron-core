@@ -49,13 +49,7 @@ blinker = "^1.7.0"
 dataclass-wizard = "^0.22.3"
 returns = "^0.22.0"
 cattrs = "^23.2.3"
-volttron-lib-zmq = { path = "../volttron-lib-zmq", develop = true }
-volttron-lib-auth = { path = "../volttron-lib-auth", develop = true }
-volttron-lib-base-driver = { path = "../volttron-lib-base-driver", develop = true }
-volttron-lib-topic-tree = { path = "../volttron-lib-topic-tree", develop = true }
-volttron-lib-fake-driver = { path = "../volttron-lib-fake-driver", develop = true }
-volttron-platform-driver = { path = "../volttron-platform-driver", develop = true }
-volttron-listener = { path = "../volttron-listener", develop = true }
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
 mock = "^4.0.3"
