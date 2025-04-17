@@ -108,9 +108,10 @@ def _install_and_initialize_agent(opts: argparse.Namespace,
     """
 
     assert opts.connection, "Connection must have been created to access this feature."
-    assert wheel_file or pypi_string, "Either a wheel file or pypi string must be specified."
-    assert not (wheel_file
-                and pypi_string), "Only one of wheel_file or pypi_string can be specified."
+    if not opts.editable:
+        assert wheel_file or pypi_string, "Either a wheel file or pypi string must be specified."
+        assert not (wheel_file
+                    and pypi_string), "Only one of wheel_file or pypi_string can be specified."
 
     connection = opts.connection
 
@@ -146,19 +147,24 @@ def _install_and_initialize_agent(opts: argparse.Namespace,
 
     agent = None    # holds the wheel file or the pypi string
     agent_data = None    # Holds the base64 encoded data of the wheel file.
+    editable = False
     if wheel_file:
         with open(wheel_file, "rb") as fp:
             agent_data = base64.b64encode(fp.read()).decode("utf-8")
         agent = wheel_file.name
-    else:
+    elif pypi_string:
         agent = pypi_string
+    elif opts.editable and opts.install_path:
+        agent = os.path.abspath(opts.install_path)
+        editable = True
 
     agent_install = AgentInstallOptions(source=agent,
                                         identity=opts.vip_identity,
                                         data=agent_data,
                                         agent_config=config_dict,
                                         force=opts.force,
-                                        allow_prerelease=opts.pre_release)
+                                        allow_prerelease=opts.pre_release,
+                                        editable=editable)
 
     agent_uuid = connection.call("install_agent", agent_install.to_dict())
 
@@ -341,10 +347,20 @@ def install_agent_vctl(opts: argparse.Namespace, callback=None):
         install_path = Path(opts.wheel)
 
     if install_path.is_dir():
-        print(f"Building agent from {install_path}")
-        install_path = _build_from_pyproject(install_path)
+        if opts.editable:
+            if not opts.connection.address.startswith("ipc:"):
+                print("server is not local. ignoring -e/--editable flag")
+                opts.editable = False
 
-    if install_path.is_file() and install_path.suffix == ".whl":
+        if not opts.editable:
+            print(f"Building agent from {install_path}")
+            install_path = _build_from_pyproject(install_path)
+
+    if opts.editable:
+        # No wheel file was built. install editable
+        print(f"Installing editable agent package on local server: {install_path} opts {opts.install_path}")
+        _install_and_initialize_agent(opts)
+    elif install_path.is_file() and install_path.suffix == ".whl":
         print(f"Installing from wheel {install_path}")
         _install_and_initialize_agent(opts, wheel_file=install_path)
     else:
@@ -428,6 +444,12 @@ def add_install_agent_parser(add_parser_fn: Callable):
         "--pre-release",
         "--pre",
         "--allow-prereleases",
+        action="store_true",
+        help="enables installation of pre-releases and development releases",
+    )
+    install.add_argument(
+        "-e",
+        "--editable",
         action="store_true",
         help="enables installation of pre-releases and development releases",
     )

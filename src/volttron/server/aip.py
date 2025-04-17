@@ -487,7 +487,7 @@ class AIPplatform:
         with tarfile.open(source_file, mode="r:gz") as tar:
             tar.extractall(output_dir)
 
-    def install_agent(self, agent, vip_identity=None, agent_config=None, force=False, pre_release=False):
+    def install_agent(self, agent, vip_identity=None, agent_config=None, force=False, pre_release=False, editable=False):
         """
         Installs the agent into the current environment, set up the agent data directory and
         agent data structure.
@@ -495,7 +495,7 @@ class AIPplatform:
         if agent_config is None:
             agent_config = dict()
 
-        name, name_with_version, site_package_dir = self.install_agent_or_lib_source(agent, force, pre_release)
+        name, name_with_version, site_package_dir = self.install_agent_or_lib_source(agent, force, pre_release, editable)
         # get default vip_identity if vip_identity is not passed
         # default value will be in "agent_name-default-vip-id" file in site-packages dir
         if vip_identity is None:
@@ -607,14 +607,23 @@ class AIPplatform:
             raise ValueError("Identity already exists, but not forced!")
         return agent_uuid
 
-    def install_agent_or_lib_source(self, source: str, force: bool = False, pre_release: bool = False):
+    def install_agent_or_lib_source(self, source: str, force: bool = False, pre_release: bool = False,
+                                    editable:bool = False):
         """
-        Installs a agent or library from wheel or pypi
+        Installs a agent or library from wheel or pypi or as editable source
         Returns installed agent/library's name, name-<version>, package directory in which this is installed
         """
         agent_or_lib_name = None
-        _log.debug(f"Agent source is: {source}")
-        if source.endswith(".whl") and os.path.isfile(source):
+        site_package_dir = None
+        version = None
+        if editable and os.path.isdir(source):
+            cmd = ["poetry", "version"]
+            response = execute_command(cmd, cwd=source)
+            if response:
+                # response is of the format <agent-name> <version number>
+                agent_or_lib_name, version = response.split()
+                site_package_dir = source
+        elif source.endswith(".whl") and os.path.isfile(source):
             agent_or_lib_name = self._construct_package_name_from_wheel(source)
         else:
             # this is a pypi package.
@@ -633,6 +642,8 @@ class AIPplatform:
         cmd_add = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix()]
         if pre_release:
             cmd_add.append("--allow-prereleases")
+        if editable:
+            cmd_add.append("--editable")
         cmd_add.append("add")
         cmd_add.append(source)
 
@@ -732,12 +743,13 @@ class AIPplatform:
             else:
                 raise e
 
-        # now get the version installed, because poetry add could have been for volttron-agent@latest.
-        # we need to find the specific version installed
-        cmd = ["pip", "show", agent_or_lib_name]
-        response = execute_command(cmd)
-        version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
-        site_package_dir = re.search(".*\nLocation: (.*)", response).groups()[0].strip()
+        if not editable:
+            # now get the version installed, because poetry add could have been for volttron-agent@latest.
+            # we need to find the specific version installed
+            cmd = ["pip", "show", agent_or_lib_name]
+            response = execute_command(cmd)
+            version = re.search(".*\nVersion: (.*)", response).groups()[0].strip()
+            site_package_dir = re.search(".*\nLocation: (.*)", response).groups()[0].strip()
         if site_package_dir is None:
             # we should not get here unless pip changed format of pip show output.
             raise RuntimeError(f"Unable to find installed location of {source} based on pip show command")

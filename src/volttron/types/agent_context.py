@@ -69,6 +69,8 @@ class AgentInstallOptions(JSONSerializable):
         name of the source will be used to create the agent.
     tag : Tag | None
         A tag associated with the agent
+    editable: bool = False
+       should be installed as editable package
     force : bool = False
         If the identity is already on the platform, should we overwrite it or not
     allow_prerelease: bool = False
@@ -101,6 +103,7 @@ class AgentInstallOptions(JSONSerializable):
     data: str | None = None
     identity: Identity | None = None
     tag: Tag | None = None
+    editable: bool = False
     force: bool = False
     allow_prerelease: bool = False
     agent_config: dict = field(default_factory=dict)
