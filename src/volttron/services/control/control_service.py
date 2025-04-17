@@ -496,7 +496,8 @@ class ControlService(Agent):
                                            vip_identity=options.identity,
                                            agent_config=options.agent_config,
                                            force=options.force,
-                                           pre_release=options.allow_prerelease)
+                                           pre_release=options.allow_prerelease,
+                                           editable=options.editable)
 
         wheelhouse = Path("wheelhouse").absolute()
         wheelhouse.mkdir(exist_ok=True)
