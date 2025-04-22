@@ -136,8 +136,29 @@ def setup_poetry_project(python_project_path: Path):
         ]
         execute_command(cmd)
 
-    # now do multiple piped commands
-    pip_cmd = ["pip", "list", "--format", "freeze"]
+    # Now add editable source packages
+    # Add these first so that these don't get overwritten by non-editable package's dependency
+    # i.e. if pointing to volttron-core dir, add this to poetry first so that volttron-lib-auth that depends on
+    # volttron-core from pypi won't overwrite the source package
+    pip_cmd = ["pip", "list", "--editable"]
+    p = subprocess.Popen(pip_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout, stderr = p.communicate()  # Use p2's output directly
+    if p.returncode != 0:
+        raise RuntimeError("Error from listing editable packages:", stderr.decode())
+    i = 0
+    for line in stdout.decode().splitlines():
+        print(line)
+        i = i + 1
+        if i < 3:
+            continue
+        poetry_cmd = ["poetry", "add", "--directory", python_project_path.as_posix(), "--editable", line.split()[2]]
+        p = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        stdout, stderr = p.communicate()  # Use p2's output directly
+        if p.returncode != 0:
+            raise RuntimeError("Unable to add editable package to $VOLTTRON_HOME/pyproject.toml:", stderr.decode())
+
+    # now do multiple piped commands. add all non editable packages in one go using piped cmd
+    pip_cmd = ["pip", "list", "--format", "freeze",  "--exclude-editable"]
     # Second command
     grep_cmd = ["grep", "-v", "volttron=="]
     # Third command
