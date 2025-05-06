@@ -16,5 +16,5 @@ class AuthException(Exception):
 __all__: list[str] = [
     "Credentials", "PublicCredentials", "PKICredentials", "CredentialStoreError", "InvalidCredentials",
     "IdentityAlreadyExists", "IdentityNotFound", "AuthService", "Authorizer", "Authenticator", "CredentialsCreator",
-    "CredentialsFactory", "VolttronCredentials", "AuthException"
+    "CredentialsFactory", "VolttronCredentials", "AuthException", "AuthorizationManager"
 ]
