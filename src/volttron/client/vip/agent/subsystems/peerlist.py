@@ -22,17 +22,14 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
-import logging
 import weakref
-
-from zmq import ZMQError
-from zmq.green import ENOTSOCK
 
 from volttron.utils import jsonapi
 
 from ..dispatch import Signal
-from ..results import ResultsDictionary
-from .base import SubsystemBase
+from volttron.client.vip.agent.subsystems.base import SubsystemBase
+from volttron.client.vip.agent import VIPError
+from volttron.client.vip.agent.results import ResultsDictionary
 
 __all__ = ["PeerList"]
 
@@ -57,9 +54,10 @@ class PeerList(SubsystemBase):
 
         try:
             connection.send_vip("", "peerlist", args=["list"], msg_id=result.ident)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(self.core().identity))
+        except OSError as e:
+            # why are we only logging and not throwing the exception
+            # raise VIPError(e.errno, e.strerror, "", "peerlist")
+            pass
         return result
 
     def add_peer(self, peer, message_bus=None):
@@ -72,9 +70,10 @@ class PeerList(SubsystemBase):
                                 "peerlist",
                                 args=["add", peer, message_bus],
                                 msg_id=result.ident)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(self.core().identity))
+        except OSError as e:
+            # why are we only logging and not throwing the exception
+            # raise VIPError(e.errno, e.strerror, "", "peerlist")
+            pass
         return result
 
     def drop_peer(self, peer, message_bus=None):
@@ -87,9 +86,10 @@ class PeerList(SubsystemBase):
                                 "peerlist",
                                 args=["drop", peer, message_bus],
                                 msg_id=result.ident)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(self.core().identity))
+        except OSError as e:
+            # why are we only logging and not throwing the exception
+            # raise VIPError(e.errno, e.strerror, "", "peerlist")
+            pass
         return result
 
     def list_with_messagebus(self):
@@ -98,9 +98,10 @@ class PeerList(SubsystemBase):
 
         try:
             connection.send_vip("", "peerlist", args=["list_with_messagebus"], msg_id=result.ident)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.error("Socket send on non socket {}".format(self.core().identity))
+        except OSError as e:
+            # why are we only logging and not throwing the exception
+            # raise VIPError(e.errno, e.strerror, "", "peerlist")
+            pass
         return result
 
     __call__ = list
