@@ -65,8 +65,11 @@ def get_address(verify_listening=False):
     Otherwise, it is derived from get_home()."""
     from volttron.utils import ClientContext as cc
 
+    import socket
+
     address = os.environ.get("VOLTTRON_VIP_ADDR")
     if not address:
+        # TODO: Shouldn't address be got from config next?
         # Connect via virtual unix socket if linux platform (mac doesn't have @ in it)
         abstract = "@" if sys.platform.startswith("linux") else ""
         address = "ipc://%s%s/run/vip.socket" % (
@@ -74,31 +77,29 @@ def get_address(verify_listening=False):
             cc.get_volttron_home(),
         )
 
-    import zmq.green as zmqgreen
-    import zmq
-
-    # The following block checks to make sure that we can
-    # connect to the zmq based upon the ipc address.
-    #
-    # The zmq.sock.bind() will raise an error because the
-    # address is already bound (therefore volttron is running there)
-    sock = None
+    new_sock = None
+    socket_port = None
+    if address.startswith("tcp://"):
+        socket_address = address[6:] # address after tcp://
+        socket_port = cc.get_config_param("port")
+    else:
+        socket_address = f"{cc.get_volttron_home()}/run/vip.socket"
     try:
-        # TODO: We should not just do the connection test when verfiy_listening is True but always
-        # Though we leave this here because we have backward compatible unit tests that require
-        # the get_address to not have somethiing bound to the address.
-        if verify_listening:
-            ctx = zmqgreen.Context.instance()
-            sock = ctx.socket(zmq.PUB)    # or SUB - does not make any difference
-            sock.bind(address)
-            raise ValueError("Unable to connect to vip address "
-                             f"make sure VOLTTRON_HOME: {cc.get_volttron_home()} "
-                             "is set properly")
-    except zmq.error.ZMQError as e:
-        _log.error(f"Zmq error was {e}\n{traceback.format_exc()}")
+        if socket_port:
+            new_sock = socket.socket(socket.AF_INET)
+            new_sock.bind((socket_address, socket_port))
+        else:
+            new_sock = socket.socket(socket.AF_UNIX)
+            new_sock.bind(socket_address)
+        raise ValueError("Unable to connect to vip address "
+                         f"make sure VOLTTRON_HOME: {cc.get_volttron_home()} "
+                         "is set properly")
+    except OSError as e:
+        if e.errno != 98:  # 98 = address already in use error
+            raise e
     finally:
         try:
-            sock.close()
+            new_sock.close()
         except AttributeError as e:    # Raised when sock is None type
             pass
 
