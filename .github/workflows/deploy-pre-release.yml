@@ -22,6 +22,7 @@ jobs:
   deploy-pre-release:
     if: ${{ github.event.pull_request.merged && ! startsWith(github.ref_name, 'releases/') && github.ref_name != 'main' && ! contains(github.event.pull_request.labels.*.name, 'documentation') }}
     uses: eclipse-volttron/github-tooling/.github/workflows/deploy-pre-release.yml@main
-    secrets:
+    secrets: 
+      #inherit
       git-token: ${{ secrets.AUTO_PROJECT_PAT }}
       pypi-token: ${{ secrets.PYPI_TOKEN }}
