@@ -23,6 +23,7 @@
 # }}}
 
 from gevent import monkey
+
 from volttron.types import MessageBusStopHandler
 
 monkey.patch_socket()
@@ -46,8 +47,6 @@ from volttron.server import server_argparser as config
 from volttron.server.containers import service_repo
 from volttron.server.logs import (LogLevelAction, configure_logging, log_to_file)
 from volttron.server.server_options import ServerOptions
-from volttron.server.tracking import Tracker
-from volttron.types.peer import ServicePeerNotifier
 from volttron.utils import ClientContext as cc, execute_command
 from volttron.utils import (get_version, store_message_bus_config)
 from volttron.utils.persistance import load_create_store
@@ -287,9 +286,21 @@ def start_volttron_process(options: ServerOptions):
                 )
         _log.debug("open file resource limit %d to %d", soft, hard)
 
-    # TODO: Dynamic loading needs to happen instead of this.
+    # import all essential volttron types
+    from volttron.loader import load_subclasses, find_subpackages
+    load_subclasses("volttron.types.MessageBus", "volttron.messagebus")
     if opts.auth_enabled:
         import volttron.services.auth
+        # Load the package
+        auth_pkg = importlib.import_module('volttron.types.auth')
+        # Access the __all__ attribute
+        base_auth_classes = getattr(auth_pkg, '__all__', None)
+        # load classes from volttron-lib-auth + any packages defined by additional libraries
+        subpackages = find_subpackages("volttron.auth")
+        for cls in base_auth_classes:
+            load_subclasses('volttron.types.auth.'+cls, "volttron.auth")
+            for p in subpackages:
+                load_subclasses('volttron.types.auth.'+cls, p)
 
     aip_platform = service_repo.resolve(aip.AIPplatform)
     aip_platform.setup()
@@ -300,7 +311,6 @@ def start_volttron_process(options: ServerOptions):
     if mode & (stat.S_IWGRP | stat.S_IWOTH):
         _log.warning("insecure mode on directory: %s", opts.volttron_home)
 
-    tracker = Tracker()
     external_address_file = os.path.join(opts.volttron_home, "external_address.json")
     _log.debug("external_address_file file %s", external_address_file)
 
@@ -331,21 +341,18 @@ def start_volttron_process(options: ServerOptions):
 
         spawned_greenlets = []
 
-        mb = None
-
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
 
+        from volttron.types import MessageBus
+        # A message bus is required, if we don't have one installed then this will definitely fail.
+        mb: MessageBus = service_repo.resolve(MessageBus)
+
         auth_service = None
+        # TODO move this to laoder code
         if options.auth_enabled:
             from volttron.types.auth import Authenticator
             from volttron.types.auth.auth_service import AuthService
-            import importlib
-
-            # Use volttron.services.auth to load the main auth service.  A user may choose
-            # to not use our default auth service and can install their own service to this
-            # location.
-            loader = importlib.util.find_spec("volttron.services.auth")
             authenticator = service_repo.resolve(Authenticator)
             auth_service = service_repo.resolve(AuthService)
 

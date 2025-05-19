@@ -25,9 +25,8 @@
 
 import gevent
 
-from volttron.messagebus.zmq.router import ERROR, INCOMING, UNROUTABLE
 
-__all__ = ["Tracker"]
+__all__ = ["BaseTracker"]
 
 
 def pick(frames, index):
@@ -46,7 +45,7 @@ def increment(prop, key):
         prop[key] = 1
 
 
-class Tracker(object):
+class BaseTracker(object):
     """Object for sharing data between the router and control objects."""
 
     def __init__(self):
@@ -82,24 +81,6 @@ class Tracker(object):
                 "subsystem": {}
             },
         }
-
-    def hit(self, topic, frames, extra):
-        """Increment counters for given topic and frames."""
-        if self.enabled:
-            if topic == UNROUTABLE:
-                stat = self.stats["unroutable"]
-                increment(stat["error"], extra)
-            else:
-                user = pick(frames, 3)
-                subsystem = pick(frames, 5)
-                if topic == ERROR:
-                    stat = self.stats["error"]
-                    increment(stat["error"], bytes(extra[0]))
-                else:
-                    stat = self.stats["incoming" if topic == INCOMING else "outgoing"]
-                increment(stat["user"], user)
-                increment(stat["subsystem"], subsystem)
-            increment(stat["peer"], pick(frames, 0))
 
     def enable(self):
         """Enable tracking."""

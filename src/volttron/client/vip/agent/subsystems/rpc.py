@@ -23,23 +23,21 @@
 # }}}
 
 import inspect
-import logging
 import os
-import re
 import sys
 import traceback
 import weakref
 
 import gevent.local
 from gevent.event import AsyncResult
-from zmq import ZMQError
-from zmq.green import ENOTSOCK
+
 
 from volttron.utils import jsonapi, jsonrpc
 from volttron.client.known_identities import AUTH, CONTROL, CONTROL_CONNECTION
 from ..decorators import annotate, annotations, dualmethod, spawn
-from ..results import ResultsDictionary, counter
-from .base import SubsystemBase
+from volttron.client.vip.agent.results import ResultsDictionary, counter
+from volttron.client.vip.agent.subsystems.base import SubsystemBase
+from volttron.client.vip.agent import VIPError
 
 __all__ = ["RPC"]
 
@@ -356,8 +354,9 @@ class RPC(SubsystemBase):
                         user=message.user,
                         copy=False,
                     )
-                except ZMQError as ex:
-                    _log.error("ZMQ error: {}".format(ex))
+                except OSError as e:
+                    # why are we only logging and not throwing the exception
+                    # raise VIPError(e.errno, e.strerror, "", "external_rpc")
                     pass
         except KeyError:
             pass
@@ -373,10 +372,10 @@ class RPC(SubsystemBase):
             try:
                 if self._isconnected:
                     self.core().connection.send_vip_object(message, copy=False)
-
-            except ZMQError as exc:
-                if exc.errno == ENOTSOCK:
-                    _log.debug("Socket send on non-socket %s", self.core().identity)
+            except OSError as e:
+                # why are we only logging
+                pass
+                #raise VIPError(e.errno, e.strerror, "", "RPC")
 
     def _handle_error(self, sender, message, error, **kwargs):
         result = self._outstanding.pop(message.id, None)
@@ -422,9 +421,10 @@ class RPC(SubsystemBase):
             if self._isconnected:
                 try:
                     self.core().connection.send_vip(peer, "RPC", [request], msg_id=ident)
-                except ZMQError as exc:
-                    if exc.errno == ENOTSOCK:
-                        _log.debug("Socket send on non-socket %r", self.core().identity)
+                except OSError as e:
+                    pass
+                    # we were only logging. why?
+                    # raise VIPError(e.errno, e.strerror, peer, "RPC")
         return results or None
 
     def call(self, peer, method, *args, **kwargs):
@@ -464,9 +464,10 @@ class RPC(SubsystemBase):
 
         try:
             self.core().connection.send_vip(peer, subsystem, args=frames, msg_id=ident)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.debug("Socket send on non-socket %r", self.core().identity)
+        except OSError as e:
+            pass
+            # we were only logging. why?
+            # raise VIPError(e.errno, e.strerror, peer, "RPC")
 
         return result
 
@@ -502,6 +503,7 @@ class RPC(SubsystemBase):
 
         try:
             self.core().connection.send_vip(peer, subsystem, args=frames)
-        except ZMQError as exc:
-            if exc.errno == ENOTSOCK:
-                _log.debug("Socket send on non-socket %r", self.core().identity)
+        except OSError as e:
+            pass
+            # we were only logging. why?
+            # raise VIPError(e.errno, e.strerror, peer, "RPC")
