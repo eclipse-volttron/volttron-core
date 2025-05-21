@@ -104,8 +104,6 @@ class ServerOptions:
 
             if isinstance(self.address, str):
                 self.address = [self.address]
-            elif not self.address:
-                self.address = ["tcp://127.0.0.1:22916"]
 
         else:
             if not self.initialized:

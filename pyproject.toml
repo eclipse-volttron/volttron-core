@@ -31,7 +31,7 @@ include = [
 optional = true
 
 [tool.poetry.dependencies]
-poetry = ">=2.0,<3.0"
+poetry = "^2.0"
 python = "^3.10"
 gevent = ">=24.2.1,<24.3"
 PyYAML = "^6.0"

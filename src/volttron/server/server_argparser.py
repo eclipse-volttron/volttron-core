@@ -385,7 +385,7 @@ class ArgumentParser(_argparse.ArgumentParser):
                 cli_args.append(arg_string)
                 continue
             # Some kind of option was encountered, so deal with it
-            action, option_string, explicit_arg = option_tuple
+            action, option_string, sep, explicit_arg = option_tuple
             if explicit_arg is not None:
                 args = [explicit_arg]
             elif action.nargs in [_argparse.REMAINDER, _argparse.PARSER]:
