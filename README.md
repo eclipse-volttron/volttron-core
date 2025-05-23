@@ -29,7 +29,7 @@ export VOLTTRON_HOME=</path/to/volttron/home>
 pip install volttron
 ```
 
-Note you can also run ```pip install volttron-zmq``` or install the three packages explicitly using ```pip install volttron-core volttron-lib-zmq volttron-lib-auth```
+Note: you can also run ```pip install volttron-zmq``` or install the three packages explicitly using ```pip install volttron-core volttron-lib-zmq volttron-lib-auth```
 
 ### Quick Start
 
