@@ -30,6 +30,7 @@ pip install volttron
 ```
 
 Note you can also run ```pip install volttron-core volttron-lib-zmq volttron-lib-auth```
+To install all three packages you could use the wrapper package volttron-zmq ```pip install volttron-zmq```
 
 ### Quick Start
 
