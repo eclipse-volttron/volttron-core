@@ -17,11 +17,101 @@ env:
   LC_ALL: en_US.utf-8
   PYTHON_VERSION: '3.10'
   OWNER: eclipse-volttron
-
-permissions:
-  contents: write
-
+  POETRY_VERSION: '2.1.1'
+  
 jobs:
+
   deploy-pre-release:
     if: ${{ github.event.pull_request.merged && ! startsWith(github.ref_name, 'releases/') && github.ref_name != 'main' && ! contains(github.event.pull_request.labels.*.name, 'documentation') }}
-    uses: eclipse-volttron/github-tooling/.github/workflows/deploy-pre-release.yml@main
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+
+      #----------------------------------------------
+      #       check-out repo and set-up python
+      #----------------------------------------------
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        id: setup-python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      #----------------------------------------------
+      #  -----  install & configure poetry  -----
+      #----------------------------------------------
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: ${{ env.POETRY_VERSION }}
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          installer-parallel: true
+
+      #----------------------------------------------
+      #       load cached venv if cache exists
+      #----------------------------------------------
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}
+
+      #----------------------------------------------
+      # install dependencies if cache does not exist
+      #----------------------------------------------
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root --without dev
+
+      #----------------------------------------------
+      # install your root project, if required
+      #----------------------------------------------
+      - name: Install library
+        run: |
+          poetry install --no-interaction --without dev
+
+      - name: bump pyproject.toml version
+        run: |
+          current_version=$(poetry version --short)
+          echo $current_version
+          poetry version prerelease --no-interaction
+          NEW_TAG=v$(poetry version --short)
+          echo "NEW_TAG=$(echo ${NEW_TAG})" >> $GITHUB_ENV
+          echo "source branch is ${{ github.ref_name }}"
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: bumped pre-release version to ${{ env.NEW_TAG }}
+          branch: ${{ github.ref_name }}
+
+      #---------------------------------------------------------------
+      # create build artifacts to be included as part of release
+      #---------------------------------------------------------------
+      - name: Create build artifacts
+        run: |
+          poetry build -vvv
+
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "dist/*.gz,dist/*.whl"
+          artifactErrorsFailBuild: true
+          generateReleaseNotes: true
+          commit: ${{ github.ref }}
+          prerelease: true
+          tag: ${{ env.NEW_TAG }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish pre-release to pypi
+        if: github.repository_owner == "${{env.OWNER}}"
+        run: |
+          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+          poetry publish
