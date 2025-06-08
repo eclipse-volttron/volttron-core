@@ -19,7 +19,7 @@ from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreato
 from volttron.types.auth.auth_service import (AuthService, Authenticator, AuthorizationManager, Authorizer)
 from volttron.types import (AbstractAgent, AbstractCore, AgentBuilder, AgentExecutor, AgentStarter, MessageBus)
 
-from volttron.utils import get_logger
+
 
 _log = logging.getLogger(__name__)
 
