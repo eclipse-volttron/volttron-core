@@ -8,12 +8,6 @@ import os
 import volttron.utils.jsonapi as jsonapi
 
 
-def get_logger() -> Logger:
-    frame = inspect.stack()[1]
-    module = inspect.getmodule(frame[0])
-    return logging.getLogger(module.__name__)
-
-
 def get_default_client_log_config(level=logging.DEBUG) -> dict:
     return {
         "version": 1,

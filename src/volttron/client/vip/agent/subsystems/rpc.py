@@ -23,6 +23,7 @@
 # }}}
 
 import inspect
+import logging
 import os
 import sys
 import traceback
@@ -42,9 +43,9 @@ from volttron.client.vip.agent import VIPError
 __all__ = ["RPC"]
 
 _ROOT_PACKAGE_PATH = (os.path.dirname(__import__(__name__.split(".", 1)[0]).__path__[-1]) + os.sep)
-from volttron.client.logs import get_logger
 
-_log = get_logger()
+
+_log = logging.getLogger(__name__)
 
 
 def _isregex(obj):

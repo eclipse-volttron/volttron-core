@@ -35,7 +35,7 @@ from gevent.queue import Queue
 from volttron.client.known_identities import PLATFORM_TAGGING, AUTH
 from volttron.client.messaging.health import STATUS_BAD
 from volttron.types.auth import AuthException
-from volttron.utils import jsonapi, get_logger
+from volttron.utils import jsonapi
 from volttron.utils.scheduling import periodic
 from volttron.types.message import Message
 
@@ -48,7 +48,7 @@ __all__ = ["PubSub"]
 min_compatible_version = "3.0"
 max_compatible_version = ""
 
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 def encode_peer(peer):

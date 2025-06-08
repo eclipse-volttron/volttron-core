@@ -6,6 +6,7 @@ This module contains a factory registration function and several instances of it
 includes a function for logging traces.
 """
 import inspect
+import logging
 from typing import TypeVar
 
 import gevent
@@ -20,7 +21,7 @@ from volttron.types import (AbstractAgent, AbstractCore, AgentBuilder, AgentExec
 
 from volttron.utils import get_logger
 
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 T = TypeVar('T')
 

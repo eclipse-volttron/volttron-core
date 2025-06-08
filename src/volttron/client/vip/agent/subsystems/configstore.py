@@ -46,9 +46,7 @@ It is responsible for processing change notifications from the platform
 __docformat__ = "reStructuredText"
 __version__ = "1.0"
 
-from volttron.client.logs import get_logger
-
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 VALID_ACTIONS = ("NEW", "UPDATE", "DELETE")
 

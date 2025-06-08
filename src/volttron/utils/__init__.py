@@ -57,7 +57,7 @@ def get_logger() -> logging.Logger:
     return logging.getLogger(module.__name__)
 
 
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 @contextmanager

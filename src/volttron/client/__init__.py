@@ -40,10 +40,8 @@ for module, fn in patches:
     if not monkey.is_module_patched(module):
         fn()
 
-import logging
 from urllib.parse import urlparse
 
-from volttron.client.logs import get_logger
 from volttron.client.vip.agent.core import Core
 from volttron.client.vip.agent.subsystems.auth import Auth
 from volttron.client.vip.agent.subsystems.configstore import ConfigStore
@@ -63,5 +61,3 @@ __all__: List[str] = [
     "Agent", "AbstractAgent", "Core", "RPC", "Hello", "PeerList", "Ping", "PubSub", "Heartbeat", "Health",
     "ConfigStore", "Auth", "Query", "setup_logging"
 ]
-
-_log = get_logger()

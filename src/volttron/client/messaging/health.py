@@ -44,9 +44,8 @@ UNKNOWN_STATUS = STATUS_UNKNOWN
 ACCEPTABLE_STATUS = (GOOD_STATUS, BAD_STATUS, UNKNOWN_STATUS, STARTING_STATUS)
 
 ALERT_KEY = "alert_key"
-from volttron.client.logs import get_logger
 
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 class Status(object):

@@ -40,9 +40,7 @@ The auth subsystem allows an agent to quickly query authorization state
 __docformat__ = "reStructuredText"
 __version__ = "1.1"
 
-from volttron.client.logs import get_logger
-
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 class Auth(SubsystemBase):
