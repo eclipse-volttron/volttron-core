@@ -39,11 +39,11 @@ def factory_registration(registy_name: str, protocol: T = None, singleton: bool 
     @rtype: function
     """
     if protocol:
-        _log.info(
+        _log.debug(
             f"Setting registry for {registy_name} using protocol: {protocol.__name__} as singleton: {singleton} allowing many: {allow_many}"
         )
     else:
-        _log.info(
+        _log.debug(
             f"Setting registry for {registy_name} without protocol as singleton: {singleton} allowing many: {allow_many}"
         )
 

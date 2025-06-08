@@ -52,23 +52,24 @@ class ServerOptions:
     :ivar service_config: The Path to the service config file for loading services into the context.
     :vartype service_service: Path
     """
-    volttron_home: Path = None
-    instance_name: str = None
-    local_address: str = None
+    volttron_home: Path | None = None
+    instance_name: str | None = None
+    local_address: str | None = None
     address: list[str] = field(default_factory=list)
     agent_isolation_mode: bool = False
     # Module that holds the zmq based classes, though we shorten it assuming
     # it's in volttron.messagebus
     messagebus: str = "zmq"
     auth_enabled: bool = True
-    config_file: Path = None
+    config_file: Path | None = None
     initialized: bool = False
-    service_address: str = None
+    service_address: str | None = None
     server_messagebus_id: str = "vip.server"
     agent_monitor_frequency: int = 30
-    poetry_project_path: Path = None
-
-    # services: list[ServiceData] = field(default_factory=list)
+    poetry_project_path: Path | None = None
+    enable_federation: bool = False
+    federation_url: str | None  = None
+    
 
     def __post_init__(self):
         """
