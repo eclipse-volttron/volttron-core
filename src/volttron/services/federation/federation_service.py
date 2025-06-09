@@ -12,7 +12,7 @@ from volttron.client.known_identities import PLATFORM_FEDERATION, PLATFORM
 from volttron.client.vip.agent import Agent, Core
 from volttron.server.server_options import ServerOptions
 from volttron.types.auth.auth_service import AuthService
-from volttron.types.auth.auth_credentials import CredentialsFactory
+from volttron.types import MessageBus
 from volttron.utils import set_agent_identity
 
 _log = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class FederationService(Agent):
     class Meta:
         identity = PLATFORM_FEDERATION
     
-    def __init__(self, options: ServerOptions, auth_service: AuthService, **kwargs):
+    def __init__(self, options: ServerOptions, auth_service: AuthService, messagebus: MessageBus, **kwargs):
         
         kwargs["identity"] = self.Meta.identity
         with set_agent_identity(self.Meta.identity):
@@ -72,11 +72,13 @@ class FederationService(Agent):
         
         self._options = options
         self._auth_service = auth_service
+        self._messagebus = messagebus
         self._connected_platforms: Dict[str, _PlatformInstance] = {}
         self._is_running = False
         self._registry_url = None
         self._httpx_client = httpx.Client(timeout=10.0)
         self._federation_config_path = Path(self._options.volttron_home) / "federation_config.json"
+        self._federation_bridge = None 
         self._retry_period = DEFAULT_RETRY_PERIOD
         self._registry_connection_successful = False
         self._registry_last_attempt = 0
@@ -132,6 +134,11 @@ class FederationService(Agent):
         """Handle startup tasks"""
         _log.info(f"Starting Federation Service with identity {self.core.identity}")
         self._is_running = True
+        
+        self._federation_bridge = self._messagebus.get_federation_bridge()
+        if not self._federation_bridge:
+            _log.error("Federation bridge not available, cannot start federation service")
+            return
         
         # If we have a registry URL, register and discover platforms
         if self._registry_url:

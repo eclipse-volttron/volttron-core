@@ -276,7 +276,8 @@ class MessageBus(ABC):
     _stop_handler: MessageBusStopHandler
 
 #    @abstractmethod
-    def create_federation_bridge(self) -> None:
+    @abstractmethod
+    def create_federation_bridge(self) -> Optional[FederationBridge]:
         """
         Create a federation bridge appropriate for this message bus
         
@@ -322,6 +323,7 @@ class MessageBusStopHandler(ABC):
 from volttron.types.auth.auth_credentials import Credentials, CredentialsFactory
 from volttron.types.agent_context import AgentContext
 from volttron.types.message import Message
-#from volttron.types.federation import FederationBridge
+from volttron.types.auth.auth_service import AuthService
+from volttron.types.federation import FederationBridge
 
 import volttron.types.known_host
