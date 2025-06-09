@@ -382,7 +382,7 @@ def start_service_agents() -> list[Greenlet]:
     for lookup, cls in service.registry.items():
         if isinstance(cls, type) and issubclass(cls,
                                                 AbstractAgent) and cls.Meta.identity not in (CONFIGURATION_STORE, AUTH):
-            _log.debug(f"- {cls.__name__}")
+            _log.debug(f"Starting Service Agent - {cls.__name__}")
             obj = service_repo.resolve(cls)
             event = gevent.event.Event()
             task = gevent.spawn(obj.core.run, event)

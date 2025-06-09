@@ -199,6 +199,16 @@ def start_volttron_process(options: ServerOptions):
     # Change working dir
     os.chdir(opts.volttron_home)
 
+    if opts.enable_federation:
+        if not opts.address or len(opts.address) == 0:
+            _log.error("Cannot enable federation: no external address available.")
+            _log.error("Use --address to specify an external address for other platforms to connect to.")
+            _log.error("Federation will not be enabled.")
+            # Disable federation to prevent further attempts
+            opts.enable_federation = False
+            sys.exit(1)
+            
+
     # vip_address is meant to be a list so make it so.
     if not isinstance(opts.address, list):
         opts.address = [opts.address]
@@ -334,6 +344,7 @@ def start_volttron_process(options: ServerOptions):
             ConfigStoreService
         from volttron.services.control.control_service import ControlService
         from volttron.services.health.health_service import HealthService
+        from volttron.services.federation import FederationService
         from volttron.types.known_host import \
             KnownHostProperties as known_host_properties
         from volttron.utils import jsonapi
@@ -616,6 +627,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     # parser.add_argument(
     #    '--volttron-home', env_var='VOLTTRON_HOME', metavar='PATH',
     #    help='VOLTTRON configuration directory')
+    
     parser.add_argument("--auth-enabled",
                         action="store_true",
                         inverse="--auth-disabled",
@@ -651,7 +663,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         metavar="MESSAGE_BUS_ADDR",
         action="append",
         default=[],
-        help="Address for binding to the message bus.",
+        help="Address for binding to the message bus. Required for Federation.",
     )
     agents.add_argument(
         "--local-address",
@@ -663,6 +675,23 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         "--instance-name",
         default=options.instance_name,
         help="The name of the VOLTTRON instance this command is starting up.",
+    )
+    agents.add_argument(
+        "--enable-federation",
+        action="store_true",
+        inverse="--disable-federation",
+        help="Enable platform federation for connecting multiple VOLTTRON instances",
+    )
+    agents.add_argument(
+        "--disable-federation",
+        action="store_false",
+        dest="enable_federation",
+        help=argparse.SUPPRESS,
+    )
+    agents.add_argument(
+        "--federation-url",
+        default=None,
+        help="URL of federation registry service to connect to. Requires --address to be specified.",
     )
     # TODO: Determine if we need this
     # agents.add_argument(
@@ -705,7 +734,9 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
                         msgdebug=None,
                         setup_mode=False,
                         agent_isolation_mode=False,
-                        server_messagebus_id="vip.server")
+                        server_messagebus_id="vip.server",
+                        enable_federation=False,
+                        federation_url=None)
 
     return parser
 

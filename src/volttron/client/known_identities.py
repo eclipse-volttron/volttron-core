@@ -47,6 +47,7 @@ PLATFORM_WEB = "platform.web"
 CONFIGURATION_STORE = "platform.config_store"
 KEY_DISCOVERY = "keydiscovery"
 PROXY_ROUTER = "zmq.proxy.router"
+PLATFORM_FEDERATION = "platform.federation"
 
 ALL_KNOWN_IDENTITIES = sorted((
     ROUTER,
@@ -65,6 +66,7 @@ ALL_KNOWN_IDENTITIES = sorted((
     PLATFORM_HEALTH,
     KEY_DISCOVERY,
     PROXY_ROUTER,
+    PLATFORM_FEDERATION
 ))
 
 PROCESS_IDENTITIES = sorted((
@@ -75,4 +77,5 @@ PROCESS_IDENTITIES = sorted((
     PLATFORM_WEB,
     KEY_DISCOVERY,
     PROXY_ROUTER,
+    PLATFORM_FEDERATION,
 ))
