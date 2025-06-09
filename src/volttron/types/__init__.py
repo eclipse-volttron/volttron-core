@@ -37,10 +37,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import os
+from pathlib import Path
 
 from gevent.subprocess import Popen
 
-from pathlib import Path
 
 Identity = str
 Tag = str
@@ -200,6 +200,40 @@ class Connection(ABC):
     def receive_vip_message(self) -> Message:
         ...
 
+    # @abstractmethod
+    # def connect_remote_platform(self, platform_address: str, platform_id: str, 
+    #                            public_credential: str) -> bool:
+    #     """
+    #     Connect to a remote platform with authentication
+        
+    #     :param platform_address: Address of the remote platform
+    #     :param platform_id: ID of the remote platform
+    #     :param public_credential: Public credential of the remote platform for authentication
+    #     :return: True if connection succeeded
+    #     """
+    #     ...
+        
+    # @abstractmethod
+    # def disconnect_remote_platform(self, platform_id: str) -> bool:
+    #     """
+    #     Disconnect from a remote platform
+        
+    #     :param platform_id: ID of the platform to disconnect from
+    #     :return: True if disconnection succeeded
+    #     """
+    #     ...
+        
+    # @abstractmethod
+    # def accept_remote_platform_connection(self, platform_id: str, public_credential: str) -> bool:
+    #     """
+    #     Configure the connection to accept connections from a specific remote platform
+        
+    #     :param platform_id: ID of the remote platform
+    #     :param public_credential: Public credential of the remote platform for verification
+    #     :return: True if successfully configured
+    #     """
+    #     ...
+
 
 class ConnectionBuilder(ABC):
 
@@ -241,6 +275,15 @@ class MessageBus(ABC):
     # called.
     _stop_handler: MessageBusStopHandler
 
+#    @abstractmethod
+    def create_federation_bridge(self) -> None:
+        """
+        Create a federation bridge appropriate for this message bus
+        
+        :return: Federation bridge implementation or None if federation not supported
+        """
+        pass
+
     @abstractmethod
     def start(self):    # ServerOptions):
         ...
@@ -279,5 +322,6 @@ class MessageBusStopHandler(ABC):
 from volttron.types.auth.auth_credentials import Credentials, CredentialsFactory
 from volttron.types.agent_context import AgentContext
 from volttron.types.message import Message
+#from volttron.types.federation import FederationBridge
 
 import volttron.types.known_host
