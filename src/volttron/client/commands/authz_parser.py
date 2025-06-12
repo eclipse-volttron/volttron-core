@@ -9,8 +9,7 @@ from volttron.utils.context import ClientContext as cc
 import volttron.types.auth.authz_types as authz
 
 # Note: rpc call in volttron-lib-auth/src/volttron/services/auth/auth_service.py
-from volttron.services.auth.auth_service import AUTH, VolttronAuthService
-from volttron.utils.jsonrpc import RemoteError
+from volttron.auth.auth_service import AUTH, VolttronAuthService
 
 
 def add_authz_parser(add_parser_fn, filterable):

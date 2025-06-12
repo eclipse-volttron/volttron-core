@@ -290,17 +290,17 @@ def start_volttron_process(options: ServerOptions):
     from volttron.loader import load_subclasses, find_subpackages
     load_subclasses("volttron.types.MessageBus", "volttron.messagebus")
     if opts.auth_enabled:
-        import volttron.services.auth
+        # Shouldn't default VolttronAuthService impl of AuthService also be loaded dynamically?
+        # If so it should be moved to volttron.auth and not be in volttron.services.auth
+        #import volttron.services.auth
         # Load the package
         auth_pkg = importlib.import_module('volttron.types.auth')
         # Access the __all__ attribute
         base_auth_classes = getattr(auth_pkg, '__all__', None)
         # load classes from volttron-lib-auth + any packages defined by additional libraries
-        subpackages = find_subpackages("volttron.auth")
         for cls in base_auth_classes:
             load_subclasses('volttron.types.auth.'+cls, "volttron.auth")
-            for p in subpackages:
-                load_subclasses('volttron.types.auth.'+cls, p)
+
 
     aip_platform = service_repo.resolve(aip.AIPplatform)
     aip_platform.setup()
@@ -332,7 +332,6 @@ def start_volttron_process(options: ServerOptions):
         from volttron.server.decorators import start_service_agents
         from volttron.services.config_store.config_store_service import \
             ConfigStoreService
-        from volttron.types.auth import CredentialsStore
         from volttron.services.control.control_service import ControlService
         from volttron.services.health.health_service import HealthService
         from volttron.types.known_host import \
