@@ -48,7 +48,7 @@ def find_subpackages(base_package_name):
     return subpackages
 
 
-def load_subclasses(base_class_with_package, package):
+def load_subclasses(base_class_with_package, package_prefix):
     """
     Given a base class (ex. volttron.types.MessageBus) return the concrete subclass available in
     path(example ZMQMessageBus).
@@ -59,7 +59,7 @@ def load_subclasses(base_class_with_package, package):
     there by avoiding modules with blocking top level code such as while True: loop
 
     :param base_class_with_package: Baseclass name with package. Example: volttron.types.MessageBus
-    :param package: prefix of package where to expect concrete implementation. Example: volttron.messagebus
+    :param package_prefix: prefix of package where to expect concrete implementation. Example: volttron.messagebus
     :return: set of subclasses
     """
 
@@ -68,38 +68,42 @@ def load_subclasses(base_class_with_package, package):
     m = importlib.import_module(module)
     base_class = getattr(m, base_class_with_package[base_class_with_package.rindex(".") + 1:])
 
-    package_mod = importlib.import_module(package)
-    package_path = package_mod.__path__
-    package_path = package_path[0]
+    package = importlib.import_module(package_prefix)
+    # loop through package_name prefix subpackages from all loaded libraries
+    # for example, if package_prefix is volttron.auth package_path could return path to volttron.auth in both
+    # volttron-lib-auth and volttron-lib-zmq
     base_class_name = base_class.__name__
+    all_subclasses = set()
+    for filefinder, subpackage_name, is_pkg in pkgutil.walk_packages(package.__path__, package.__name__ + "."):
+        if is_pkg:
+            module_name = subpackage_name
+            file_path = os.path.join(filefinder.path, "__init__.py")
+            if os.path.isfile(file_path):
+                all_subclasses.union(inspect_module_for_subclasses(module_name, file_path, base_class, base_class_name))
+        else:
+            module_name = subpackage_name
+            file_path = os.path.join(filefinder.path, subpackage_name.split('.')[-1] + ".py")
+            all_subclasses.union(inspect_module_for_subclasses(module_name, file_path, base_class, base_class_name))
+
+    return all_subclasses
+
+
+def inspect_module_for_subclasses(module_name, file_path, base_class, base_class_name):
     subclasses = set()
+    with open(file_path, 'r') as source_file:
+        try:
+            tree = ast.parse(source_file.read(), filename=file_path)
 
-    for root, _, files in os.walk(package_path):
-        for file in files:
-            if file.endswith('.py'):
-                file_path = os.path.join(root, file)
-
-                # Skip __init__.py in module name conversion
-                if file == '__init__.py':
-                    module_name = root.replace(os.sep, '.')
-                else:
-                    module_name = file_path.replace(os.sep, '.')[:-3]  # Convert path to module format
-                module_name = module_name[module_name.index(package):]  # Adjust to get full package name
-
-                with open(file_path, 'r') as source_file:
-                    try:
-                        tree = ast.parse(source_file.read(), filename=file_path)
-
-                        for node in ast.walk(tree):
-                            if is_subclass(node, base_class_name):
-                                module = importlib.import_module(module_name)
-                                for name, obj in inspect.getmembers(module, inspect.isclass):
-                                    if issubclass(obj, base_class) and obj is not base_class:
-                                        subclasses.add(obj)
-                    except SyntaxError as e:
-                        print(f"Syntax error in file {file_path}: {e}")
-
-    return subclasses
+            for node in ast.walk(tree):
+                if is_subclass(node, base_class_name):
+                    module = importlib.import_module(module_name)
+                    for name, obj in inspect.getmembers(module, inspect.isclass):
+                        if issubclass(obj, base_class) and obj is not base_class:
+                            subclasses.add(obj)
+        except SyntaxError as e:
+            _log.err(f"Syntax error in file {file_path}: {e}")
+            raise e
+        return subclasses
 
 
 def load_dir(package: str, pth: Path):

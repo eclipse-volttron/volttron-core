@@ -175,6 +175,9 @@ class Container:
 
     def _resolve_arguments(self, fn: callable, **kwargs) -> Result[dict, None]:
         if inspect.isclass(fn):
+            # TODO: get_type_hints returns all params.
+            #  Add logic to skip optional args based on what is enabled
+            #  i.e. auth related class can be missing if auth is not enabled
             required_args = get_type_hints(fn.__init__)
         else:
             required_args = get_type_hints(fn)
@@ -300,7 +303,8 @@ class Container:
                 # the resovable services.
                 resolved_kwargs: Result[dict, None] = self._container._resolve_arguments(
                     self._value.__init__, **self._kwargs)
-
+                if isinstance(resolved_kwargs, Failure):
+                    raise ResolutionError(str(resolved_kwargs))
                 # required_args = get_type_hints(self._value.__init__)
 
                 # _log.debug(f"Required args are: {required_args}")
