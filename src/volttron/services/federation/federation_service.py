@@ -135,7 +135,7 @@ class FederationService(Agent):
         _log.info(f"Starting Federation Service with identity {self.core.identity}")
         self._is_running = True
         
-        self._federation_bridge = self._messagebus.get_federation_bridge()
+        self._federation_bridge = self._messagebus.create_federation_bridge()
         if not self._federation_bridge:
             _log.error("Federation bridge not available, cannot start federation service")
             return
