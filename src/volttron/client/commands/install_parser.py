@@ -48,9 +48,7 @@ class InstallRuntimeError(RuntimeError):
     pass
 
 
-from volttron.client.logs import get_logger
-
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 _stdout = sys.stdout
 _stderr = sys.stderr

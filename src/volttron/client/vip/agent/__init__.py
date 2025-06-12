@@ -24,19 +24,19 @@
 # isort: skip_file
 from __future__ import annotations
 
+import logging
 import os
 
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.agent_context import AgentContext, AgentOptions
 from volttron.types import AbstractAgent
-from volttron.utils import get_logger
 
 from .core import *
 from .decorators import *
 from .errors import *
 from .subsystems import *
 
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 class Agent(AbstractAgent):

@@ -51,13 +51,13 @@ from volttron.utils.version import get_version
 from volttron.types import Identity
 
 
-def get_logger() -> logging.Logger:
-    frame = inspect.stack()[1]
-    module = inspect.getmodule(frame[0])
-    return logging.getLogger(module.__name__)
+# def get_logger() -> logging.Logger:
+#     frame = inspect.stack()[1]
+#     module = inspect.getmodule(frame[0])
+#     return logging.getLogger(module.__name__)
 
 
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -169,5 +169,5 @@ __all__: List[str] = [
     "process_timestamp", "parse_timestamp_string", "execute_command", "get_version", "get_aware_utc_now",
     "get_utc_seconds_from_epoch", "get_address", "wait_for_volttron_startup", "normalize_identity", "ClientContext",
     "format_timestamp", "store_message_bus_config", "is_ip_private", "fix_sqlite3_datetime", "vip_main", "get_module",
-    "get_class", "get_subclasses", "monkey_patch", "get_logger"
+    "get_class", "get_subclasses", "monkey_patch"
 ]

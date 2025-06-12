@@ -30,9 +30,7 @@ from volttron.client.vip.agent import Agent as BaseAgent
 from volttron.types.agent_context import AgentContext, AgentOptions
 from volttron.utils import ClientContext as cc
 
-from volttron.client.logs import get_logger
-
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 class ControlConnection(object):

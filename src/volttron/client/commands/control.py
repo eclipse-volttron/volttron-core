@@ -62,9 +62,10 @@ _stdout = sys.stdout
 _stderr = sys.stderr
 
 # will be volttron.platform.main or main.py instead of __main__
-from volttron.client.logs import get_logger, get_default_client_log_config
+from volttron.client.logs import get_default_client_log_config
 
-_log = get_logger()
+_log = logging.getLogger(__name__)
+
 # Allows server side logging.
 #_log.setLevel(logging.DEBUG)
 

@@ -7,9 +7,7 @@ from volttron.client.vip.agent.core import Core
 from volttron.types.auth.auth_credentials import Credentials
 from volttron.types.factories import (ConnectionBuilder, ControlParser, CoreBuilder)
 
-from volttron.client.logs import get_logger
-
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 T = TypeVar('T')
 

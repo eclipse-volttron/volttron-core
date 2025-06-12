@@ -21,7 +21,7 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
+import logging
 import weakref
 
 from volttron.utils import jsonapi
@@ -33,9 +33,7 @@ from volttron.client.vip.agent.results import ResultsDictionary
 
 __all__ = ["PeerList"]
 
-from volttron.client.logs import get_logger
-
-_log = get_logger()
+_log = logging.getLogger(__name__)
 
 
 class PeerList(SubsystemBase):
