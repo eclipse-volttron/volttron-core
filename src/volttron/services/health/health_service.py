@@ -34,6 +34,7 @@ from volttron.client.vip.agent import Agent, Core, RPC
 # TODO: rmq addition
 # from volttron.utils.rmq_config_params import RMQConfig
 # from volttron.utils.rmq_setup import start_rabbit, RabbitMQStartError
+from volttron.services.auth.auth_service import AuthFile, AuthEntry
 
 _log = logging.getLogger(__name__)
 
@@ -46,6 +47,17 @@ class HealthService(ServiceInterface):
         # Store the health stats for given peers in a dictionary with
         # keys being the identity of the connected agent.
         self._health_dict = defaultdict(dict)
+        entry = AuthEntry(
+            credentials=self.core.publickey,
+            user_id=self.core.identity,
+            capabilities=[{
+                "edit_config_store": {
+                    "identity": self.core.identity
+                }
+            }],
+            comments="Automatically added on health service init"
+        )
+        AuthFile().add(entry, overwrite=True)
 
     def peer_added(self, peer):
         """
