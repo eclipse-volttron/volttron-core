@@ -101,7 +101,7 @@ def inspect_module_for_subclasses(module_name, file_path, base_class, base_class
                         if issubclass(obj, base_class) and obj is not base_class:
                             subclasses.add(obj)
         except SyntaxError as e:
-            _log.err(f"Syntax error in file {file_path}: {e}")
+            _log.error(f"Syntax error in file {file_path}: {e}")
             raise e
         return subclasses
 
