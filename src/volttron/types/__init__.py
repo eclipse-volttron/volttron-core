@@ -38,6 +38,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import os
 from pathlib import Path
+from typing import Any
 
 from gevent.subprocess import Popen
 
@@ -268,6 +269,25 @@ class Service(ABC):
 
         return creds
 
+class MessageBusConfig(ABC):
+    """Abstract base class for messagebus-specific configuration"""
+    
+    @classmethod
+    @abstractmethod
+    def get_defaults(cls) -> dict:
+        """Get default configuration for this messagebus type"""
+        pass
+    
+    @classmethod
+    def create_from_options(cls, options_dict: dict[str, Any]) -> 'MessageBusConfig':
+        """Create messagebus config from a dictionary of options
+        
+        This avoids direct dependency on ServerOptions
+        """
+        defaults = cls.get_defaults()
+        # Merge defaults with provided options
+        config = {**defaults, **options_dict}
+        return cls(**config)
 
 class MessageBus(ABC):
     # This should be set so it is called for the main
