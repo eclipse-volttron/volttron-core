@@ -155,7 +155,7 @@ class CredentialsFactory:
 class CredentialsCreator(ABC):
 
     @abstractmethod
-    def create(*, identity: str, **kwargs) -> Credentials:
+    def create(self, *, identity: str, **kwargs) -> Credentials:
         ...
 
     # def delete(*, identity: str) -> None:

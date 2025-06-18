@@ -293,7 +293,9 @@ class MessageBus(ABC):
     # This should be set so it is called for the main
     # program clean up when either the `stop` method is
     # called.
-    _stop_handler: MessageBusStopHandler
+    def __init__(self):
+        self._stop_handler: Optional[MessageBusStopHandler] = None
+    #_stop_handler: MessageBusStopHandler
 
 #    @abstractmethod
     @abstractmethod
@@ -306,7 +308,7 @@ class MessageBus(ABC):
         pass
 
     @abstractmethod
-    def start(self):    # ServerOptions):
+    def start(self, message_bus_config: MessageBusConfig):
         ...
 
     @abstractmethod
