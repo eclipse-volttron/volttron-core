@@ -23,10 +23,10 @@ DEFAULT_RETRY_PERIOD = 5  # seconds
 class _PlatformInstance:
     """Represents a connected remote VOLTTRON platform"""
     
-    def __init__(self, platform_id: str, address: str, public_credential: str, group: str = DEFAULT_GROUP):
+    def __init__(self, platform_id: str, address: str, public_credentials: str, group: str = DEFAULT_GROUP):
         self.platform_id = platform_id
         self.address = address
-        self.public_credential = public_credential
+        self.public_credentials = public_credentials
         self.group = group
         self.connected = False
         self.last_heartbeat = None
@@ -36,7 +36,7 @@ class _PlatformInstance:
         return {
             "id": self.platform_id,
             "address": self.address,
-            "public_credential": self.public_credential,
+            "public_credentials": self.public_credentials,
             "group": self.group,
             "connected": self.connected,
             "last_heartbeat": self.last_heartbeat
@@ -48,7 +48,7 @@ class _PlatformInstance:
         instance = cls(
             platform_id=data["id"],
             address=data["address"],
-            public_credential=data["public_credential"],
+            public_credentials=data["public_credentials"],
             group=data.get("group", DEFAULT_GROUP)
         )
         instance.connected = data.get("connected", False)
@@ -122,7 +122,7 @@ class FederationService(Agent):
         try:
             config = {
                 'registry_url': self._registry_url,
-                'platforms': [platform.to_dict() for platform in self._connected_platforms.values()]
+                'platforms': [platform.to_dict() for platform in self._connected_platforms.values() if platform.platform_id != self._options.instance_name]
             }
             
             self._federation_config_path.write_text(json.dumps(config, indent=2))
@@ -249,16 +249,16 @@ class FederationService(Agent):
             return False
         
         # Get our platform's public credentials using auth service
-        public_credential = None
+        public_credentials = None
         try:
             # Use auth_service directly instead of VIP
-            public_credential = self._auth_service.get_credentials(identity=PLATFORM).get_public_part()
-            if not public_credential:
+            public_credentials = self._auth_service.get_credentials(identity=PLATFORM).get_public_part()
+            if not public_credentials:
                 _log.error("Auth service returned empty platform public key")
         except Exception as e:
             _log.error(f"Error getting platform public key from auth service: {e}")
             
-        if not public_credential:
+        if not public_credentials:
             _log.error("Cannot register with federation: no public credential available")
             return False
             
@@ -268,7 +268,7 @@ class FederationService(Agent):
             "address": platform_address,
             "group": DEFAULT_GROUP,  # Default group can be customized
             "id": local_platform_id,
-            "public_credentials": public_credential  # Match API field name
+            "public_credentials": public_credentials  # Match API field name
         }
         
         try:
@@ -334,7 +334,7 @@ class FederationService(Agent):
                         
                         # Check if anything has changed that requires reconnection
                         if (existing_platform.address != platform_data["address"] or 
-                            existing_platform.public_credential != platform_data["public_credentials"]):
+                            existing_platform.public_credentials != platform_data["public_credentials"]):
                             
                             _log.info(f"Platform {platform_id} details changed, reconnecting")
                             # Disconnect existing connection
@@ -368,7 +368,7 @@ class FederationService(Agent):
                         platform = _PlatformInstance(
                             platform_id=platform_id,
                             address=platform_data["address"],
-                            public_credential=platform_data["public_credentials"],
+                            public_credentials=platform_data["public_credentials"],
                             group=platform_data.get("group", DEFAULT_GROUP)
                         )
                         
@@ -401,47 +401,48 @@ class FederationService(Agent):
         
         :param platform: _PlatformInstance object containing connection details
         """
-        try:
-            # First, register with auth service
-            _log.debug(f"Registering platform {platform.platform_id} with auth service")
-            self._auth_service.add_federation_platform(
-                platform.platform_id,
-                platform.public_credential
-            )
+        #try:
+        # First, register with auth service
+        _log.debug(f"Registering platform {platform.platform_id} with auth service")
+        self._auth_service.add_federation_platform(
+            platform.platform_id,
+            platform.public_credentials
+        )
+        
+        # Get connection from the message bus
+        # TODO: Hmm we have to think about this part.
+        #connection = self.vip.connection
+        
+        # Configure connection to accept connections from this platform
+        # _log.debug(f"Authorizing platform {platform.platform_id} for incoming connections")
+        # success = connection.accept_remote_platform_connection(
+        #     platform.platform_id, 
+        #     platform.public_credential
+        # )
+        
+        # if not success:
+        #     raise ConnectionError(f"Failed to authorize platform {platform.platform_id}")
+        
+        # # Then connect to the remote platform
+        # _log.debug(f"Connecting to platform {platform.platform_id} at {platform.address}")
+        # success = connection.connect_remote_platform(
+        #     platform.address, 
+        #     platform.platform_id, 
+        #     platform.public_credential
+        # )
+        
+        # if not success:
+        #     raise ConnectionError(f"Connection failed to platform {platform.platform_id}")
             
-            # Get connection from the message bus
-            connection = self.vip.connection
+        # platform.connected = True
+        # platform.last_heartbeat = time.time()
             
-            # Configure connection to accept connections from this platform
-            _log.debug(f"Authorizing platform {platform.platform_id} for incoming connections")
-            success = connection.accept_remote_platform_connection(
-                platform.platform_id, 
-                platform.public_credential
-            )
+        _log.info(f"Successfully established connection to platform {platform.platform_id}")
             
-            if not success:
-                raise ConnectionError(f"Failed to authorize platform {platform.platform_id}")
-            
-            # Then connect to the remote platform
-            _log.debug(f"Connecting to platform {platform.platform_id} at {platform.address}")
-            success = connection.connect_remote_platform(
-                platform.address, 
-                platform.platform_id, 
-                platform.public_credential
-            )
-            
-            if not success:
-                raise ConnectionError(f"Connection failed to platform {platform.platform_id}")
-                
-            platform.connected = True
-            platform.last_heartbeat = time.time()
-                
-            _log.info(f"Successfully established connection to platform {platform.platform_id}")
-            
-        except Exception as e:
-            _log.error(f"Error connecting to platform {platform.platform_id}: {e}")
-            platform.connected = False
-            raise
+        # except Exception as e:
+        #     _log.error(f"Error connecting to platform {platform.platform_id}: {e}")
+        #     platform.connected = False
+        #     raise
     
     def _disconnect_platform(self, platform: _PlatformInstance):
         """Disconnect from a specific platform"""
