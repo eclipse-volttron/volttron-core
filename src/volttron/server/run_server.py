@@ -371,7 +371,7 @@ def start_volttron_process(options: ServerOptions):
 
         from volttron.types import MessageBus
         # A message bus is required, if we don't have one installed then this will definitely fail.
-        mb: MessageBus = service_repo.resolve(MessageBus)
+        mb: MessageBus = service_repo.resolve(MessageBus) # type: ignore
 
         auth_service = None
         # TODO move this to laoder code
@@ -397,10 +397,7 @@ def start_volttron_process(options: ServerOptions):
         del event
         spawned_greenlets.append(task)
 
-        from volttron.types import MessageBus
-
-        # A message bus is required, if we don't have one installed then this will definitely fail.
-        mb: MessageBus = service_repo.resolve(MessageBus)
+    
 
         class StopHandler(MessageBusStopHandler):
 

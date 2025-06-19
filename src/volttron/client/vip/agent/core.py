@@ -491,7 +491,7 @@ class Core(BasicCore):
         # self.messagebus = messagebus
         self.subsystems = {"error": self.handle_error}
 
-        self._connection: Connection = connection_factory.build(credentials)
+        self._connection: Connection = connection_factory.build(credentials=credentials)
         self.identity = credentials.identity
 
         # _log.debug("address: %s", address)
