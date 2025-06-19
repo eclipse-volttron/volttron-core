@@ -298,7 +298,7 @@ def start_volttron_process(options: ServerOptions):
 
     # import all essential volttron types
     from volttron.loader import load_subclasses, find_subpackages
-    load_subclasses("volttron.types.MessageBus", "volttron.messagebus")
+
     if opts.auth_enabled:
         # Shouldn't default VolttronAuthService impl of AuthService also be loaded dynamically?
         # If so it should be moved to volttron.auth and not be in volttron.services.auth
@@ -353,6 +353,21 @@ def start_volttron_process(options: ServerOptions):
 
         # TODO Replace with module level zmq that holds all of the zmq bits in order to start and
         #  run the message bus regardless of whether it's zmq or rmq.
+        load_subclasses("volttron.types.MessageBus", "volttron.messagebus")
+        try:
+            messagebus_config = opts.get_messagebus_config()
+            print(f"Using messagebus: {type(messagebus_config).__name__}")
+        except ValueError as e:
+            print(f"Error: {e}")
+            print("Available messagebus types:")
+            from volttron.types.messagebus import get_system_messagebus_registry
+            registry = get_system_messagebus_registry()
+            for mb_type in registry.keys():
+                print(f"  - {mb_type}")
+            return False
+        
+        # Create messagebus instance
+        #messagebus = messagebus_config.create_messagebus()
 
         from volttron.types import MessageBus
         # A message bus is required, if we don't have one installed then this will definitely fail.
@@ -402,7 +417,7 @@ def start_volttron_process(options: ServerOptions):
         #
         # mb = MessageBusClass(opts, notifier, tracker, protected_topics, external_address_file, config_store.core.stop)
 
-        mb.start()
+        mb.start(messagebus_config)
 
         assert mb.is_running()
 
