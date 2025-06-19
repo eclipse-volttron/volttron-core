@@ -158,6 +158,17 @@ class AuthService(Service):
         ...
 
     @abstractmethod
+    def get_credentials(self, *, identity: Identity) -> Credentials:
+        """
+        Retrieve credentials for the given identity.
+
+        :param identity: The identity to load from the credentials.
+        :return: A credentials object
+        :rtype: Credentials
+        """
+        ...
+
+    @abstractmethod
     def remove_credentials(self, *, identity: Identity):
         ...
 

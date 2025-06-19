@@ -29,7 +29,7 @@ import sys
 from copy import copy
 from pathlib import Path
 
-import mock
+import unittest.mock as mock
 import pytest
 
 from volttron.utils import get_class, get_module, get_subclasses

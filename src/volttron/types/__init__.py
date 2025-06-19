@@ -200,6 +200,40 @@ class Connection(ABC):
     def receive_vip_message(self) -> Message:
         ...
 
+    # @abstractmethod
+    # def connect_remote_platform(self, platform_address: str, platform_id: str, 
+    #                            public_credential: str) -> bool:
+    #     """
+    #     Connect to a remote platform with authentication
+        
+    #     :param platform_address: Address of the remote platform
+    #     :param platform_id: ID of the remote platform
+    #     :param public_credential: Public credential of the remote platform for authentication
+    #     :return: True if connection succeeded
+    #     """
+    #     ...
+        
+    # @abstractmethod
+    # def disconnect_remote_platform(self, platform_id: str) -> bool:
+    #     """
+    #     Disconnect from a remote platform
+        
+    #     :param platform_id: ID of the platform to disconnect from
+    #     :return: True if disconnection succeeded
+    #     """
+    #     ...
+        
+    # @abstractmethod
+    # def accept_remote_platform_connection(self, platform_id: str, public_credential: str) -> bool:
+    #     """
+    #     Configure the connection to accept connections from a specific remote platform
+        
+    #     :param platform_id: ID of the remote platform
+    #     :param public_credential: Public credential of the remote platform for verification
+    #     :return: True if successfully configured
+    #     """
+    #     ...
+
 
 class ConnectionBuilder(ABC):
 
@@ -234,12 +268,41 @@ class Service(ABC):
 
         return creds
 
+class MessageBusConfig(ABC):
+    """Abstract base class for messagebus-specific configuration"""
+    
+    @classmethod
+    @abstractmethod
+    def get_defaults(cls) -> dict:
+        """Get default configuration for this messagebus type"""
+        pass
+    
+    @classmethod
+    def create_from_options(cls, options_dict: dict[str, Any]) -> 'MessageBusConfig':
+        """Create messagebus config from a dictionary of options
+        
+        This avoids direct dependency on ServerOptions
+        """
+        defaults = cls.get_defaults()
+        # Merge defaults with provided options
+        config = {**defaults, **options_dict}
+        return cls(**config)
 
 class MessageBus(ABC):
     # This should be set so it is called for the main
     # program clean up when either the `stop` method is
     # called.
-    _stop_handler: MessageBusStopHandler
+    def __init__(self):
+        self._stop_handler: Optional[MessageBusStopHandler] = None
+
+    @abstractmethod
+    def create_federation_bridge(self) -> Optional[FederationBridge]:
+        """
+        Create a federation bridge appropriate for this message bus
+        
+        :return: Federation bridge implementation or None if federation not supported
+        """
+        pass
 
     @abstractmethod
     def start(self):    # ServerOptions):
@@ -279,5 +342,7 @@ class MessageBusStopHandler(ABC):
 from volttron.types.auth.auth_credentials import Credentials, CredentialsFactory
 from volttron.types.agent_context import AgentContext
 from volttron.types.message import Message
+from volttron.types.auth.auth_service import AuthService
+from volttron.types.federation import FederationBridge
 
 import volttron.types.known_host
