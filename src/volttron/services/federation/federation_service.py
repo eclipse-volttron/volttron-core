@@ -79,6 +79,7 @@ class FederationService(Agent):
         self._httpx_client = httpx.Client(timeout=10.0)
         self._federation_config_path = Path(self._options.volttron_home) / "federation_config.json"
         self._federation_bridge = None 
+        self._federation_enabled = self._options.enable_federation
         self._retry_period = DEFAULT_RETRY_PERIOD
         self._registry_connection_successful = False
         self._registry_last_attempt = 0
@@ -128,26 +129,32 @@ class FederationService(Agent):
             _log.debug("Saved federation configuration")
         except Exception as e:
             _log.error(f"Error saving federation config: {e}")
+
+    def _start_federation(self):
+
+        if self._federation_enabled:
+            self._federation_bridge = self._messagebus.create_federation_bridge()
+            if not self._federation_bridge:
+                _log.error("Federation bridge not available, cannot start federation service")
+                return
+            
+            # If we have a registry URL, register and discover platforms
+            if self._registry_url:
+                # Schedule registration with retry mechanism
+                self._registry_greenlet = gevent.spawn(self._registry_connection_loop)
+            else:
+                # If no registry, just connect to platforms from config
+                self._connect_to_stored_platforms()
+                
+
     
     @Core.receiver("onstart")
     def _on_start(self, sender, **kwargs):
         """Handle startup tasks"""
         _log.info(f"Starting Federation Service with identity {self.core.identity}")
         self._is_running = True
-        
-        self._federation_bridge = self._messagebus.create_federation_bridge()
-        if not self._federation_bridge:
-            _log.error("Federation bridge not available, cannot start federation service")
-            return
-        
-        # If we have a registry URL, register and discover platforms
-        if self._registry_url:
-            # Schedule registration with retry mechanism
-            self._registry_greenlet = gevent.spawn(self._registry_connection_loop)
-        else:
-            # If no registry, just connect to platforms from config
-            self._connect_to_stored_platforms()
-            
+        self._start_federation()        
+
     def _registry_connection_loop(self):
         """Periodically try to register and get platforms from the registry"""
         while self._is_running:
