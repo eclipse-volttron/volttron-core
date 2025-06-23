@@ -1222,7 +1222,8 @@ class AIPplatform:
         creds = self._credentials_store.retrieve_credentials(identity=vip_identity)
         environ["AGENT_CREDENTIALS"] = creds.to_json()
         # TODO: Perhaps we should do something other than this here?
-        environ["VOLTTRON_PLATFORM_ADDRESS"] = self._server_opts.address[0]
+        _log.info(f"server opts: {self._server_opts}")
+        #environ["VOLTTRON_PLATFORM_ADDRESS"] = self._server_opts.address[0]
         # environ["AGENT_CREDENTIALS"] = self._auth.
 
         # environ["VOLTTRON_SERVERKEY"] = KeyStore().public

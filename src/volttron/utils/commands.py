@@ -114,7 +114,7 @@ def vip_main(agent_class, version: str = "0.1", **kwargs):
 
         config = os.environ.pop("AGENT_CONFIG", {})
         identity = os.environ.pop("AGENT_VIP_IDENTITY", None)
-        address = os.environ.pop("VOLTTRON_PLATFORM_ADDRESS", None)
+        address = get_address()
 
         creds = CredentialsFactory.load_from_environ()
         del os.environ["AGENT_CREDENTIALS"]
