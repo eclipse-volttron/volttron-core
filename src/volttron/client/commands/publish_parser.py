@@ -2,7 +2,7 @@
 
 def publish_to_bus(opts):
     print(f"Publishing to {opts.topic} {opts.data}")
-    opts.connection.server.vip.pubsub.publish("pubsub", topic=opts.topic, message=opts.data).get()
+    opts.connection.server.vip.pubsub.publish("pubsub", topic=opts.topic, message=opts.data, all_platforms=True).get()
 
 def add_publish_parser(add_parser_fn):
 
