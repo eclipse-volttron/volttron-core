@@ -50,6 +50,7 @@ from volttron.client.commands.authz_parser import add_authz_parser
 from volttron.client.commands.config_store_parser import add_config_store_parser
 from volttron.client.commands.install_parser import add_install_agent_parser, add_install_lib_parser
 from volttron.client.commands.publish_parser import add_publish_parser
+from volttron.client.commands.subscribe_parser import add_subscribe_parser
 from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFORM_HEALTH)
 from volttron.client.vip.agent.errors import Unreachable, VIPError
 from volttron.client.vip.agent.subsystems.query import Query
@@ -2256,6 +2257,7 @@ def main():
         return subparser.add_parser(*args, **kwargs)
     
     add_publish_parser(add_parser)
+    add_subscribe_parser(add_parser)
     add_install_agent_parser(add_parser)
     add_install_lib_parser(add_parser)
     add_rpc_agent_parser(add_parser)
@@ -2414,7 +2416,19 @@ def main():
 
     # logging.getLogger().setLevel(level=logging.DEBUG)
 
-    opts.connection: ControlConnection = ControlConnection(address=opts.address)
+    if opts.command == 'subscribe':
+        if opts.identity_stage:
+            try:
+                opts.func(opts)
+            except KeyboardInterrupt:
+                sys.stdout.write("Complete\n")
+                sys.exit(0)
+        else:
+            opts.connection: ControlConnection = ControlConnection(address=opts.address)
+
+    else:
+        opts.connection: ControlConnection = ControlConnection(address=opts.address)
+
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
     #     opts.connection = ControlConnection(opts.vip_address)
