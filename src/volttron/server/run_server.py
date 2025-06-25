@@ -470,6 +470,11 @@ def start_volttron_process(options: ServerOptions):
         with open(pid_file, "w+") as f:
             f.write(str(os.getpid()))
 
+        if opts.enable_federation:
+            # Touch the file to cause a reload for the watcher.
+            fedfile = opts.volttron_home / "federation_config.json"
+            fedfile.touch()
+
         _log.debug("Finished Startup of Platform.")
 
         # Wait for any service to stop, signaling exit

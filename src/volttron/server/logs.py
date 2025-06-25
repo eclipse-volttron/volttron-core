@@ -97,10 +97,9 @@ def get_default_loggers_config(level: int) -> dict:
         case 2:
             level_server = logging.INFO
             level_client = logging.DEBUG
-        case 3:
+        case _ if level >= 3:  # Use _ if level >= 3 to match any level 3 or higher
             level_client = logging.DEBUG
             level_server = logging.DEBUG
-
     return {
         "volttron.messagebus": {
             "level": logging.getLevelName(level_server)

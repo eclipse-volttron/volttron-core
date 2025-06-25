@@ -160,24 +160,42 @@ class FederationService(Agent):
         while self._is_running:
             try:
                 if not self._registry_connection_successful:
-                    # Attempt registration if not already successful
-                    success = self.register_with_federation(self._registry_url)
-                    if success:
-                        self._registry_connection_successful = True
-                        _log.info("Successfully registered with federation registry")
-                    else:
-                        _log.warning(f"Failed to register with registry, will retry in {self._retry_period} seconds")
+                    # Handle registration only if not successful yet
+                    self._registry_connection_successful = self._attempt_registration()
                 else:
                     # If already registered, just update platform list
-                    self.discover_and_connect_platforms()
+                    self._discover_platforms()
             except Exception as e:
                 _log.error(f"Error in registry connection loop: {e}")
                 self._registry_connection_successful = False
-                
+                    
             # Sleep before next attempt
             self._registry_last_attempt = time.time()
             gevent.sleep(self._retry_period)
+
+    def _attempt_registration(self) -> bool:
+        """Try to register with federation registry"""
+        if not self._registry_url:
+            return False
             
+        _log.debug(f"Attempting to register with federation registry at {self._registry_url}")
+        success = self.register_with_federation(self._registry_url)
+        
+        if success:
+            _log.info("Successfully registered with federation registry")
+            # Do an initial platform discovery
+            self._discover_platforms()
+        else:
+            _log.warning(f"Failed to register with registry, will retry in {self._retry_period} seconds")
+        
+        return success
+
+    def _discover_platforms(self):
+        """Discover platforms and manage connections"""
+        connected_count = self.discover_and_connect_platforms()
+        _log.debug(f"Platform discovery found {connected_count} platforms")
+    
+    
     def _connect_to_stored_platforms(self):
         """Connect to platforms stored in configuration"""
         for platform_id, platform in list(self._connected_platforms.items()):
@@ -401,70 +419,68 @@ class FederationService(Agent):
         
         :param platform: _PlatformInstance object containing connection details
         """
-        #try:
-        # First, register with auth service
-        _log.debug(f"Registering platform {platform.platform_id} with auth service")
-        self._auth_service.add_federation_platform(
-            platform.platform_id,
-            platform.public_credentials
-        )
-        
-        # Get connection from the message bus
-        # TODO: Hmm we have to think about this part.
-        #connection = self.vip.connection
-        
-        # Configure connection to accept connections from this platform
-        # _log.debug(f"Authorizing platform {platform.platform_id} for incoming connections")
-        # success = connection.accept_remote_platform_connection(
-        #     platform.platform_id, 
-        #     platform.public_credential
-        # )
-        
-        # if not success:
-        #     raise ConnectionError(f"Failed to authorize platform {platform.platform_id}")
-        
-        # # Then connect to the remote platform
-        # _log.debug(f"Connecting to platform {platform.platform_id} at {platform.address}")
-        # success = connection.connect_remote_platform(
-        #     platform.address, 
-        #     platform.platform_id, 
-        #     platform.public_credential
-        # )
-        
-        # if not success:
-        #     raise ConnectionError(f"Connection failed to platform {platform.platform_id}")
+        try:
+            if not self._federation_bridge:
+                _log.error(f"Cannot connect to platform {platform.platform_id}: federation bridge not initialized")
+                return False
             
-        # platform.connected = True
-        # platform.last_heartbeat = time.time()
+            _log.debug(f"Attempting connection to platform {platform.platform_id} at {platform.address}")
             
-        _log.info(f"Successfully established connection to platform {platform.platform_id}")
+            # Use the existing connect method from ZmqFederationBridge
+            success = self._federation_bridge.connect(
+                platform_id=platform.platform_id,
+                platform_address=platform.address,
+                credentials=platform.public_credentials
+            )
             
-        # except Exception as e:
-        #     _log.error(f"Error connecting to platform {platform.platform_id}: {e}")
-        #     platform.connected = False
-        #     raise
+            if success:
+                _log.info(f"Successfully established connection to platform {platform.platform_id}")
+                platform.connected = True
+                platform.last_heartbeat = time.time()
+            else:
+                _log.error(f"Failed to connect to platform {platform.platform_id}")
+                platform.connected = False
+                
+            return success
+                
+        except Exception as e:
+            _log.error(f"Error connecting to platform {platform.platform_id}: {e}", exc_info=True)
+            platform.connected = False
+            return False
+    
+    def _is_platform_connected(self, platform_id: str) -> bool:
+        """Check if a platform is currently connected"""
+        if not self._federation_bridge:
+            return False
+            
+        try:
+            # Use the federation bridge's ping method to check connection health
+            return self._federation_bridge.ping(platform_id)
+        except Exception as e:
+            _log.error(f"Error checking connection to platform {platform_id}: {e}")
+            return False
     
     def _disconnect_platform(self, platform: _PlatformInstance):
         """Disconnect from a specific platform"""
+        if not self._federation_bridge:
+            _log.error(f"Cannot disconnect platform {platform.platform_id}: federation bridge not initialized")
+            return False
+            
         try:
-            # Get connection from the message bus
-            connection = self.vip.connection
+            # Use the federation bridge's disconnect method
+            success = self._federation_bridge.disconnect(platform.platform_id)
             
-            # Disconnect from the remote platform
-            connection.disconnect_remote_platform(platform.platform_id)
-            
-            # Remove from auth service
-            try:
-                self._auth_service.remove_federation_platform(platform.platform_id)
-            except Exception as auth_e:
-                _log.warning(f"Error removing platform {platform.platform_id} from auth service: {auth_e}")
-            
-            platform.connected = False
-            platform.last_heartbeat = None
-            
-            _log.info(f"Disconnected from platform {platform.platform_id}")
+            if success:
+                platform.connected = False
+                platform.last_heartbeat = None
+                _log.info(f"Disconnected from platform {platform.platform_id}")
+            else:
+                _log.warning(f"Failed to disconnect from platform {platform.platform_id}")
+                
+            return success
         except Exception as e:
-            _log.error(f"Error disconnecting from platform {platform.platform_id}: {e}")
+            _log.error(f"Error disconnecting from platform {platform.platform_id}: {e}", exc_info=True)
+            return False
     
     def _disconnect_all_platforms(self):
         """Disconnect from all connected platforms"""
