@@ -18,8 +18,9 @@ from volttron.utils import set_agent_identity
 _log = logging.getLogger(__name__)
 
 DEFAULT_GROUP = "default"
-DEFAULT_RETRY_PERIOD = 5  # seconds
-
+DEFAULT_RETRY_PERIOD = 30  # seconds
+logging.getLogger("httpcore.http11").setLevel(logging.WARNING)
+logging.getLogger("httpcore.connection").setLevel(logging.WARNING)
 class _PlatformInstance:
     """Represents a connected remote VOLTTRON platform"""
     
