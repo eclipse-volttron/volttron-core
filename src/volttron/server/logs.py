@@ -97,10 +97,9 @@ def get_default_loggers_config(level: int) -> dict:
         case 2:
             level_server = logging.INFO
             level_client = logging.DEBUG
-        case 3:
+        case _ if level >= 3:  # Use _ if level >= 3 to match any level 3 or higher
             level_client = logging.DEBUG
             level_server = logging.DEBUG
-
     return {
         "volttron.messagebus": {
             "level": logging.getLevelName(level_server)
@@ -270,7 +269,7 @@ def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandle
     handler = handler_class(file_)
     handler.setLevel(level)
     if "VOLTTRON_SERVER" in os.environ:
-        format_str = "%(asctime)s %(composite_name)s(%(lineno)d) SERVER %(levelname)s: %(message)s"
+        format_str = "%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"
     else:
         format_str = "%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"
     handler.setFormatter(AgentFormatter(fmt=format_str))

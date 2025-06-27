@@ -20,7 +20,8 @@ classifiers = [
 
 packages = [
     { include = "volttron", from = "src" },
-    { include = "volttron/py.typed", from = "src" }
+    { include = "volttron/py.typed", from = "src" },
+    { include = "volttron_core_fixtures", from = "tests" }
 ]
 
 include = [
@@ -52,7 +53,6 @@ cattrs = "^23.2.3"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
-mock = "^4.0.3"
 pre-commit = "^4.0.1"
 yapf = "^0.32.0"
 toml = "^0.10.2"

@@ -47,6 +47,12 @@ class PublicCredentials(Credentials):
 class PKICredentials(PublicCredentials):
     secretkey: str
 
+    def get_public_part(self) -> str:
+        """
+        Returns the public part of the PKI credentials as a dictionary.
+        """
+        return self.publickey
+
     @property
     def type(self):
         return self.__class__
@@ -149,7 +155,7 @@ class CredentialsFactory:
 class CredentialsCreator(ABC):
 
     @abstractmethod
-    def create(*, identity: str, **kwargs) -> Credentials:
+    def create(self, *, identity: str, **kwargs) -> Credentials:
         ...
 
     # def delete(*, identity: str) -> None:

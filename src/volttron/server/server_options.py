@@ -1,5 +1,6 @@
 import argparse
 import configparser
+import logging
 import os
 import socket
 from collections import OrderedDict
@@ -7,6 +8,7 @@ from configparser import ConfigParser
 from dataclasses import dataclass, field, fields
 from pathlib import Path
 
+_log = logging.getLogger(__name__)
 
 class MultiOrderedDict(OrderedDict):
 
@@ -52,23 +54,24 @@ class ServerOptions:
     :ivar service_config: The Path to the service config file for loading services into the context.
     :vartype service_service: Path
     """
-    volttron_home: Path = None
-    instance_name: str = None
-    local_address: str = None
+    volttron_home: Path | None = None
+    instance_name: str | None = None
+    local_address: str | None = None
     address: list[str] = field(default_factory=list)
     agent_isolation_mode: bool = False
     # Module that holds the zmq based classes, though we shorten it assuming
     # it's in volttron.messagebus
     messagebus: str = "zmq"
     auth_enabled: bool = True
-    config_file: Path = None
+    config_file: Path | None = None
     initialized: bool = False
-    service_address: str = None
+    service_address: str | None = None
     server_messagebus_id: str = "vip.server"
     agent_monitor_frequency: int = 30
-    poetry_project_path: Path = None
-
-    # services: list[ServiceData] = field(default_factory=list)
+    poetry_project_path: Path | None = None
+    enable_federation: bool = False
+    federation_url: str | None  = None
+    
 
     def __post_init__(self):
         """
@@ -85,6 +88,9 @@ class ServerOptions:
         if self.poetry_project_path is None:
             self.poetry_project_path = self.volttron_home
 
+        if isinstance(self.volttron_home, str):
+            self.volttron_home = Path(self.volttron_home).absolute()
+            
         # Should be the only location where we create VOLTTRON_HOME
         if not self.volttron_home.is_dir():
             self.volttron_home.mkdir(mode=0o755, exist_ok=True, parents=True)
@@ -112,6 +118,72 @@ class ServerOptions:
                 for fld in ServerOptions.__dataclass_fields__:
                     setattr(self, fld, getattr(options, fld))
 
+    from volttron.types import MessageBusConfig
+    def get_messagebus_config(self) -> MessageBusConfig:
+        """
+        Get messagebus configuration using the global registry system
+        
+        Returns:
+            MessageBusConfig: Configured messagebus instance
+        """
+        from volttron.types.messagebus import get_messagebus_config_class
+        
+        # Get messagebus type from config file or default to zmq
+        messagebus_type = self.messagebus
+        if not messagebus_type:
+            # Check config file for messagebus setting
+            config_file = self.volttron_home / "config"
+            if config_file.exists():
+                from configparser import ConfigParser
+                config = ConfigParser()
+                config.read(config_file)
+                if config.has_option("volttron", "messagebus"):
+                    messagebus_type = config.get("volttron", "messagebus")
+            
+            # Default to zmq if nothing specified
+            messagebus_type = messagebus_type or "zmq"
+        
+        # Load config class from global registry
+        config_class = get_messagebus_config_class(messagebus_type)
+        if not config_class:
+            raise ValueError(
+                f"Unknown messagebus type '{messagebus_type}'. "
+                f"Make sure the appropriate messagebus library is installed and registered."
+            )
+        
+        # Create configuration with server options
+        options = {
+            "instance_name": self.instance_name,
+            "volttron_home": str(self.volttron_home),
+            "address": self.address,
+            "local_address": self.local_address,
+            "enable_federation": self.enable_federation,
+            "federation_url": self.federation_url,
+            "auth_enabled": self.auth_enabled,
+            "service_address": self.service_address,
+            "agent_monitor_frequency": self.agent_monitor_frequency
+        }
+
+    # volttron_home: Path | None = None
+    # instance_name: str | None = None
+    # local_address: str | None = None
+    # address: list[str] = field(default_factory=list)
+    # agent_isolation_mode: bool = False
+    # # Module that holds the zmq based classes, though we shorten it assuming
+    # # it's in volttron.messagebus
+    # messagebus: str = "zmq"
+    # auth_enabled: bool = True
+    # config_file: Path | None = None
+    # initialized: bool = False
+    # service_address: str | None = None
+    # server_messagebus_id: str = "vip.server"
+    # agent_monitor_frequency: int = 30
+    # poetry_project_path: Path | None = None
+    # enable_federation: bool = False
+    # federation_url: str | None  = None
+        
+        return config_class.create_from_options(options)
+    
     def update(self, opts: argparse.Namespace | dict):
         """Update the opts from the passed command line or a dictionary.
 
