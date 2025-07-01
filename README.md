@@ -95,6 +95,11 @@ Note: you can also run ```pip install volttron-zmq``` or install the three packa
     ```bash
     vctl shutdown --platform
     ```
+    
+### Scaled VOLTTRON deployments
+
+Multiple VOLTTRON instances can work together as a federated group and communicate with each other through publish/subscribe method. This is one way to achieve distributed scalable deployments. VOLTTRON also supports automated deployment using ansible. Please refer to 
+[readthedocs](https://eclipse-volttron.readthedocs.io/en/latest/deploying-volttron/scaling-volttron.html) for more details
 
 ## Available Agents
 
