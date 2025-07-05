@@ -32,6 +32,7 @@ import os
 from pathlib import Path
 from typing import List, TYPE_CHECKING
 
+import psutil
 import yaml
 
 from volttron.utils.commands import (is_volttron_running, execute_command, isapipe, wait_for_volttron_startup,
@@ -162,6 +163,24 @@ def update_kwargs_with_config(kwargs, config):
     for k, v in config.items():
         kwargs[k.replace("-", "_")] = v
 
+def is_volttron_running(volttron_home):
+    """
+    Checks if volttron is running for the given volttron home. Checks if a VOLTTRON_PID file exist and if it does
+    check if the PID in the file corresponds to a running process. If so, returns True else returns False
+    :param vhome: volttron home
+    :return: True if VOLTTRON_PID file exists and points to a valid process id
+    """
+
+    pid_file = os.path.join(volttron_home, 'VOLTTRON_PID')
+    if os.path.exists(pid_file):
+        running = False
+        import builtins
+        with builtins.open(pid_file, 'r') as pf:
+            pid = int(pf.read().strip())
+            running = psutil.pid_exists(pid)
+        return running
+    else:
+        return False
 
 __all__: List[str] = [
     "update_kwargs_with_config", "load_config", "parse_json_config", "get_hostname", "strip_comments", "is_regex",
@@ -169,5 +188,5 @@ __all__: List[str] = [
     "process_timestamp", "parse_timestamp_string", "execute_command", "get_version", "get_aware_utc_now",
     "get_utc_seconds_from_epoch", "get_address", "wait_for_volttron_startup", "normalize_identity", "ClientContext",
     "format_timestamp", "store_message_bus_config", "is_ip_private", "fix_sqlite3_datetime", "vip_main", "get_module",
-    "get_class", "get_subclasses", "monkey_patch"
+    "get_class", "get_subclasses", "monkey_patch", "is_volttron_running"
 ]

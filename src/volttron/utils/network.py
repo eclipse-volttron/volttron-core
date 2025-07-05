@@ -91,9 +91,10 @@ def get_address(verify_listening=False):
         else:
             new_sock = socket.socket(socket.AF_UNIX)
             new_sock.bind(socket_address)
-        raise ValueError("Unable to connect to vip address "
-                         f"make sure VOLTTRON_HOME: {cc.get_volttron_home()} "
-                         "is set properly")
+        if verify_listening:
+            raise ValueError("Unable to connect to vip address "
+                             f"make sure VOLTTRON_HOME: {cc.get_volttron_home()} "
+                             "is set properly")
     except OSError as e:
         if e.errno != 98:  # 98 = address already in use error
             raise e
