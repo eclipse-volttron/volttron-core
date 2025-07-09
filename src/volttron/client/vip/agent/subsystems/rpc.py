@@ -283,7 +283,9 @@ class RPC(SubsystemBase):
         """
         if protected_rpcs:
             for method_name in self._exports:
-                if method_name in protected_rpcs:
+                # Don't wrap the method if it is already wrapped by checked_method
+                # ideally we shouldn't be here.
+                if method_name in protected_rpcs and self._exports[method_name].__name__ !="checked_method":
                     self._exports[method_name] = self._add_auth_check(self._exports[method_name])
 
     def _add_protected_rpcs(self, updated_list: list[str]):
