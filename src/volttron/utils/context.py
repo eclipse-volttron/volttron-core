@@ -21,7 +21,7 @@
 #
 # ===----------------------------------------------------------------------===
 # }}}
-
+import sys
 from configparser import ConfigParser
 
 # used to make sure that volttron_home hasn't be modified
@@ -118,6 +118,18 @@ class ClientContext:
                 os.makedirs(str(vhome), exist_ok=True)
 
         return str(vhome)
+
+    @classmethod
+    def get_address(cls) -> str:
+        address = cls.get_config_param("address")
+        if not address:
+            abstract = "@" if sys.platform.startswith("linux") else ""
+            address = "ipc://%s%s/run/vip.socket" % (
+                abstract,
+                cls.get_volttron_home(),
+            )
+        return address
+
 
     @classmethod
     def get_fq_identity(cls, identity, platform_instance_name=None):

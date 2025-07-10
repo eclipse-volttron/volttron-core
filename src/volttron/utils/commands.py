@@ -98,7 +98,7 @@ def isapipe(fd):
 def vip_main(agent_class, version: str = "0.1", **kwargs):
     """Default main entry point implementation for VIP agents."""
     from volttron.client.vip.agent import Agent
-    from volttron.utils import (ClientContext as cc, is_valid_identity, get_address)
+    from volttron.utils import (ClientContext as cc, is_valid_identity)
     from volttron.types.auth.auth_credentials import CredentialsFactory
     try:
         # If stdout is a pipe, re-open it line buffered
@@ -114,7 +114,7 @@ def vip_main(agent_class, version: str = "0.1", **kwargs):
 
         config = os.environ.pop("AGENT_CONFIG", {})
         identity = os.environ.pop("AGENT_VIP_IDENTITY", None)
-        address = get_address()
+        address = cc.get_address()
 
         creds = CredentialsFactory.load_from_environ()
         del os.environ["AGENT_CREDENTIALS"]

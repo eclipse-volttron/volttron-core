@@ -47,7 +47,7 @@ from volttron.server import server_argparser as config
 from volttron.server.containers import service_repo
 from volttron.server.logs import (LogLevelAction, configure_logging, log_to_file)
 from volttron.server.server_options import ServerOptions
-from volttron.utils import ClientContext as cc, execute_command
+from volttron.utils import ClientContext as cc, execute_command, is_volttron_running
 from volttron.utils import (get_version, store_message_bus_config)
 from volttron.utils.persistance import load_create_store
 
@@ -70,6 +70,10 @@ def run_server():
     os.environ['VOLTTRON_SERVER'] = "1"
     volttron_home = Path(os.environ.get("VOLTTRON_HOME", "~/.volttron")).expanduser()
     os.environ["VOLTTRON_HOME"] = volttron_home.as_posix()
+
+    if is_volttron_running(volttron_home=volttron_home.as_posix()):
+        sys.stderr.write(f"Another VOLTTRON instance is already running using this VOLTTRON home {volttron_home}\n")
+        sys.exit(1)
 
     # Raise events that the volttron_home has been set.
     volttron_home_set_evnt.send(run_server)
@@ -311,6 +315,8 @@ def start_volttron_process(options: ServerOptions):
         for cls in base_auth_classes:
             load_subclasses('volttron.types.auth.'+cls, "volttron.auth")
 
+    if opts.enable_federation:
+        from volttron.services.federation import FederationService
 
     aip_platform = service_repo.resolve(aip.AIPplatform)
     aip_platform.setup()
@@ -333,7 +339,6 @@ def start_volttron_process(options: ServerOptions):
                              "often the platform checks for any crashed agent "
                              "and attempts to restart. {}".format(e))
 
-    address = "inproc://vip"
     pid_file = os.path.join(opts.volttron_home.as_posix(), "VOLTTRON_PID")
     try:
         _log.debug("********************************************************************")
@@ -344,7 +349,7 @@ def start_volttron_process(options: ServerOptions):
             ConfigStoreService
         from volttron.services.control.control_service import ControlService
         from volttron.services.health.health_service import HealthService
-        from volttron.services.federation import FederationService
+
         from volttron.types.known_host import \
             KnownHostProperties as known_host_properties
         from volttron.utils import jsonapi
@@ -357,7 +362,6 @@ def start_volttron_process(options: ServerOptions):
         from volttron.types import MessageBus
         # A message bus is required, if we don't have one installed then this will definitely fail.
         mb: MessageBus = service_repo.resolve(MessageBus) # type: ignore
-
         auth_service = None
         # TODO move this to laoder code
         if options.auth_enabled:
@@ -398,8 +402,17 @@ def start_volttron_process(options: ServerOptions):
         # mb = MessageBusClass(opts, notifier, tracker, protected_topics, external_address_file, config_store.core.stop)
 
         mb.start()
+        elapsed_time = 0
+        while elapsed_time < 30:
+            if mb.is_running():
+                break
+            gevent.sleep(1)
+            elapsed_time += 1
 
-        assert mb.is_running()
+        # if address is already bound to another instance mb start will fail.
+        if not mb.is_running():
+            sys.stderr.write("Messagebus did not start within the timeout period. Please check logs\n")
+            sys.exit(1)
 
         # The instance file is where we are going to record the instance and
         # its details according to

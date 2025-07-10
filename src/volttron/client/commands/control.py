@@ -56,9 +56,10 @@ from volttron.client.vip.agent.errors import Unreachable, VIPError
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.utils import ClientContext as cc
 from volttron.utils import argparser as config
-from volttron.utils import get_address, jsonapi
+from volttron.utils import jsonapi
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
+from volttron.utils import is_volttron_running
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -462,7 +463,7 @@ def list_remotes(opts):
 
     """
     conn = opts.connection
-    if not conn:
+    if not is_volttron_running(cc.get_volttron_home()):
         _stderr.write("VOLTTRON is not running. This command "
                       "requires VOLTTRON platform to be running\n")
         return
@@ -557,7 +558,7 @@ def approve_remote(opts):
     :type opts.user_id: str
     """
     conn = opts.connection
-    if not conn:
+    if not is_volttron_running(cc.get_volttron_home()):
         _stderr.write("VOLTTRON is not running. This command "
                       "requires VOLTTRON platform to be running\n")
         return
@@ -571,7 +572,7 @@ def deny_remote(opts):
     :type opts.user_id: str
     """
     conn = opts.connection
-    if not conn:
+    if not is_volttron_running(cc.get_volttron_home()):
         _stderr.write("VOLTTRON is not running. This command "
                       "requires VOLTTRON platform to be running\n")
         return
@@ -585,7 +586,7 @@ def delete_remote(opts):
     :type opts.user_id: str
     """
     conn = opts.connection
-    if not conn:
+    if not is_volttron_running(cc.get_volttron_home()):
         _stderr.write("VOLTTRON is not running. This command "
                       "requires VOLTTRON platform to be running\n")
         return
@@ -2155,11 +2156,6 @@ def main():
         help="URL to bind for VIP connections",
     )
 
-    global_args.set_defaults(
-        address=get_address(),
-        timeout=60,
-    )
-
     filterable = config.ArgumentParser(add_help=False)
     filterable.add_argument(
         "--name",
@@ -2424,10 +2420,12 @@ def main():
                 sys.stdout.write("Complete\n")
                 sys.exit(0)
         else:
-            opts.connection: ControlConnection = ControlConnection(address=opts.address)
+            address = cc.get_address()
+            opts.connection: ControlConnection = ControlConnection(address=address)
 
     else:
-        opts.connection: ControlConnection = ControlConnection(address=opts.address)
+        address = cc.get_address()
+        opts.connection: ControlConnection = ControlConnection(address=address)
 
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
