@@ -2138,12 +2138,15 @@ def main():
     os.environ["VOLTTRON_HOME"] = volttron_home
 
     global_args = config.ArgumentParser(description="global options", add_help=False)
-    global_args.add_argument(
-        "--debug",
-        action="store_true",
-        help="show tracebacks for errors rather than a brief message",
+    
+    # Connection options
+    connection_group = global_args.add_argument_group('Connection Options')
+    connection_group.add_argument(
+        "--address",
+        metavar="ADDR",
+        help="URL to bind for VIP connections",
     )
-    global_args.add_argument(
+    connection_group.add_argument(
         "-t",
         "--timeout",
         type=float,
@@ -2151,30 +2154,36 @@ def main():
         timeout=120.0,
         help="timeout in seconds for remote calls (default: %(default)g)",
     )
-    global_args.add_argument(
-        "--address",
-        metavar="ADDR",
-        help="URL to bind for VIP connections",
+    
+    # Debug options
+    debug_group = global_args.add_argument_group('Debug Options')
+    debug_group.add_argument(
+        "--debug",
+        action="store_true",
+        help="show tracebacks for errors rather than a brief message",
     )
 
     filterable = config.ArgumentParser(add_help=False)
-    filterable.add_argument(
+    
+    # Filter/Search options
+    filter_group = filterable.add_argument_group('Filter Options')
+    filter_group.add_argument(
         "--name",
         dest="by_name",
         action="store_true",
         help="filter/search by agent name. value passed should be quoted if it contains a regular expression",
     )
-    filterable.add_argument(
+    filter_group.add_argument(
         "--tag",
         dest="by_tag",
         action="store_true",
         help="filter/search by tag name. value passed should be quoted if it contains a regular expression",
     )
-    filterable.add_argument("--all-tagged",
+    filter_group.add_argument("--all-tagged",
                             dest="by_all_tagged",
                             action="store_true",
                             help="filter/search by all tagged agents")
-    filterable.add_argument(
+    filter_group.add_argument(
         "--uuid",
         dest="by_uuid",
         action="store_true",
@@ -2189,20 +2198,32 @@ def main():
         argument_default=argparse.SUPPRESS,
         parents=[global_args],
     )
-    parser.add_argument(
+    
+    # Output formatting options
+    output_group = parser.add_argument_group('Output Options')
+    output_group.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        help="format output to json",
+    )
+    
+    # Logging options
+    logging_group = parser.add_argument_group('Logging Options')
+    logging_group.add_argument(
         "-l",
         "--log",
         metavar="FILE",
         default=None,
         help="send log output to FILE instead of stderr",
     )
-    parser.add_argument(
+    logging_group.add_argument(
         "-L",
         "--log-config",
         metavar="FILE",
         help="read logging configuration from FILE",
     )
-    parser.add_argument(
+    logging_group.add_argument(
         "-q",
         "--quiet",
         action="add_const",
@@ -2210,7 +2231,7 @@ def main():
         dest="verboseness",
         help="decrease logger verboseness; may be used multiple times",
     )
-    parser.add_argument(
+    logging_group.add_argument(
         "-v",
         "--verbose",
         action="add_const",
@@ -2218,20 +2239,16 @@ def main():
         dest="verboseness",
         help="increase logger verboseness; may be used multiple times",
     )
-    parser.add_argument(
+    logging_group.add_argument(
         "--verboseness",
         type=int,
         metavar="LEVEL",
         default=logging.WARNING,
         help="set logger verboseness",
     )
+    
+    # Hidden options
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        default=False,
-        help="format output to json",
-    )
 
     parser.add_help_argument()
     parser.set_defaults(

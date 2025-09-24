@@ -557,10 +557,15 @@ def _patch_argparse():
         config = kwargs.pop("config", True)
         env_var = kwargs.pop("env_var", None)
         inverse = kwargs.pop("inverse", None)
+        timeout = kwargs.pop("timeout", None)
+        # If timeout is specified, use it as the default value
+        if timeout is not None and 'default' not in kwargs:
+            kwargs['default'] = timeout
         action = argparse_add_argument(*args, **kwargs)
         action.config = config
         action.env_var = env_var
         action.inverse = inverse
+        action.timeout = timeout
         return action
 
     _argparse._ActionsContainer.add_argument = add_argument
