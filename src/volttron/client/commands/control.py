@@ -2389,7 +2389,7 @@ def main():
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
     if len(args) > 0:
-        if args[0] not in ("list", "tag", "auth", "rabbitmq", "certs"):
+        if args[0] not in ("list", "tag"):
             # check pid file
             if not is_volttron_running(volttron_home):
                 _stderr.write("VOLTTRON is not running. This command "
