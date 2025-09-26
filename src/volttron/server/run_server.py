@@ -315,9 +315,6 @@ def start_volttron_process(options: ServerOptions):
         for cls in base_auth_classes:
             load_subclasses('volttron.types.auth.'+cls, "volttron.auth")
 
-    if opts.enable_federation:
-        from volttron.services.federation import FederationService
-
     aip_platform = service_repo.resolve(aip.AIPplatform)
     aip_platform.setup()
     opts.aip = aip_platform
