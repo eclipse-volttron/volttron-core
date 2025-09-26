@@ -67,7 +67,8 @@ class PKICredentials(PublicCredentials):
     def create(cls, *, identity: str, publickey: str, secretkey: str) -> PKICredentials:
         return PKICredentials(identity=identity, publickey=publickey, secretkey=secretkey)
 
-    def create_with_generator(*, identity: str, generator_fn: callable) -> PKICredentials:
+    @classmethod
+    def create_with_generator(cls, *, identity: str, generator_fn: callable) -> PKICredentials:
         publickey, secretkey = generator_fn()
         return PKICredentials(identity=identity, publickey=publickey, secretkey=secretkey)
 
