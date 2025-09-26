@@ -2411,7 +2411,7 @@ def main():
     #     logging.config.fileConfig(opts.log_config)
 
     # logging.getLogger().setLevel(level=logging.DEBUG)
-
+    opts.address = cc.get_address()
     if opts.command == 'subscribe':
         if opts.identity_stage:
             try:
@@ -2420,12 +2420,9 @@ def main():
                 sys.stdout.write("Complete\n")
                 sys.exit(0)
         else:
-            address = cc.get_address()
-            opts.connection: ControlConnection = ControlConnection(address=address)
-
+            opts.connection: ControlConnection = ControlConnection(address=opts.address)
     else:
-        address = cc.get_address()
-        opts.connection: ControlConnection = ControlConnection(address=address)
+        opts.connection: ControlConnection = ControlConnection(address=opts.address)
 
     # opts.connection: ControlConnection = None
     # if is_volttron_running(volttron_home):
