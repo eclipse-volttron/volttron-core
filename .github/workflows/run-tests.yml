@@ -23,8 +23,8 @@ defaults:
 env:
   LANG: en_US.utf-8
   LC_ALL: en_US.utf-8
-  PROJECT_NAME: volttron-core
 
 jobs:
   test-with-latest-volttron:
     uses: eclipse-volttron/github-tooling/.github/workflows/run-tests.yml@main
+

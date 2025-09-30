@@ -3,7 +3,7 @@ name: Deploy Pre-Release Artifacts
 
 on:
   schedule:
-    - cron: '0 12 * * *'  # cron to run everyday at noon
+    - cron: '0 12 * * *' # Run everyday at noon
   workflow_dispatch: # Allows manual triggering of the workflow
 
 permissions:
@@ -18,7 +18,6 @@ env:
   LC_ALL: en_US.utf-8
   PYTHON_VERSION: '3.10'
   OWNER: eclipse-volttron
-  POETRY_VERSION: '2.1.1'
 
 jobs:
   deploy-pre-release:
