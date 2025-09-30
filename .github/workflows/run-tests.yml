@@ -4,7 +4,9 @@ on:
   push:
     paths:
       - '**.py'
-      - 'poetry.yml'
+      - '**.toml'
+      - '**.yaml'
+      - '**.yml'
   pull_request:
     types:
       - opened
@@ -21,49 +23,8 @@ defaults:
 env:
   LANG: en_US.utf-8
   LC_ALL: en_US.utf-8
-  PYTHON_VERSION: '3.10'
 
 jobs:
+  test-with-latest-volttron:
+    uses: eclipse-volttron/github-tooling/.github/workflows/run-tests.yml@main
 
-  run-tests:
-    strategy:
-      matrix:
-        os: ["ubuntu-22.04"]
-        python: ["3.10", "3.11"]
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-
-      #----------------------------------------------
-      #       check-out repo and set-up python
-      #----------------------------------------------
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Set up Python ${{ matrix.python }}
-        id: setup-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python }}
-
-      #----------------------------------------------
-      #  -----  install & configure poetry  -----
-      #----------------------------------------------
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-        with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
-          installer-parallel: true
-
-      #----------------------------------------------
-      # install your root project, and run tests.
-      #----------------------------------------------
-      - name: Install library and run tests
-        run: |
-          poetry install --no-interaction
-          poetry run pytest
