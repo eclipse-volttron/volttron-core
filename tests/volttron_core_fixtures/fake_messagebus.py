@@ -6,7 +6,7 @@ from volttron.types import MessageBus, MessageBusConfig
 
 from typing import Any, Optional
 
-from volttron.types import MessageBus, Message, FederationBridge
+from volttron.types import MessageBus, Message
 
 class FakeMessageBusConfig(MessageBusConfig):
     """Test implementation - simulates third-party messagebus config"""
@@ -51,10 +51,7 @@ class FakeMessageBus(MessageBus):
         self._running = False
         self._messages = []
         self._stop_handler = None # type: ignore
-    
-    def create_federation_bridge(self) -> Optional[FederationBridge]:
-        return None
-    
+
     def start(self):
         self._running = True
     
