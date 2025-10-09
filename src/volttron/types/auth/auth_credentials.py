@@ -31,15 +31,21 @@ class InvalidCredentials(Exception):
 class Credentials(JSONSerializable):
     identity: str
 
-    def create(*, identity: str) -> Credentials:
+    @classmethod
+    def create(cls, *, identity: str, **kwargs) -> Credentials:
         return Credentials(identity=identity)
+
+    def get_public_part(self) -> str|None:
+        """ Return public part of a credential or None"""
+        return None
 
 
 @dataclass(frozen=True, kw_only=True)
 class PublicCredentials(Credentials):
     publickey: str
 
-    def create(*, identity: str, publickey: str) -> PublicCredentials:
+    @classmethod
+    def create(cls, *, identity: str, publickey: str, **kwargs) -> PublicCredentials:
         return PublicCredentials(identity=identity, publickey=publickey)
 
 
@@ -57,10 +63,12 @@ class PKICredentials(PublicCredentials):
     def type(self):
         return self.__class__
 
-    def create(*, identity: str, publickey: str, secretkey: str) -> PKICredentials:
+    @classmethod
+    def create(cls, *, identity: str, publickey: str, secretkey: str) -> PKICredentials:
         return PKICredentials(identity=identity, publickey=publickey, secretkey=secretkey)
 
-    def create_with_generator(*, identity: str, generator_fn: callable) -> PKICredentials:
+    @classmethod
+    def create_with_generator(cls, *, identity: str, generator_fn: callable) -> PKICredentials:
         publickey, secretkey = generator_fn()
         return PKICredentials(identity=identity, publickey=publickey, secretkey=secretkey)
 
@@ -184,7 +192,7 @@ class CredentialsStore(ABC):
         ...
 
     @abstractmethod
-    def store_credentials(self, *, credentials: Credentials) -> None:
+    def store_credentials(self, *, credentials: Credentials, overwrite:bool = False) -> None:
         """
         Store credentials for an identity.
 
@@ -192,7 +200,10 @@ class CredentialsStore(ABC):
         :type identity: str
         :param credentials: The credentials to store.
         :type credentials: Credentials
-        :raises: IdentityAlreadyExists: If the identity alredy exists, an IdentityAlreadyExists exception MUST be raised.
+        :param overwrite: Whether to overwrite or not
+        :type overwrite: bool
+        :raises: IdentityAlreadyExists: If the identity already exists and overwrite flag is not set, an
+         IdentityAlreadyExists exception MUST be raised.
         """
         ...
 
