@@ -285,7 +285,3 @@ class AuthService(Service):
     @abstractmethod
     def remove_role(self, name: str):
         ...
-
-    @abstractmethod
-    def register_remote_platform(self, platform_id: str, credentials: Any):
-        ...
