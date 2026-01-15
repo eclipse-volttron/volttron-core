@@ -385,7 +385,13 @@ class ArgumentParser(_argparse.ArgumentParser):
                 cli_args.append(arg_string)
                 continue
             # Some kind of option was encountered, so deal with it
-            if _sys.version_info.minor >= 12:
+            v = _sys.version_info
+            if (
+                    (v.major > 3)
+                    or (v.major == 3 and v.minor >= 13)
+                    or (v.major == 3 and v.minor == 12 and v.micro >= 3)
+                    or (v.major == 3 and v.minor == 11 and v.micro >= 9)
+            ):
                 action, option_string, sep, explicit_arg = option_tuple
             else:
                 action, option_string, explicit_arg = option_tuple
