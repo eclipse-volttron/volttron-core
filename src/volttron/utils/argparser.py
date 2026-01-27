@@ -390,7 +390,23 @@ class ArgumentParser(_argparse.ArgumentParser):
                 cli_args.append(arg_string)
                 continue
             # Some kind of option was encountered, so deal with it
-            action, option_string, explicit_arg = option_tuple
+            # TODO: Argparse in python <=3.11.8 or <=3.12.2 returned a 3-tuple.
+            #  Later versions returned a 4-tuple until somewhere in 3.14, after which it returns a list of 4-tuples.
+            #  This code won't cover every possible case, but further investigation is required.
+            #  Can we NOT subclass argparse now? It may not be necessary anymore....
+            if type(option_tuple) is list and type(option_tuple[0]) is tuple:
+                option_tuple = option_tuple[0]
+            if type(option_tuple) is tuple:
+                if len(option_tuple) == 4:
+                    action, option_string, sep, explicit_arg = option_tuple
+                elif len(option_tuple) == 3:
+                    action, option_string, explicit_arg = option_tuple
+                else:
+                    raise ValueError(
+                        f'Unexpected number of elements in option_tuple: {option_tuple}. Please report to VOLTTRON development team.')
+            else:
+                raise ValueError(
+                    f'Unexpected output from parsing arguments. Got {option_tuple} from argparse._parse_options().  Please report to VOLTTRON development team.')
             if explicit_arg is not None:
                 args = [explicit_arg]
             elif action.nargs in [_argparse.REMAINDER, _argparse.PARSER]:
