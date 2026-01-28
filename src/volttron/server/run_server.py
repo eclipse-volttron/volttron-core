@@ -121,14 +121,41 @@ def run_server():
 
 def setup_poetry_project(python_project_path: Path):
     toml = os.path.join(python_project_path, "pyproject.toml")
+    lockfile = os.path.join(python_project_path, "lockfile")
     if os.path.isfile(toml):
-        return
-
-    if not os.path.isfile(toml):
+        # try running poetry command to see if python version in pyproject.toml matches the current activated
+        # environments python's version
+        # ideally if toml exists poetry.lock file should also exist.
+        # Run poetry lock. It will error if there is python version mismatch.
+        # If python version is right, create lock file or completes successfully without doing anything
+            cmd = ["poetry", "lock", "--directory", python_project_path.as_posix()]
+            p = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()  # Use p2's output directly
+            if p.returncode != 0:
+                # ideally we are expecting only a python version mismatch
+                errors = stderr.decode().strip().splitlines()
+                if "Current Python version" in errors[0] and "is not allowed by the project" in errors[0]:
+                    _log.error(errors[0])
+                    _log.error("pyproject.toml already exists but the current python version"
+                               f"({sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}) does not "
+                               "match the project's required version.\n"
+                               f"You can point to a new VOLTTRON_HOME or delete pyproject.toml (and poetry.lock) in the "
+                               f"current VOLTTRON_HOME directory and restart VOLTTRON to recreate the project for the "
+                               f"current python version")
+                else:
+                    _log.error(errors)
+                sys.exit(1)
+            else:
+                # all is well with existing poetry project return
+                return
+    try:
+        # No toml file.
+        # init a poetry project with the current env's python version, and add all the existing env's libraries
+        # to the poetry project using poetry add.
         cmd = [
             "poetry", "init", "--directory",
             python_project_path.as_posix(), "--name", "volttron",
-            "--python", ">=3.10,<4.0",
+            "--python", f"~{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
             "--author", "volttron <volttron@pnnl.gov>", "--quiet"
         ]
         execute_command(cmd)
@@ -139,64 +166,70 @@ def setup_poetry_project(python_project_path: Path):
         ]
         execute_command(cmd)
 
-    # Now add editable source packages
-    # Add these first so that these don't get overwritten by non-editable package's dependency
-    # i.e. if pointing to volttron-core dir, add this to poetry first so that volttron-lib-auth that depends on
-    # volttron-core from pypi won't overwrite the source package
-    pip_cmd = ["pip", "list", "--editable"]
-    p = subprocess.Popen(pip_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout, stderr = p.communicate()  # Use p2's output directly
-    if p.returncode != 0:
-        raise RuntimeError("Error from listing editable packages:", stderr.decode())
-    i = 0
-    for line in stdout.decode().splitlines():
-        print(line)
-        i = i + 1
-        if i < 3:
-            continue
-        poetry_cmd = ["poetry", "add", "--directory", python_project_path.as_posix(), "--editable", line.split()[2]]
-        p = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Now add editable source packages
+        # Add these first so that these don't get overwritten by non-editable package's dependency
+        # i.e. if pointing to volttron-core dir, add this to poetry first so that volttron-lib-auth that depends on
+        # volttron-core from pypi won't overwrite the source package
+        pip_cmd = ["pip", "list", "--editable"]
+        p = subprocess.Popen(pip_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()  # Use p2's output directly
         if p.returncode != 0:
-            raise RuntimeError("Unable to add editable package to $VOLTTRON_HOME/pyproject.toml:", stderr.decode())
+            raise RuntimeError("Error from listing editable packages:", stderr.decode())
+        i = 0
+        for line in stdout.decode().splitlines():
+            print(line)
+            i = i + 1
+            if i < 3:
+                continue
+            poetry_cmd = ["poetry", "add", "--directory", python_project_path.as_posix(), "--editable", line.split()[2]]
+            p = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = p.communicate()  # Use p2's output directly
+            if p.returncode != 0:
+                raise RuntimeError("Unable to add editable package to $VOLTTRON_HOME/pyproject.toml:", stderr.decode())
 
-    # now do multiple piped commands. add all non editable packages in one go using piped cmd
-    pip_cmd = ["pip", "list", "--format", "freeze",  "--exclude-editable"]
-    # Second command
-    grep_cmd = ["grep", "-v", "volttron=="]
-    # Third command
-    poetry_cmd = ["xargs", "poetry", "add", "--directory", python_project_path.as_posix()]
+        # now do multiple piped commands. add all non-editable packages in one go using piped cmd
+        pip_cmd = ["pip", "list", "--format", "freeze",  "--exclude-editable"]
+        # Second command
+        grep_cmd = ["grep", "-v", "volttron=="]
+        # Third command
+        poetry_cmd = ["xargs", "poetry", "add", "--directory", python_project_path.as_posix()]
 
-    err_msg = ""
-    # Execute the first command
-    p1 = subprocess.Popen(pip_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    p1_stdout, p1_stderr = p1.communicate()
-    # Check and print the output of the first command
-    if p1.returncode != 0:
-        err_msg = "Error from pip command:", p1_stderr.decode()
-    else:
-        # Execute the second command, with stdin from the first command's stdout
-        p2 = subprocess.Popen(grep_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        p2_stdout, p2_stderr = p2.communicate(input=p1_stdout)    # Use p1's output directly
-        # Check and print the output of the second command
-        if p2.returncode != 0:
-            err_msg = "Error from grep command:", p2_stderr.decode()
+        err_msg = ""
+        # Execute the first command
+        p1 = subprocess.Popen(pip_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        p1_stdout, p1_stderr = p1.communicate()
+        # Check and print the output of the first command
+        if p1.returncode != 0:
+            err_msg = "Error from pip command:", p1_stderr.decode()
         else:
-            # Check if `grep` produced any output
-            if not p2_stdout.strip():
-                print("No packages to add; grep output is empty.")
+            # Execute the second command, with stdin from the first command's stdout
+            p2 = subprocess.Popen(grep_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p2_stdout, p2_stderr = p2.communicate(input=p1_stdout)    # Use p1's output directly
+            # Check and print the output of the second command
+            if p2.returncode != 0:
+                err_msg = "Error from grep command:", p2_stderr.decode()
             else:
-                # Execute the third command, with stdin from the second command's stdout
-                p3 = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                p3_stdout, p3_stderr = p3.communicate(input=p2_stdout)    # Use p2's output directly
-                if p3.returncode != 0:
-                    err_msg = "Error from poetry command:", p3_stderr.decode()
+                # Check if `grep` produced any output
+                if not p2_stdout.strip():
+                    print("No packages to add; grep output is empty.")
+                else:
+                    # Execute the third command, with stdin from the second command's stdout
+                    p3 = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    p3_stdout, p3_stderr = p3.communicate(input=p2_stdout)    # Use p2's output directly
+                    if p3.returncode != 0:
+                        err_msg = "Error from poetry command:", p3_stderr.decode()
 
-    if err_msg:
-        err_msg = (f"Unable to update pyproject.toml in {python_project_path.as_posix()} with venv's current list of "
-                   f"libs. {err_msg}")
-        raise RuntimeError(err_msg)
-
+        if err_msg:
+            err_msg = (f"Unable to update pyproject.toml in {python_project_path.as_posix()} with venv's current list of "
+                       f"libs. {err_msg}")
+            raise RuntimeError(err_msg)
+    except RuntimeError:
+        # in case of any errors, remove pyproject.toml and poetry.lock if it exists.
+        if os.path.exists(toml):
+            os.remove(toml)
+        if os.path.exists(lockfile):
+            os.remove(lockfile)
+        raise
 
 def start_volttron_process(options: ServerOptions):
     opts = options
