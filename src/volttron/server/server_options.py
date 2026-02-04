@@ -71,6 +71,9 @@ class ServerOptions:
     poetry_project_path: Path | None = None
     enable_federation: bool = False
     federation_url: str | None  = None
+    enable_federation_cache:bool = True
+    federation_cache_limit_gb: float = None
+    federation_cache_limit_hours: float = 24
     
 
     def __post_init__(self):
@@ -157,30 +160,15 @@ class ServerOptions:
             "volttron_home": str(self.volttron_home),
             "address": self.address,
             "local_address": self.local_address,
-            "enable_federation": self.enable_federation,
-            "federation_url": self.federation_url,
             "auth_enabled": self.auth_enabled,
             "service_address": self.service_address,
-            "agent_monitor_frequency": self.agent_monitor_frequency
+            "agent_monitor_frequency": self.agent_monitor_frequency,
+            "enable_federation": self.enable_federation,
+            "federation_url": self.federation_url,
+            "enable_federation_cache": self.enable_federation_cache,
+            "federation_cache_limit_gb": self.federation_cache_limit_gb,
+            "federation_cache_limit_hours": self.federation_cache_limit_hours
         }
-
-    # volttron_home: Path | None = None
-    # instance_name: str | None = None
-    # local_address: str | None = None
-    # address: list[str] = field(default_factory=list)
-    # agent_isolation_mode: bool = False
-    # # Module that holds the zmq based classes, though we shorten it assuming
-    # # it's in volttron.messagebus
-    # messagebus: str = "zmq"
-    # auth_enabled: bool = True
-    # config_file: Path | None = None
-    # initialized: bool = False
-    # service_address: str | None = None
-    # server_messagebus_id: str = "vip.server"
-    # agent_monitor_frequency: int = 30
-    # poetry_project_path: Path | None = None
-    # enable_federation: bool = False
-    # federation_url: str | None  = None
         
         return config_class.create_from_options(options)
     
@@ -235,7 +223,8 @@ class ServerOptions:
                         # for v in getattr(self, field.name):
                         #     parser.set("volttron", "address", v)
                     else:
-                        parser.set("volttron", field.name.replace('_', '-'), str(getattr(self, field.name)))
+                        if getattr(self, field.name) is not None:
+                            parser.set("volttron", field.name.replace('_', '-'), str(getattr(self, field.name)))
             except configparser.NoOptionError:
                 pass
 
