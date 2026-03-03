@@ -43,8 +43,6 @@ psutil = "^5.9.0"
 cryptography = "^44.0.1"
 watchdog-gevent = "^0.1.1"
 pip = "^24.0"
-pytest-timeout = "^2.3.1"
-pytest-mock = "^3.10.0"
 deprecated = "^1.2.14"
 blinker = "^1.7.0"
 dataclass-wizard = "^0.22.3"
@@ -57,6 +55,8 @@ pre-commit = "^4.0.1"
 yapf = "^0.32.0"
 toml = "^0.10.2"
 mypy = "^1.2.0"
+pytest-timeout = "^2.3.1"
+pytest-mock = "^3.10.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0"]
