@@ -43,6 +43,21 @@ Note: you can also run ```pip install volttron-zmq``` or install the three packa
  1. **Start the platform:**
 
     ```bash
+    volttron -vv -l volttron.log --background
+    ```
+
+    The `--background` flag starts the platform as a detached process and displays a spinner while it initializes.
+    Once the platform is fully ready, it prints:
+
+    ```
+    VOLTTRON platform is running. [PID: 12345]
+    ```
+
+    At that point, `vctl status` and other commands will work immediately.
+
+    You can also start the platform the traditional way (without readiness feedback):
+
+    ```bash
     volttron -vv -l volttron.log &>/dev/null &
     ```
 
