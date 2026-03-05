@@ -34,7 +34,7 @@ optional = true
 [tool.poetry.dependencies]
 poetry = "^2.0"
 python = "^3.10"
-gevent = ">=24.2.1,<24.3"
+gevent = ">=24.2.1"
 PyYAML = "^6.0"
 toml = "^0.10.2"
 dateutils = "^0.6.12"
