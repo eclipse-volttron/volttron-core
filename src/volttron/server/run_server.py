@@ -28,6 +28,7 @@ from volttron.types import MessageBusStopHandler
 
 monkey.patch_socket()
 monkey.patch_ssl()
+import itertools
 import subprocess
 import argparse
 import importlib
@@ -37,6 +38,7 @@ import os
 import resource
 import stat
 import sys
+import time
 from logging import handlers
 from pathlib import Path
 
@@ -71,9 +73,22 @@ def run_server():
     volttron_home = Path(os.environ.get("VOLTTRON_HOME", "~/.volttron")).expanduser()
     os.environ["VOLTTRON_HOME"] = volttron_home.as_posix()
 
+    # Quick-parse for --background before doing any server-side setup.
+    # The background launcher is not the actual server process — it just
+    # spawns the real server and waits for it to become ready.
+    if "--background" in sys.argv:
+        _start_background(volttron_home)
+        return
+
     if is_volttron_running(volttron_home=volttron_home.as_posix()):
         sys.stderr.write(f"Another VOLTTRON instance is already running using this VOLTTRON home {volttron_home}\n")
         sys.exit(1)
+
+    # Write PID file immediately so vctl can detect us during the (potentially
+    # slow) poetry initialisation and service bring-up.
+    pid_file = os.path.join(volttron_home.as_posix(), "VOLTTRON_PID")
+    with open(pid_file, "w") as f:
+        f.write(str(os.getpid()))
 
     # Raise events that the volttron_home has been set.
     volttron_home_set_evnt.send(run_server)
@@ -109,14 +124,84 @@ def run_server():
     server_options.store()
 
     # create poetry project and poetry lock file in VOLTTRON_HOME
-    if dev_mode:
-        if not (server_options.poetry_project_path / "pyproject.toml").exists():
-            raise ValueError("VOLTTRON is run with --dev but unable to find pyproject.toml is current directory - "
-                             f"{server_options.poetry_project_path}")
-    else:
-        setup_poetry_project(server_options.poetry_project_path)
+    try:
+        if dev_mode:
+            if not (server_options.poetry_project_path / "pyproject.toml").exists():
+                raise ValueError("VOLTTRON is run with --dev but unable to find pyproject.toml is current directory - "
+                                 f"{server_options.poetry_project_path}")
+        else:
+            setup_poetry_project(server_options.poetry_project_path)
+    except Exception:
+        # Clean up PID file if we fail before start_volttron_process
+        # (start_volttron_process has its own finally block for later failures)
+        if os.path.exists(pid_file):
+            os.remove(pid_file)
+        raise
 
     start_volttron_process(server_options)
+
+
+def _start_background(volttron_home: Path):
+    """Re-launch the volttron command without --background as a detached
+    subprocess, then wait with a spinner until the platform signals readiness
+    (via VOLTTRON_READY) or fails."""
+    # Build the same command minus --background
+    cmd = [sys.argv[0]] + [a for a in sys.argv[1:] if a != "--background"]
+    log_file = None
+    for i, arg in enumerate(cmd):
+        if arg in ("-l", "--log") and i + 1 < len(cmd):
+            log_file = cmd[i + 1]
+            break
+
+    devnull = open(os.devnull, "w")
+    proc = subprocess.Popen(cmd, stdout=devnull, stderr=devnull, start_new_session=True)
+    devnull.close()
+
+    pid_file = volttron_home / "VOLTTRON_PID"
+    ready_file = volttron_home / "VOLTTRON_READY"
+    spinner = itertools.cycle(["|", "/", "-", "\\"])
+    timeout = 120  # seconds
+    start_time = time.monotonic()
+
+    try:
+        while True:
+            elapsed = time.monotonic() - start_time
+            if elapsed >= timeout:
+                break
+
+            # Check if the child process is still alive.
+            ret = proc.poll()
+            if ret is not None:
+                msg = "VOLTTRON failed to start (exit code {}).".format(ret)
+                if log_file:
+                    msg += " Check log: {}".format(log_file)
+                sys.stdout.write("\r\033[K")
+                sys.stdout.write(msg + "\n")
+                sys.exit(1)
+
+            if ready_file.exists():
+                sys.stdout.write("\r\033[K")
+                sys.stdout.write("VOLTTRON platform is running. [PID: {}]\n".format(proc.pid))
+                sys.exit(0)
+
+            sys.stdout.write("\rStarting VOLTTRON... {} ({:.0f}s)".format(next(spinner), elapsed))
+            sys.stdout.flush()
+
+            # Sleep until the next half-second boundary to keep the display steady.
+            next_tick = start_time + (int(elapsed / 0.5) + 1) * 0.5
+            time.sleep(max(0, next_tick - time.monotonic()))
+
+        # Timed out
+        sys.stdout.write("\r\033[K")
+        msg = "VOLTTRON startup timed out after {}s.".format(timeout)
+        if log_file:
+            msg += " Check log: {}".format(log_file)
+        sys.stdout.write(msg + "\n")
+        sys.exit(1)
+    except KeyboardInterrupt:
+        sys.stdout.write("\r\033[K")
+        sys.stdout.write("Interrupted. VOLTTRON may still be starting in the background (PID: {}).\n".format(proc.pid))
+        sys.exit(130)
 
 
 def setup_poetry_project(python_project_path: Path):
@@ -170,7 +255,7 @@ def setup_poetry_project(python_project_path: Path):
         # Add these first so that these don't get overwritten by non-editable package's dependency
         # i.e. if pointing to volttron-core dir, add this to poetry first so that volttron-lib-auth that depends on
         # volttron-core from pypi won't overwrite the source package
-        pip_cmd = ["pip", "list", "--editable"]
+        pip_cmd = [sys.executable, "-m", "pip", "list", "--editable"]
         p = subprocess.Popen(pip_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, stderr = p.communicate()  # Use p2's output directly
         if p.returncode != 0:
@@ -188,11 +273,11 @@ def setup_poetry_project(python_project_path: Path):
                 raise RuntimeError("Unable to add editable package to $VOLTTRON_HOME/pyproject.toml:", stderr.decode())
 
         # now do multiple piped commands. add all non-editable packages in one go using piped cmd
-        pip_cmd = ["pip", "list", "--format", "freeze",  "--exclude-editable"]
+        # Use sys.executable to ensure we list only the current venv's packages, not system pip packages
+        # (bare 'pip' on PATH may resolve to the system pip when running inside a subprocess).
+        pip_cmd = [sys.executable, "-m", "pip", "list", "--format", "freeze", "--exclude-editable"]
         # Second command
         grep_cmd = ["grep", "-v", "volttron=="]
-        # Third command
-        poetry_cmd = ["xargs", "poetry", "add", "--directory", python_project_path.as_posix()]
 
         err_msg = ""
         # Execute the first command
@@ -213,11 +298,31 @@ def setup_poetry_project(python_project_path: Path):
                 if not p2_stdout.strip():
                     print("No packages to add; grep output is empty.")
                 else:
-                    # Execute the third command, with stdin from the second command's stdout
-                    p3 = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    p3_stdout, p3_stderr = p3.communicate(input=p2_stdout)    # Use p2's output directly
-                    if p3.returncode != 0:
-                        err_msg = "Error from poetry command:", p3_stderr.decode()
+                    # Add packages via poetry, retrying and skipping any packages that cannot be
+                    # resolved from PyPI (e.g. system-only packages like cloud-init on Ubuntu/WSL).
+                    import re
+                    remaining = p2_stdout
+                    skipped = []
+                    while remaining.strip():
+                        poetry_cmd = ["xargs", "poetry", "add", "--directory", python_project_path.as_posix()]
+                        p3 = subprocess.Popen(poetry_cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        p3_stdout, p3_stderr = p3.communicate(input=remaining)
+                        if p3.returncode == 0:
+                            break
+                        # poetry 2.x prints errors to stdout; check both streams
+                        combined_out = p3_stdout.decode() + p3_stderr.decode()
+                        m = re.search(r'Could not find a matching version of package\s+(\S+)', combined_out)
+                        if not m:
+                            err_msg = "Error from poetry command:", combined_out
+                            break
+                        bad_pkg = m.group(1)
+                        skipped.append(bad_pkg)
+                        _log.warning(f"Skipping package {bad_pkg!r}: not available via poetry (not on PyPI).")
+                        filtered = [line for line in remaining.decode().splitlines()
+                                    if not line.strip().lower().startswith(bad_pkg.lower() + "==")]
+                        remaining = ("\n".join(filtered) + "\n").encode()
+                    if skipped:
+                        _log.info(f"The following packages were skipped (not available on PyPI): {skipped}")
 
         if err_msg:
             err_msg = (f"Unable to update pyproject.toml in {python_project_path.as_posix()} with venv's current list of "
@@ -373,6 +478,12 @@ def start_volttron_process(options: ServerOptions):
                              "and attempts to restart. {}".format(e))
 
     pid_file = os.path.join(opts.volttron_home.as_posix(), "VOLTTRON_PID")
+    ready_file = os.path.join(opts.volttron_home.as_posix(), "VOLTTRON_READY")
+
+    # Remove a stale readiness marker from a previous run.
+    if os.path.exists(ready_file):
+        os.remove(ready_file)
+
     try:
         _log.debug("********************************************************************")
         _log.debug("VOLTTRON PLATFORM RUNNING ON {} MESSAGEBUS".format(opts.messagebus))
@@ -511,9 +622,8 @@ def start_volttron_process(options: ServerOptions):
             for name, error in opts.aip.autostart():
                 _log.error("error starting {!r}: {}\n".format(name, error))
 
-        # Done with all start up process write a PID file
-
-        with open(pid_file, "w+") as f:
+        # Signal that the platform is fully ready.
+        with open(ready_file, "w") as f:
             f.write(str(os.getpid()))
 
         if opts.enable_federation:
@@ -548,6 +658,8 @@ def start_volttron_process(options: ServerOptions):
             instances.sync()
             if os.path.exists(pid_file):
                 os.remove(pid_file)
+            if os.path.exists(ready_file):
+                os.remove(ready_file)
         except Exception:
             _log.warning(f"Unable to load {VOLTTRON_INSTANCES_PATH}")
         _log.debug("********************************************************************")
@@ -685,6 +797,12 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
                         dest="dev_mode",
                         default=False,
                         help="development mode with poetry environment to build volttron libraries from source/pypi")
+    parser.add_argument(
+        "--background",
+        action="store_true",
+        default=False,
+        help="start the platform in the background and wait for it to be ready",
+    )
 
     parser.add_help_argument()
     parser.add_version_argument(version="%(prog)s " + str(get_version()))
