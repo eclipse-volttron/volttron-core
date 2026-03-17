@@ -148,22 +148,20 @@ def _start_background(volttron_home: Path):
     # Build the same command minus --background
     cmd = [sys.argv[0]] + [a for a in sys.argv[1:] if a != "--background"]
     log_file = None
+    has_log_config = False
     for i, arg in enumerate(cmd):
         if arg in ("-l", "--log") and i + 1 < len(cmd):
             log_file = cmd[i + 1]
             break
+        if arg in ("-L", "--log-config"):
+            has_log_config = True
 
-    # start_new_session=True calls setsid(), placing the child in a brand-new
-    # process session with no controlling terminal.  This has two effects:
-    #   1. The child is no longer in the shell's process group, so closing the
-    #      terminal cannot send SIGHUP to it — it will keep running after logout.
-    #   2. Without a controlling terminal the child cannot receive Ctrl-C or
-    #      other terminal-generated signals from the parent shell.
-    # Redirecting all three standard streams to DEVNULL completes the detachment:
-    # without this, stdin would still refer to the terminal file descriptor and
-    # could cause the child to block or error when the terminal is closed.
-    # Together these flags are the Python equivalent of the classic double-fork
-    # / nohup pattern, but without needing a wrapper script.
+    # In background mode stdio is detached; without an explicit log destination
+    # default stderr logging would be discarded. Route logs to a default file.
+    if log_file is None and not has_log_config:
+        log_file = (volttron_home / "volttron.log").as_posix()
+        cmd.extend(["--log", log_file])
+
     proc = subprocess.Popen(
         cmd,
         stdin=subprocess.DEVNULL,
