@@ -153,9 +153,24 @@ def _start_background(volttron_home: Path):
             log_file = cmd[i + 1]
             break
 
-    devnull = open(os.devnull, "w")
-    proc = subprocess.Popen(cmd, stdout=devnull, stderr=devnull, start_new_session=True)
-    devnull.close()
+    # start_new_session=True calls setsid(), placing the child in a brand-new
+    # process session with no controlling terminal.  This has two effects:
+    #   1. The child is no longer in the shell's process group, so closing the
+    #      terminal cannot send SIGHUP to it — it will keep running after logout.
+    #   2. Without a controlling terminal the child cannot receive Ctrl-C or
+    #      other terminal-generated signals from the parent shell.
+    # Redirecting all three standard streams to DEVNULL completes the detachment:
+    # without this, stdin would still refer to the terminal file descriptor and
+    # could cause the child to block or error when the terminal is closed.
+    # Together these flags are the Python equivalent of the classic double-fork
+    # / nohup pattern, but without needing a wrapper script.
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
 
     pid_file = volttron_home / "VOLTTRON_PID"
     ready_file = volttron_home / "VOLTTRON_READY"

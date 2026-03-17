@@ -631,7 +631,7 @@ class AIPplatform:
             # it could be just a package-name(ex. volttron-listener)
             # or package-name with version constraints- ex. volttron-agent@latest, volttron-agent>=1.0.0
             # so match till we hit a character that is NOT alphanumeric character or  _ or -
-            m = re.match("[\w\-]+", source)
+            m = re.match(r"[\w\-]+", source)
             if m:
                 agent_or_lib_name = m[0]
 
