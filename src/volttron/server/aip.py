@@ -1182,17 +1182,20 @@ class AIPplatform:
         entrypoint = None
         entrypoints = metadata.distribution(name_no_version).entry_points
         for entrypoint in entrypoints:
-            if entrypoint.group == "console_scripts":
+            if entrypoint.name == name_no_version:
                 break
-            if entrypoint.group == "setuptools.installation" and entrypoint.name == "eggsecutable":
-                break
-            if entrypoint.group == "volttron.agent" and entrypoint.name == "launch":
-                break
+            # TODO: Deprecated code. We are enforcing use of Poetry, so the following should not be needed.
+            # if entrypoint.group == "console_scripts":
+            #     break
+            # if entrypoint.group == "setuptools.installation" and entrypoint.name == "eggsecutable":
+            #     break
+            # if entrypoint.group == "volttron.agent" and entrypoint.name == "launch":
+            #     break
 
         if not entrypoints or not entrypoint:
-            raise ValueError("Unable to find entry point ['console_scripts'] or "
-                             "['setuptools.installation']['eggsecutable'] or "
-                             "['volttron.agent']['launch']")
+            raise ValueError(f"Unable to find entry point {name_no_version}."
+                             f" The pyproject.toml should specify this in [tools.poetry.scripts]:"
+                             f" {name_no_version} = <package_name>.<module_name>:<main_method_name>")
         parts = entrypoint.value.split(":")
         module = parts[0]
         fn = parts[1]
