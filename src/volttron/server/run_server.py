@@ -348,9 +348,6 @@ def start_volttron_process(options: ServerOptions):
         for cls in base_auth_classes:
             load_subclasses('volttron.types.auth.'+cls, "volttron.auth")
 
-    if opts.enable_federation:
-        from volttron.services.federation import FederationService
-
     aip_platform = service_repo.resolve(aip.AIPplatform)
     aip_platform.setup()
     opts.aip = aip_platform
@@ -526,14 +523,22 @@ def start_volttron_process(options: ServerOptions):
         # Wait for any service to stop, signaling exit
         try:
             gevent.wait(spawned_greenlets, count=1)
+            _log.info("Some core service gevent stopped. shutting down. "
+                      "This happens when vctl shutdown --platform is called")
         except KeyboardInterrupt:
+            # When user hit ctrl+C to kill foreground volttron process it end here
             _log.info("SIGINT received; shutting down")
-        finally:
-            sys.stderr.write("Shutting down.\n")
-            _log.debug("Kill all service agent tasks")
-            for task in spawned_greenlets:
-                task.kill(block=False)
-            gevent.wait(spawned_greenlets)
+            control_service = service_repo.resolve(ControlService)
+            # force a clean shutdown so that federation service message cache
+            # gets persisted
+            control_service.core.connection.send_vip("", "quit")
+            gevent.wait(spawned_greenlets, count=1)
+        except Exception as e:
+            _log.exception(f"Unexpected Exception raised in VOLTTRON: {e}")
+            _log.error("Stopping message bus and killing greenlets")
+            # This should call the stop handler which in turn kills spawned greenlets
+            # so shouldn't need a separate finally for killing spawned greenlets
+            mb.stop()
     except Exception as e:
         _log.error(e)
         import traceback
@@ -550,9 +555,9 @@ def start_volttron_process(options: ServerOptions):
                 os.remove(pid_file)
         except Exception:
             _log.warning(f"Unable to load {VOLTTRON_INSTANCES_PATH}")
-        _log.debug("********************************************************************")
-        _log.debug("VOLTTRON PLATFORM HAS SHUTDOWN")
-        _log.debug("********************************************************************")
+        _log.info("********************************************************************")
+        _log.info("VOLTTRON PLATFORM HAS SHUTDOWN")
+        _log.info("********************************************************************")
 
 
 def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
@@ -728,9 +733,32 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         help="Enable platform federation for connecting multiple VOLTTRON instances",
     )
     agents.add_argument(
+        "--enable-federation-cache",
+        action="store_true",
+        inverse="--disable-federation-cache",
+        help="Enable caching for federation messages. Ignored if federation is not enabled",
+    )
+    agents.add_argument(
+        "--federation-cache-limit-gb",
+        default=None,
+        help="Set a limit in gb for federation cache if federation cache is enabled. Ignored otherwise",
+    )
+    agents.add_argument(
+        "--federation-cache-limit-hours",
+        default=None,
+        help="Set a limit in hours for how long messages intended for external instances should be in held in cache."
+             "Ignored if federation cache is not enabled",
+    )
+    agents.add_argument(
         "--disable-federation",
         action="store_false",
         dest="enable_federation",
+        help=argparse.SUPPRESS,
+    )
+    agents.add_argument(
+        "--disable-federation-cache",
+        action="store_false",
+        dest="enable_federation_cache",
         help=argparse.SUPPRESS,
     )
     agents.add_argument(
