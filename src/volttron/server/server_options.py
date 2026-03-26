@@ -71,10 +71,11 @@ class ServerOptions:
     poetry_project_path: Path | None = None
     enable_federation: bool = False
     federation_url: str | None  = None
+    services: dict[str, dict] | None = field(default_factory=dict)
     enable_federation_cache:bool = True
     federation_cache_limit_gb: float = None
     federation_cache_limit_hours: float = 24
-    
+
 
     def __post_init__(self):
         """
@@ -116,9 +117,9 @@ class ServerOptions:
 
         else:
             if not self.initialized:
-                options = ServerOptions.from_file(self.config_file)
+                options = self.from_file(self.config_file)
 
-                for fld in ServerOptions.__dataclass_fields__:
+                for fld in self.__dataclass_fields__:
                     setattr(self, fld, getattr(options, fld))
 
     from volttron.types import MessageBusConfig
@@ -204,7 +205,6 @@ class ServerOptions:
         parser.add_section("volttron")
 
         kwargs = {}
-
         services_field = None
         # Store the config options first.
         for field in fields(ServerOptions):
@@ -225,25 +225,20 @@ class ServerOptions:
                     else:
                         if getattr(self, field.name) is not None:
                             parser.set("volttron", field.name.replace('_', '-'), str(getattr(self, field.name)))
+                elif field.name == 'services':
+                    services = getattr(self, field.name)
+                    for section, section_fields in services.items():
+                        parser.add_section(section)
+                        for field_name, field_value in section_fields.items():
+                            parser.set(section, self.get_parser_field_name(field_name), str(field_value))
             except configparser.NoOptionError:
                 pass
-
-        # TODO Add services back in.
-        # parser.add_section('services')
-        # for sd in self.services:
-        #     parser.set("services", sd.identity, sd.klass_path)
-
-        #     if sd.args:
-        #         parser.add_section(sd.klass_path)
-        #         for arg, value in sd.args:
-        #             parser.set(sd.klass_path, arg, value)
 
         if file is None:
             file = self.config_file
         parser.write(file.open("w"))
 
-    @staticmethod
-    def from_file(file: Path | str = None):
+    def from_file(self, file: Path | str = None):
         """
         Creates a `ServerOptions` instance from a file.
 
@@ -272,22 +267,41 @@ class ServerOptions:
 
             for field in fields(ServerOptions):
                 try:
-                    value = parser.get(section="volttron", option=field.name.replace('_', '-'))
-                    if value == 'None':
-                        value = None
-                    elif value == 'False' or value == 'True':
-                        value = eval(value)
-                    elif field.name == 'service_config' or field.name == 'volttron_home':
-                        value = Path(value)
+                    parser_field_name = self.get_parser_field_name(field.name)
+                    field_value = self.adjust_incoming_field_value(parser.get(section="volttron", option=parser_field_name))
+                    if field.name == 'service_config' or field.name == 'volttron_home':
+                        field_value = Path(field_value)
                     elif field.name == 'address':
-                        value = value.split('\n')
-                    kwargs[field.name] = value
+                        field_value = field_value.split('\n')
+                    kwargs[field.name] = field_value
                 except configparser.NoOptionError:
                     pass
             kwargs['initialized'] = True
+            kwargs['services'] = {
+                section: {
+                    self.get_python_field_name(k): self.adjust_incoming_field_value(v) for k, v in parser.items(section)
+                } for section in parser.sections() if section != 'volttron'
+            }
             options = ServerOptions(**kwargs)
         else:
             options = ServerOptions()
             options.store(file)
 
         return options
+
+    @staticmethod
+    def get_parser_field_name(name):
+        return name.replace('_', '-')
+
+    @staticmethod
+    def get_python_field_name(name):
+        return name.replace('-', '_')
+
+    @staticmethod
+    def adjust_incoming_field_value(val):
+        if val == 'None':
+            return None
+        elif val == 'False' or val == 'True':
+            return eval(val)
+        else:
+            return val

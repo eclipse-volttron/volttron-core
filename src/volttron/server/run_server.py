@@ -379,6 +379,11 @@ def start_volttron_process(options: ServerOptions):
             ConfigStoreService
         from volttron.services.control.control_service import ControlService
         from volttron.services.health.health_service import HealthService
+        if 'web' in opts.services:
+            try:
+                from volttron.services.web import PlatformWebService
+            except ModuleNotFoundError:
+                _log.warning('Platform Web Service is configured but not installed. Install volttron-lib-web.')
 
         from volttron.types.known_host import \
             KnownHostProperties as known_host_properties
