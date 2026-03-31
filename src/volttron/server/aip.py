@@ -764,7 +764,14 @@ class AIPplatform:
         agent_name = agent_wheel
         if agent_wheel.endswith(".whl"):
             wheel = agent_wheel.split("/")[-1]
-            agent_name_with_version = wheel.replace("-py3-none-any.whl", "").replace("_", "-")
+            # handle both py3 and python2&3 compatible wheels
+            stripped = re.sub(r'-(py2\.py3|py3)-[^-]+-[^-]+\.whl$', '', wheel)
+            if stripped == wheel:
+                raise RuntimeError(
+                    f"Unable to parse package name from wheel filename '{wheel}'. "
+                    f"Expected format: {{name}}-{{version}}-(py3|py2.py3)-{{abi}}-{{platform}}.whl"
+                )
+            agent_name_with_version = stripped.replace("_", "-")
             agent_name = agent_name_with_version[:agent_name_with_version.rfind("-")]
         return agent_name
 
