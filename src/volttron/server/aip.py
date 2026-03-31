@@ -588,7 +588,14 @@ class AIPplatform:
         """
         name, name_with_version, _ = self.install_agent_or_lib_source(library, force, pre_release)
         return name_with_version
-        
+
+    def remove_library(self, library):
+        """
+        Removes the library from current pyproject toml project, which in turn uninstalls the library from current
+        venv
+        """
+        cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "remove", library]
+        execute_command(cmd)
 
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
         """

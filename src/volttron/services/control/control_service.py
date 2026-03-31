@@ -528,6 +528,10 @@ class ControlService(Agent):
                                          force=force,
                                          pre_release=allow_prerelease)
 
+    @RPC.export
+    def remove_library(self, name):
+        self._aip.remove_library(name)
+
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool) -> Identity:
         """
         This will raise a ValueError if the identity passed exists but
