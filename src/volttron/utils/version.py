@@ -45,15 +45,14 @@ except importlib_metadata.PackageNotFoundError:
     try:
         # We should be in a develop environment therefore
         # we can get the version from the toml pyproject.toml
-        root = Path(__file__).parent.parent.parent
+        root = Path(__file__).parent.parent.parent.parent
         tomle_file = root.joinpath("pyproject.toml")
         if not tomle_file.exists():
             raise ValueError(
                 f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})")
-        import toml
-
-        pyproject = toml.load(tomle_file)
-
+        import tomli
+        with open(tomle_file, "rb") as f:
+            pyproject = tomli.load(f)
         __version__ = pyproject["tool"]["poetry"]["version"]
     except ValueError:
         cmd = [sys.executable, "-m", "pip", "list"]
