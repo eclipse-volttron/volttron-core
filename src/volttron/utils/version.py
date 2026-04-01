@@ -42,16 +42,17 @@ try:
     __version__ = importlib_metadata.version('volttron-core')
 
 except importlib_metadata.PackageNotFoundError:
+    # TODO - use tomlib once we migrate to py 3.11 or above
     try:
         # We should be in a develop environment therefore
         # we can get the version from the toml pyproject.toml
         root = Path(__file__).parent.parent.parent.parent
-        tomle_file = root.joinpath("pyproject.toml")
-        if not tomle_file.exists():
+        toml_file = root.joinpath("pyproject.toml")
+        if not toml_file.exists():
             raise ValueError(
-                f"Couldn't find pyproject.toml file for finding version. ({str(tomle_file)})")
+                f"Couldn't find pyproject.toml file for finding version. ({str(toml_file)})")
         import tomli
-        with open(tomle_file, "rb") as f:
+        with open(toml_file, "rb") as f:
             pyproject = tomli.load(f)
         __version__ = pyproject["tool"]["poetry"]["version"]
     except ValueError:

@@ -47,6 +47,7 @@ blinker = "^1.7.0"
 dataclass-wizard = "^0.22.3"
 returns = "^0.22.0"
 cattrs = "^23.2.3"
+tomli = { version = "^2.0.1", python = "<3.11" }
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.3"
