@@ -273,9 +273,9 @@ def remove_agent(opts, remove_auth=True):
             _stdout.write("Removing {} {}\n".format(agent.uuid, agent.name))
             opts.connection.call("remove_agent", agent.uuid, remove_auth=remove_auth)
 
+
 def remove_lib(opts):
     opts.connection.call("remove_library", opts.library)
-
 def _calc_min_uuid_length(agents: list[AgentMeta]):
     n = 0
     for agent1 in agents:
