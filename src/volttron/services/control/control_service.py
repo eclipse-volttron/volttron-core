@@ -529,8 +529,8 @@ class ControlService(Agent):
                                          pre_release=allow_prerelease)
 
     @RPC.export
-    def remove_library(self, name):
-        self._aip.remove_library(name)
+    def remove_library(self, library: str) -> None:
+        self._aip.remove_library(library=library)
 
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool) -> Identity:
         """
