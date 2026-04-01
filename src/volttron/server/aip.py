@@ -588,7 +588,14 @@ class AIPplatform:
         """
         name, name_with_version, _ = self.install_agent_or_lib_source(library, force, pre_release)
         return name_with_version
-        
+
+    def remove_library(self, library):
+        """
+        Removes the library from current pyproject toml project, which in turn uninstalls the library from current
+        venv
+        """
+        cmd = ["poetry", "--directory", self._server_opts.poetry_project_path.as_posix(), "remove", library]
+        execute_command(cmd)
 
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool):
         """
@@ -764,7 +771,14 @@ class AIPplatform:
         agent_name = agent_wheel
         if agent_wheel.endswith(".whl"):
             wheel = agent_wheel.split("/")[-1]
-            agent_name_with_version = wheel.replace("-py3-none-any.whl", "").replace("_", "-")
+            # handle both py3 and python2&3 compatible wheels
+            stripped = re.sub(r'-(py2\.py3|py3)-[^-]+-[^-]+\.whl$', '', wheel)
+            if stripped == wheel:
+                raise RuntimeError(
+                    f"Unable to parse package name from wheel filename '{wheel}'. "
+                    f"Expected format: {{name}}-{{version}}-(py3|py2.py3)-{{abi}}-{{platform}}.whl"
+                )
+            agent_name_with_version = stripped.replace("_", "-")
             agent_name = agent_name_with_version[:agent_name_with_version.rfind("-")]
         return agent_name
 

@@ -274,6 +274,11 @@ def remove_agent(opts, remove_auth=True):
             opts.connection.call("remove_agent", agent.uuid, remove_auth=remove_auth)
 
 
+def remove_lib(opts):
+    opts.connection.call("remove_library", opts.library)
+    sys.stdout.write(f"Removed {opts.library} \n")
+
+
 def _calc_min_uuid_length(agents: list[AgentMeta]):
     n = 0
     for agent1 in agents:
@@ -2138,7 +2143,7 @@ def main():
     os.environ["VOLTTRON_HOME"] = volttron_home
 
     global_args = config.ArgumentParser(description="global options", add_help=False)
-    
+
     # Connection options
     connection_group = global_args.add_argument_group('Connection Options')
     connection_group.add_argument(
@@ -2154,7 +2159,7 @@ def main():
         timeout=120.0,
         help="timeout in seconds for remote calls (default: %(default)g)",
     )
-    
+
     # Debug options
     debug_group = global_args.add_argument_group('Debug Options')
     debug_group.add_argument(
@@ -2164,7 +2169,7 @@ def main():
     )
 
     filterable = config.ArgumentParser(add_help=False)
-    
+
     # Filter/Search options
     filter_group = filterable.add_argument_group('Filter Options')
     filter_group.add_argument(
@@ -2198,7 +2203,7 @@ def main():
         argument_default=argparse.SUPPRESS,
         parents=[global_args],
     )
-    
+
     # Output formatting options
     output_group = parser.add_argument_group('Output Options')
     output_group.add_argument(
@@ -2207,7 +2212,7 @@ def main():
         default=False,
         help="format output to json",
     )
-    
+
     # Logging options
     logging_group = parser.add_argument_group('Logging Options')
     logging_group.add_argument(
@@ -2246,7 +2251,7 @@ def main():
         default=logging.WARNING,
         help="set logger verboseness",
     )
-    
+
     # Hidden options
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
 
@@ -2269,7 +2274,7 @@ def main():
         kwargs["parents"] = parents
         subparser = kwargs.pop("subparser", top_level_subparsers)
         return subparser.add_parser(*args, **kwargs)
-    
+
     add_publish_parser(add_parser)
     add_subscribe_parser(add_parser)
     add_install_agent_parser(add_parser)
@@ -2295,6 +2300,11 @@ def main():
         help="force removal of multiple agents",
     )
     remove.set_defaults(func=remove_agent, force=False)
+
+    remove_lib_parser = add_parser("remove-lib",  help="remove library")
+    remove_lib_parser.add_argument("library", help="name of the library")
+    remove_lib_parser.set_defaults(func=remove_lib)
+
 
     peers = add_parser("peerlist", help="list the peers connected to the platform")
     peers.set_defaults(func=list_peers)
