@@ -42,7 +42,6 @@ try:
     __version__ = importlib_metadata.version('volttron-core')
 
 except importlib_metadata.PackageNotFoundError:
-    # TODO - use tomlib once we migrate to py 3.11 or above
     try:
         # We should be in a develop environment therefore
         # we can get the version from the toml pyproject.toml
@@ -54,6 +53,7 @@ except importlib_metadata.PackageNotFoundError:
 
         # Prefer stdlib tomllib when available (Python 3.11+), fall back to tomli if installed.
         try:
+            # works if python3.11+
             import tomllib as toml_loader  # type: ignore[attr-defined]
         except ModuleNotFoundError:
             try:
@@ -62,7 +62,7 @@ except importlib_metadata.PackageNotFoundError:
                 # Neither tomllib nor tomli is available; fall back to pip list mechanism.
                 raise ValueError("No TOML parser available")
 
-        with open(tomle_file, "rb") as f:
+        with open(toml_file, "rb") as f:
             pyproject = toml_loader.load(f)
         __version__ = pyproject["tool"]["poetry"]["version"]
     except ValueError:
