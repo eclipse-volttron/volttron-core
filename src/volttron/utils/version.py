@@ -51,9 +51,19 @@ except importlib_metadata.PackageNotFoundError:
         if not toml_file.exists():
             raise ValueError(
                 f"Couldn't find pyproject.toml file for finding version. ({str(toml_file)})")
-        import tomli
-        with open(toml_file, "rb") as f:
-            pyproject = tomli.load(f)
+
+        # Prefer stdlib tomllib when available (Python 3.11+), fall back to tomli if installed.
+        try:
+            import tomllib as toml_loader  # type: ignore[attr-defined]
+        except ModuleNotFoundError:
+            try:
+                import tomli as toml_loader  # type: ignore[import]
+            except ModuleNotFoundError:
+                # Neither tomllib nor tomli is available; fall back to pip list mechanism.
+                raise ValueError("No TOML parser available")
+
+        with open(tomle_file, "rb") as f:
+            pyproject = toml_loader.load(f)
         __version__ = pyproject["tool"]["poetry"]["version"]
     except ValueError:
         cmd = [sys.executable, "-m", "pip", "list"]
