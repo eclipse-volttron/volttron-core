@@ -48,7 +48,7 @@ Note: you can also run ```pip install volttron-zmq``` or install the three packa
 
  1. **Install agents and optional libraries**:
 
-    Each volttron agent is in it own repository. Each agent's repository will have its own readme with instructions on 
+    Each volttron agent is in its own repository. Each agent's repository will have its own readme with instructions on 
     how to install the agent and any optional libraries that could be used with the agent. But in general, agents should 
     be installed using vctl install command. 
     
@@ -68,6 +68,11 @@ Note: you can also run ```pip install volttron-zmq``` or install the three packa
     ```bash
     vctl install-lib <library name>
     ```
+
+    To remove a previously installed library use
+    ```bash
+    vctl remove-lib <library name>
+    ```
     
     Modular VOLTTRON uses poetry for dependency management. When VOLTTRON is started, it creates a poetry project 
     (pyproject.toml file) in VOLTTRON_HOME directory and uses that for keeping track of all installed packages. 
@@ -80,7 +85,7 @@ Note: you can also run ```pip install volttron-zmq``` or install the three packa
 
     | :warning: WARNING          |
     |:---------------------------|
-    | You could use pip to install libraries, but pip will not check dependent library versions for compatibility and would simply overwrite packages in the current environment. <br /> <br /> For example, if you are running volttron-core version 2.0.0 and volttron-lib-bacnet-driver has dependency on  volttron-core version 1.0.0, ```pip install volttron-lib-bacnet-driver``` would overwrite volttron-core version 2.0.0 with version 1.0.0. However ```poetry add --directory $VOLTTRON_HOME volttron-lib-bacnet-driver``` will fail because of a version incompatibility error. |
+    | You could use pip to install libraries, but pip will not check dependent library versions for compatibility and would simply overwrite packages in the current environment. <br /> <br /> For example, if you are running volttron-core version 2.0.0 and volttron-lib-bacnet-driver has dependency on volttron-core version 1.0.0, ```pip install volttron-lib-bacnet-driver``` would overwrite volttron-core version 2.0.0 with version 1.0.0. However ```vctl install-lib volttron-lib-bacnet-driver``` will fail because of a version incompatibility error. |
     
 
 
