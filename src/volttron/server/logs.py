@@ -23,15 +23,41 @@
 # }}}
 
 import argparse
+import logging
+import os
+
+# -*- coding: utf-8 -*- {{{
+# ===----------------------------------------------------------------------===
+#
+#                 Installable Component of Eclipse VOLTTRON
+#
+# ===----------------------------------------------------------------------===
+#
+# Copyright 2022 Battelle Memorial Institute
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may not
+# use this file except in compliance with the License. You may obtain a copy
+# of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+#
+# ===----------------------------------------------------------------------===
+# }}}
+
 import inspect
 import logging
 import os
-from pathlib import Path
 import stat
-import sys
 import syslog
 import traceback
-import warnings
+
+from pathlib import Path
 
 from volttron.utils import jsonapi
 from volttron.client.logs import AgentFormatter
@@ -205,18 +231,14 @@ def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandle
     """
     Direct log output to a file (or something like one).
     """
+    if issubclass(handler_class, logging.FileHandler) and not os.path.exists(log_dir := Path(file_).parent):
+        os.makedirs(log_dir)
     handler = handler_class(file_)
     handler.setLevel(level)
-    if "VOLTTRON_SERVER" in os.environ:
-        format_str = "%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"
-    else:
-        format_str = "%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"
-    handler.setFormatter(AgentFormatter(fmt=format_str))
+    handler.setFormatter(AgentFormatter(fmt="%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"))
     root = logging.getLogger()
     root.setLevel(level)
-    root.handlers.clear()
     root.addHandler(handler)
-
 
 def configure_logging(conf_path):
     """

@@ -578,7 +578,8 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         "volttron.loader": logging.WARNING,
         "volttron.server.run_server": logging.INFO,
         "volttron.client.decorators": logging.INFO,
-    # "volttron.messagebus.zmq.socket": logging.INFO
+        "volttron.messagebus": logging.INFO,
+        "volttron.client.vip.agent.subsystems": logging.INFO
     }
     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 

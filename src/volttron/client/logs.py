@@ -4,6 +4,7 @@ import warnings
 from logging import Logger
 import sys
 import os
+import traceback
 
 import volttron.utils.jsonapi as jsonapi
 
@@ -106,3 +107,4 @@ def setup_logging(level=logging.DEBUG, console=False):
 
     logging.getLogger("volttron.messagebus").setLevel("INFO")
     logging.getLogger("volttron.server").setLevel("WARN")
+    logging.getLogger("volttron.client").setLevel("WARN")
