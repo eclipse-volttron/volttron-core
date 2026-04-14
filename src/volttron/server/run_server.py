@@ -254,19 +254,20 @@ def start_volttron_process(options: ServerOptions):
     if opts.log_config:
         opts.log_config = config.expandall(opts.log_config)
 
-    # Configure logging
-    level = max(1, opts.verboseness)
-    if opts.monitor and level > logging.INFO:
-        level = logging.INFO
+    # Configure logging (skip if already configured, e.g. by __main__.py)
+    if not logging.getLogger().handlers:
+        level = max(1, opts.verboseness)
+        if opts.monitor and level > logging.INFO:
+            level = logging.INFO
 
-    if opts.log is None:
-        log_to_file(sys.stderr, level)
-    elif opts.log == "-":
-        log_to_file(sys.stdout, level)
-    elif opts.log:
-        log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
-    else:
-        log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
+        if opts.log is None:
+            log_to_file(sys.stderr, level)
+        elif opts.log == "-":
+            log_to_file(sys.stdout, level)
+        elif opts.log:
+            log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
+        else:
+            log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
 
     if opts.log_config:
         with open(opts.log_config, "r") as f:

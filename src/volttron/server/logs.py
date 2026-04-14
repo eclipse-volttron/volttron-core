@@ -23,33 +23,6 @@
 # }}}
 
 import argparse
-import logging
-import os
-
-# -*- coding: utf-8 -*- {{{
-# ===----------------------------------------------------------------------===
-#
-#                 Installable Component of Eclipse VOLTTRON
-#
-# ===----------------------------------------------------------------------===
-#
-# Copyright 2022 Battelle Memorial Institute
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not
-# use this file except in compliance with the License. You may obtain a copy
-# of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
-#
-# ===----------------------------------------------------------------------===
-# }}}
-
 import inspect
 import logging
 import os
@@ -228,40 +201,6 @@ class FramesFormatter(object):
     __str__ = __repr__
 
 
-def log_to_file(file, level=logging.WARNING, handler_class=logging.StreamHandler):
-    """Direct log output to a file (or something like one)."""
-    handler = handler_class(file)
-    handler.setLevel(level)
-    handler.setFormatter(AgentFormatter("%(asctime)s %(composite_name)s %(levelname)s: %(message)s"))
-    root = logging.getLogger()
-    root.setLevel(level)
-    root.addHandler(handler)
-
-
-# def setup_logging(level=logging.DEBUG, console=False):
-#     root = logging.getLogger()
-#     if not root.handlers:
-#         handler = logging.StreamHandler()
-
-#         if isapipe(sys.stderr) and "_LAUNCHED_BY_PLATFORM" in os.environ:
-#             handler.setFormatter(JsonFormatter())
-#         elif console:
-#             # Below format is more readable for console
-#             handler.setFormatter(logging.Formatter("%(levelname)s: %(message)s"))
-#         else:
-#             fmt = "%(asctime)s %(name)s %(levelname)s: %(message)s"
-#             handler.setFormatter(logging.Formatter(fmt))
-#         if level != logging.DEBUG:
-#             # import it here so that when urllib3 imports the requests package, ssl would already got
-#             # monkey patched by gevent.
-#             # and this warning is needed only when log level is not debug
-#             from urllib3.exceptions import InsecureRequestWarning
-
-#             warnings.filterwarnings("ignore", category=InsecureRequestWarning)
-#         root.addHandler(handler)
-#     root.setLevel(level)
-
-
 def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandler):
     """
     Direct log output to a file (or something like one).
@@ -274,8 +213,7 @@ def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandle
         format_str = "%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"
     handler.setFormatter(AgentFormatter(fmt=format_str))
     root = logging.getLogger()
-    if root.level < level:
-        root.setLevel(level)
+    root.setLevel(level)
     root.handlers.clear()
     root.addHandler(handler)
 
