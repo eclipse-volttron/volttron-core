@@ -85,7 +85,7 @@ if HAS_SYSLOG:
             level = self._level_map.get(record.levelno, syslog.LOG_INFO)
             return "<{}>".format(level) + super(SyslogFormatter, self).format(record)
 
-
+# TODO: This was only used by get_default_logging_config, which is no longer used. Should this be used in other places?
 def get_default_loggers_config(level: int) -> dict:
     level_server = logging.ERROR
     level_client = logging.WARNING
@@ -115,38 +115,38 @@ def get_default_loggers_config(level: int) -> dict:
     }
 
 
-def get_default_logging_config(level: int = logging.WARNING) -> dict:
-    return {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "simple": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                "datefmt": "%Y-%m-%d %H:%M:%S"
-            }
-        },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "level": level,
-                "formatter": "simple",
-                "stream": "ext://sys.stdout"
-            }
-    # ,
-    # "file": {
-    #     "class": "logging.FileHandler",
-    #     "level": "INFO",
-    #     "formatter": "simple",
-    #     "filename": "myapp.log",
-    #     "mode": "a"
-    # }
-        },
-        "loggers": get_default_loggers_config(level),
-        "root": {
-            "level": level,
-            "handlers": ["console"]
-        }
-    }
+# def get_default_logging_config(level: int = logging.WARNING) -> dict:
+#     return {
+#         "version": 1,
+#         "disable_existing_loggers": False,
+#         "formatters": {
+#             "simple": {
+#                 "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+#                 "datefmt": "%Y-%m-%d %H:%M:%S"
+#             }
+#         },
+#         "handlers": {
+#             "console": {
+#                 "class": "logging.StreamHandler",
+#                 "level": level,
+#                 "formatter": "simple",
+#                 "stream": "ext://sys.stdout"
+#             }
+#     # ,
+#     # "file": {
+#     #     "class": "logging.FileHandler",
+#     #     "level": "INFO",
+#     #     "formatter": "simple",
+#     #     "filename": "myapp.log",
+#     #     "mode": "a"
+#     # }
+#         },
+#         "loggers": get_default_loggers_config(level),
+#         "root": {
+#             "level": level,
+#             "handlers": ["console"]
+#         }
+#     }
 
 
 def isapipe(fd):
@@ -226,6 +226,13 @@ class FramesFormatter(object):
 
     __str__ = __repr__
 
+def log_to_console(level=logging.WARNING, handler_class=logging.StreamHandler, *args, **kwargs):
+    handler = handler_class(*args, **kwargs)
+    handler.setLevel(level)
+    handler.setFormatter(AgentFormatter(fmt="%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"))
+    root = logging.getLogger()
+    root.setLevel(level)
+    root.addHandler(handler)
 
 def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandler):
     """

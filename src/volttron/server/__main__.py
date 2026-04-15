@@ -40,15 +40,13 @@ This is the main entry point to the VOLTTRON server. The first thing that
 should happen is setting up of logging and verbosity for the server.  After
 that we hand off to the run_server method, which will start the server process.
 """
-import logging
-import logging.config
+
 import os
-from pathlib import Path
 import sys
 
-import yaml
+from pathlib import Path
 
-from volttron.server.logs import get_default_logging_config, log_to_file, configure_logging
+from volttron.server.logs import log_to_console, log_to_file, configure_logging
 
 file_to_log_to: str | None = None
 total_count: int = 0
@@ -112,7 +110,7 @@ else:
 
     # Normal here just use the default stream handler setup.
     else:
-        logging.config.dictConfig(get_default_logging_config(level=total_count))
+        log_to_console(total_count)
 
 from volttron.server.run_server import _main
 
