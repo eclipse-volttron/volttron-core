@@ -67,9 +67,11 @@ class AgentFormatter(logging.Formatter):
 
     def composite_name(self, record):
         if record.name == "agents.log":
-            cname = "(%(processName)s %(process)d) %(remote_name)s"
+            #cname = "(%(processName)s %(process)d) %(remote_name)s"
+            cname = "(%(process)d) %(remote_name)s"
         elif record.name.startswith("agents.std"):
-            cname = "(%(processName)s %(process)d) <{}>".format(record.name.split(".", 2)[1])
+            #cname = "(%(processName)s %(process)d) <{}>".format(record.name.split(".", 2)[1])
+            cname = "(%(process)d) <{}>".format(record.name.split(".", 2)[1])
         else:
             cname = "() %(name)s"
         return cname % record.__dict__

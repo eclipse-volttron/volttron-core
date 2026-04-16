@@ -41,6 +41,7 @@ should happen is setting up of logging and verbosity for the server.  After
 that we hand off to the run_server method, which will start the server process.
 """
 
+import logging.handlers
 import os
 import sys
 
