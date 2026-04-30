@@ -23,35 +23,9 @@
 # }}}
 
 import argparse
-import logging
-import os
-
-# -*- coding: utf-8 -*- {{{
-# ===----------------------------------------------------------------------===
-#
-#                 Installable Component of Eclipse VOLTTRON
-#
-# ===----------------------------------------------------------------------===
-#
-# Copyright 2022 Battelle Memorial Institute
-#
-# Licensed under the Apache License, Version 2.0 (the "License"); you may not
-# use this file except in compliance with the License. You may obtain a copy
-# of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-# License for the specific language governing permissions and limitations
-# under the License.
-#
-# ===----------------------------------------------------------------------===
-# }}}
-
 import inspect
 import logging
+import logging.config
 import os
 import stat
 import syslog
@@ -68,8 +42,7 @@ try:
 except ImportError:
     HAS_SYSLOG = False
 
-# Keep the ability to have system log output for linux
-# this will fail on windows because no syslog.
+# Keep the ability to have system log output for linux this will fail on Windows because no syslog.
 if HAS_SYSLOG:
 
     class SyslogFormatter(logging.Formatter):
@@ -238,9 +211,9 @@ def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandle
     """
     Direct log output to a file (or something like one).
     """
-    if issubclass(handler_class, logging.FileHandler) and not os.path.exists(log_dir := Path(file_).parent):
-        os.makedirs(log_dir)
-    handler = handler_class(file_)
+    if issubclass(handler_class, logging.FileHandler):
+        os.makedirs(Path(file_).parent, exist_ok=True)
+    handler = handler_class(file_) if handler_class is not logging.NullHandler else handler_class()
     handler.setLevel(level)
     handler.setFormatter(AgentFormatter(fmt="%(asctime)s %(composite_name)s(%(lineno)d) %(levelname)s: %(message)s"))
     root = logging.getLogger()

@@ -267,7 +267,7 @@ def start_volttron_process(options: ServerOptions):
         elif opts.log:
             log_to_file(opts.log, level, handler_class=handlers.WatchedFileHandler)
         else:
-            log_to_file(None, 100, handler_class=lambda x: logging.NullHandler())
+            log_to_file(None, 100, handler_class=logging.NullHandler)
 
     if opts.log_config:
         with open(opts.log_config, "r") as f:
