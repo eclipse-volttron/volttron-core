@@ -97,9 +97,11 @@ def isapipe(fd):
 
 def vip_main(agent_class, version: str = "0.1", **kwargs):
     """Default main entry point implementation for VIP agents."""
+    from volttron.client.logs import setup_logging
     from volttron.client.vip.agent import Agent
     from volttron.utils import (ClientContext as cc, is_valid_identity)
     from volttron.types.auth.auth_credentials import CredentialsFactory
+    setup_logging()
     try:
         # If stdout is a pipe, re-open it line buffered
         if isapipe(sys.stdout):

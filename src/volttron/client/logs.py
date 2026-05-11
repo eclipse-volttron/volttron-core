@@ -103,8 +103,8 @@ def setup_logging(level=logging.DEBUG, console=False):
 
             warnings.filterwarnings("ignore", category=InsecureRequestWarning)
         root.addHandler(handler)
-    root.setLevel(level)
+        root.setLevel(level)
 
-    logging.getLogger("volttron.messagebus").setLevel("INFO")
+    logging.getLogger("volttron.messagebus").setLevel("WARN")
     logging.getLogger("volttron.server").setLevel("WARN")
     logging.getLogger("volttron.client").setLevel("WARN")

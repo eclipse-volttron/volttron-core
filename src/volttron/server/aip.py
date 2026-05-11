@@ -101,14 +101,15 @@ def log_entries(name, agent, pid, level, stream):
                 except Exception:
                     pass
                 else:
-                    if record.name in log.manager.loggerDict:
-                        if not logging.getLogger(record.name).isEnabledFor(record.levelno):
-                            continue
-                    elif not log.isEnabledFor(record.levelno):
+                    agent_logger = logging.getLogger(record.name)
+                    if not agent_logger.isEnabledFor(record.levelno):
                         continue
                     record.remote_name, record.name = record.name, name
                     record.__dict__.update(extra)
-                    log.handle(record)
+                    if agent_logger.handlers:
+                        agent_logger.callHandlers(record)
+                    else:
+                        log.handle(record)
                     continue
             if line[0:1] == '<' and line[2:3] == '>' and line[1:2].isdigit():
                 yield _level_map.get(int(line[1]), level), line[3:]
