@@ -85,6 +85,30 @@ _level_map = {
 }    # LOG_EMERG
 
 
+def _has_explicit_level(logger):
+    """Return True if logger or any non-root ancestor has an explicit level set."""
+    root = logging.getLogger()
+    current = logger
+    while current is not root and current is not None:
+        if current.level != logging.NOTSET:
+            return True
+        current = current.parent
+    return False
+
+
+def _has_handlers_in_hierarchy(logger):
+    """Return True if logger or any ancestor (up to propagate boundary) has handlers."""
+    root = logging.getLogger()
+    current = logger
+    while current is not root and current is not None:
+        if current.handlers:
+            return True
+        if not current.propagate:
+            break
+        current = current.parent
+    return False
+
+
 def log_entries(name, agent, pid, level, stream):
     log = logging.getLogger(name)
     extra = {'processName': agent, 'process': pid}
@@ -101,14 +125,22 @@ def log_entries(name, agent, pid, level, stream):
                 except Exception:
                     pass
                 else:
-                    if record.name in log.manager.loggerDict:
-                        if not logging.getLogger(record.name).isEnabledFor(record.levelno):
+                    agent_logger = logging.getLogger(record.name)
+                    # Level gate: use agent-specific level if explicitly configured,
+                    # otherwise fall back to agents.log level as the default for all agents.
+                    if _has_explicit_level(agent_logger):
+                        if not agent_logger.isEnabledFor(record.levelno):
                             continue
                     elif not log.isEnabledFor(record.levelno):
                         continue
                     record.remote_name, record.name = record.name, name
                     record.__dict__.update(extra)
-                    log.handle(record)
+                    # Handler routing: use agent-specific handlers if any exist in the
+                    # hierarchy, otherwise fall back to agents.log.
+                    if _has_handlers_in_hierarchy(agent_logger):
+                        agent_logger.callHandlers(record)
+                    else:
+                        log.handle(record)
                     continue
             if line[0:1] == '<' and line[2:3] == '>' and line[1:2].isdigit():
                 yield _level_map.get(int(line[1]), level), line[3:]

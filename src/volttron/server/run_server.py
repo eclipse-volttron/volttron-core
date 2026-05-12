@@ -244,7 +244,7 @@ def start_volttron_process(options: ServerOptions):
             # Disable federation to prevent further attempts
             opts.enable_federation = False
             sys.exit(1)
-            
+
 
     # vip_address is meant to be a list so make it so.
     if not isinstance(opts.address, list):
@@ -270,9 +270,9 @@ def start_volttron_process(options: ServerOptions):
             log_to_file(None, 100, handler_class=logging.NullHandler)
 
     if opts.log_config:
-        with open(opts.log_config, "r") as f:
-            for line in f.readlines():
-                _log.info(line.rstrip())
+        # with open(opts.log_config, "r") as f:
+        #     for line in f.readlines():
+        #         _log.info(line.rstrip())
 
         error = configure_logging(opts.log_config)
 
@@ -571,7 +571,10 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
 
     from volttron.server.server_options import ServerOptions
     from volttron.types.events import volttron_home_set_evnt
-
+    # This is set only to restrict the log level for the below packages,  not to make it more verbose
+    # REASON: for enduser using -v or -vv, their intention is to see debug/info logs from agents and in that
+    # usecase we don't want message bus or other server modules to flood the logs.
+    # Developers who want to debug server should use logging config yml for fine grained control.
     default_levels_for_modules = {
         "volttron.server.decorators": logging.WARNING,
         "volttron.server.containers": logging.INFO,
@@ -579,7 +582,9 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         "volttron.server.run_server": logging.INFO,
         "volttron.client.decorators": logging.INFO,
         "volttron.messagebus": logging.INFO,
-        "volttron.client.vip.agent.subsystems": logging.INFO
+        "volttron.client.vip.agent.subsystems": logging.INFO,
+        "volttron.auth": logging.WARNING,
+        "volttron.services": logging.INFO,
     }
     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 

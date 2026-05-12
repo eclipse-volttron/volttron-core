@@ -278,7 +278,6 @@ class ControlService(Agent):
 
     @RPC.export
     def list_agents(self):
-        _log.info("CONTROL RPC list_agents")
         tag = self._aip.agent_tag
         priority = self._aip.agent_priority
         return [{
