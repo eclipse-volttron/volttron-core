@@ -4,6 +4,7 @@ import warnings
 from logging import Logger
 import sys
 import os
+import traceback
 
 import volttron.utils.jsonapi as jsonapi
 
@@ -59,18 +60,18 @@ class JsonFormatter(logging.Formatter):
 
 class AgentFormatter(logging.Formatter):
 
-    def __init__(self, fmt=None, datefmt=None):
+    def __init__(self, fmt=None, datefmt=None, *_, **__):
         if fmt is None:
             fmt = "%(asctime)s %(composite_name)s %(levelname)s: %(message)s"
         super(AgentFormatter, self).__init__(fmt=fmt, datefmt=datefmt)
 
     def composite_name(self, record):
         if record.name == "agents.log":
-            cname = "(%(processName)s %(process)d) %(remote_name)s"
+            cname = "(PID:%(process)d) %(remote_name)s"
         elif record.name.startswith("agents.std"):
-            cname = "(%(processName)s %(process)d) <{}>".format(record.name.split(".", 2)[1])
+            cname = "(PID:%(process)d) <{}>".format(record.name.split(".", 2)[1])
         else:
-            cname = "() %(name)s"
+            cname = "%(name)s"
         return cname % record.__dict__
 
     def format(self, record):
@@ -102,7 +103,8 @@ def setup_logging(level=logging.DEBUG, console=False):
 
             warnings.filterwarnings("ignore", category=InsecureRequestWarning)
         root.addHandler(handler)
-    root.setLevel(level)
+        root.setLevel(level)
 
-    logging.getLogger("volttron.messagebus").setLevel("INFO")
+    logging.getLogger("volttron.messagebus").setLevel("WARN")
     logging.getLogger("volttron.server").setLevel("WARN")
+    logging.getLogger("volttron.client").setLevel("WARN")
