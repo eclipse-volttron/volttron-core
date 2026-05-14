@@ -105,13 +105,17 @@ if logging_config:
     configure_logging(logging_config)
 
 else:
+    # Convert -v count to a logging level: each -v lowers level by 10
+    # no -v → WARNING (30), -v → INFO (20), -vv → DEBUG (10), -vvv → 1 (all)
+    level = max(1, logging.WARNING - total_count * 10)
+
     # The user wants to output all to a file so we can do that for them.
     if file_to_log_to:
-        log_to_file(file_to_log_to, total_count, handler_class=logging.handlers.WatchedFileHandler)
+        log_to_file(file_to_log_to, level, handler_class=logging.handlers.WatchedFileHandler)
 
     # Normal here just use the default stream handler setup.
     else:
-        log_to_console(total_count)
+        log_to_console(level)
 
 from volttron.server.run_server import _main
 

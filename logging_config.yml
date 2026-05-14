@@ -1,31 +1,53 @@
 version: 1
 disable_existing_loggers: False
 
+root:
+  handlers: [file]
+  level: WARNING
+
 formatters:
   simple:
     format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  agent:
+    class: "volttron.client.logs.AgentFormatter"
+    format: "%(asctime)s - %(composite_name)s - %(levelname)s - %(message)s"
 
 handlers:
+  # Do not set log level at handlers.level declared for handlers is a fixed property of the handler and
+  # cannot be overridden at package or module specific loggers.
+  # level set for package or module level loggers can however override what is declared under root.
+  #
+  # EXAMPLE:
+  # root level = WARNING   (default for all loggers)
+  # ↓ overridden by
+  # listener level = INFO  (open the gate for this module which is being debugged)
+  # ↓ then hits
+  # file handler = WARNING (this still blocks INFO — can't be overridden per module, but if file handler doesn't declare any level then info/debug logs will get written)
+
   console:
     class: logging.StreamHandler
-    formatter: simple
+    formatter: agent
     stream: ext://sys.stdout
 
   file:
     class: logging.FileHandler
-    formatter: simple
+    formatter: agent
     filename: "${VOLTTRON_HOME}/volttron.log"
 
 loggers:
-  volttron.server:
+  # EXAMPLE LOGGER FOR DEBUGING SERVER PACKAGES
+  # volttron.client:
+  #   level: DEBUG
+  #   handlers: [ file ]
+  #   propagate: no
+
+  agents.log:   # fallback for all agents - i.e. for all processes other than server process
     level: WARNING
     handlers: [file]
     propagate: no
-  volttron.client:
-    level: WARNING
+
+  # EXAMPLE LOGGER FOR DEBUGING A SPECIFIC AGENT - can be package or package.module level
+  listener.agent:
+    level: INFO
     handlers: [ file ]
     propagate: no
-
-root:
-  level: WARNING
-  handlers: [console, file]

@@ -58,69 +58,6 @@ if HAS_SYSLOG:
             level = self._level_map.get(record.levelno, syslog.LOG_INFO)
             return "<{}>".format(level) + super(SyslogFormatter, self).format(record)
 
-# TODO: This was only used by get_default_logging_config, which is no longer used. Should this be used in other places?
-def get_default_loggers_config(level: int) -> dict:
-    level_server = logging.ERROR
-    level_client = logging.WARNING
-    match level:
-        case 1:
-            level_server = logging.WARNING
-            level_client = logging.INFO
-        case 2:
-            level_server = logging.INFO
-            level_client = logging.DEBUG
-        case _ if level >= 3:  # Use _ if level >= 3 to match any level 3 or higher
-            level_client = logging.DEBUG
-            level_server = logging.DEBUG
-    return {
-        "volttron.messagebus": {
-            "level": logging.getLevelName(level_server)
-        },
-        "volttron.server": {
-            "level": logging.getLevelName(level_server)
-        },
-        "volttron.services": {
-            "level": logging.getLevelName(level_server)
-        },
-        "volttron.client": {
-            "level": logging.getLevelName(level_client)
-        }
-    }
-
-
-# def get_default_logging_config(level: int = logging.WARNING) -> dict:
-#     return {
-#         "version": 1,
-#         "disable_existing_loggers": False,
-#         "formatters": {
-#             "simple": {
-#                 "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-#                 "datefmt": "%Y-%m-%d %H:%M:%S"
-#             }
-#         },
-#         "handlers": {
-#             "console": {
-#                 "class": "logging.StreamHandler",
-#                 "level": level,
-#                 "formatter": "simple",
-#                 "stream": "ext://sys.stdout"
-#             }
-#     # ,
-#     # "file": {
-#     #     "class": "logging.FileHandler",
-#     #     "level": "INFO",
-#     #     "formatter": "simple",
-#     #     "filename": "myapp.log",
-#     #     "mode": "a"
-#     # }
-#         },
-#         "loggers": get_default_loggers_config(level),
-#         "root": {
-#             "level": level,
-#             "handlers": ["console"]
-#         }
-#     }
-
 
 def isapipe(fd):
     fd = getattr(fd, "fileno", lambda: fd)()
