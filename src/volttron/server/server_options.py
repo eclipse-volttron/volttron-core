@@ -75,6 +75,7 @@ class ServerOptions:
     enable_federation_cache:bool = True
     federation_cache_limit_gb: float = None
     federation_cache_limit_hours: float = 24
+    log_config: str | None = None
 
 
     def __post_init__(self):

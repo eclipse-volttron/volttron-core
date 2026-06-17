@@ -810,7 +810,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     ipc = "ipc://%s$VOLTTRON_HOME/run/" % ("@" if sys.platform.startswith("linux") else "")
 
     parser.set_defaults(log=None,
-                        log_config=None,
+                        log_config=options.log_config,
                         monitor=False,
                         verboseness=logging.WARNING,
                         volttron_home=options.volttron_home,
