@@ -33,19 +33,19 @@ from socket import gethostname, getfqdn
 import subprocess
 
 from cryptography import x509
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.general_name import DNSName
 from cryptography.x509.name import RelativeDistinguishedName
 from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
+from cryptography.x509 import DNSName
+from cryptography.x509.verification import PolicyBuilder, Store
 
 from volttron.utils import jsonapi, ClientContext as cc, execute_command
 
 _log = logging.getLogger(__name__)
 
-KEY_SIZE = 1024
+KEY_SIZE = 3072
 ENC_STANDARD = 65537
 SHA_HASH = 'sha256'
 # # days before the certificate will timeout.
@@ -121,13 +121,13 @@ def _create_subject(**kwargs):
 def _create_fingerprint(public_key):
     pub_bytes = public_key.public_bytes(serialization.Encoding.PEM,
                                         serialization.PublicFormat.SubjectPublicKeyInfo)
-    h = hashes.Hash(hashes.SHA256(), default_backend())
+    h = hashes.Hash(hashes.SHA256())
     h.update(pub_bytes)
     return h.finalize()
 
 
 def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048, backend=default_backend())
+    key = rsa.generate_private_key(public_exponent=65537, key_size=KEY_SIZE)
 
     issuer = subject = _create_subject(**kwargs)
     cert_builder = x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(
@@ -160,7 +160,7 @@ def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
     # on the net (https://www.ietf.org/rfc/rfc3280.txt) I have created hash
     # based on public key and used that as SKI.
 
-    cert = cert_builder.sign(key, hashes.SHA256(), default_backend())
+    cert = cert_builder.sign(key, hashes.SHA256())
 
     print("Created CA cert")
     return cert, key
@@ -169,7 +169,7 @@ def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
 def _load_cert(cert_loc):
     with open(cert_loc, 'rb') as cert_file:
         content = cert_file.read()
-        cert = x509.load_pem_x509_certificate(content, default_backend())
+        cert = x509.load_pem_x509_certificate(content)
     return cert
 
 
@@ -207,7 +207,7 @@ def _load_key(key_file_path):
                                     prompt2="Verify passphrase for " + name)
 
     with open(key_file_path, 'rb') as f:
-        key = default_backend().load_pem_private_key(f.read(), passphrase)
+        key = serialization.load_pem_private_key(f.read(), password=passphrase)
         return key
 
 
@@ -429,7 +429,7 @@ class Certs:
         """
         Loads a PEM X.509 CSR.
         """
-        return x509.load_pem_x509_csr(data, default_backend())
+        return x509.load_pem_x509_csr(data)
 
     def get_csr_common_name(self, data):
         csr = self.load_csr(data)
@@ -467,7 +467,7 @@ class Certs:
         _, _, xname = build_subject(self.cert(self.root_ca_name), six.u(remote_rmq_user))
         key = _load_key(self.private_key_file(fully_qualified_identity))
         csr = x509.CertificateSigningRequestBuilder().subject_name(xname).sign(
-            key, hashes.SHA256(), default_backend())
+            key, hashes.SHA256())
         # with open(self.csr_create_file(name, target_volttron), "wb") as fw:
         #     fw.write(csr.public_bytes(serialization.Encoding.PEM))
         return csr.public_bytes(serialization.Encoding.PEM)
@@ -529,7 +529,7 @@ class Certs:
 
     def sign_csr(self, csr_file):
         with open(csr_file, 'rb') as f:
-            csr = x509.load_pem_x509_csr(data=f.read(), backend=default_backend())
+            csr = x509.load_pem_x509_csr(data=f.read())
 
         subject_common_name = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
         cert, _ = self.create_signed_cert_files(name=subject_common_name, overwrite=False, csr=csr)
@@ -672,6 +672,81 @@ class Certs:
                     fp.write(fr.read())
         os.chmod(bundle_file, 0o664)
         _log.debug(f"Updated request ca bundle {bundle_file}")
+
+    def delete_cert(self, name, ca_name=None):
+        """
+        Delete a local certificate and its private key, and update the CA database
+        to mark the certificate as revoked.
+
+        For CA certificates: prevents deletion if there are valid certificates
+        signed by this CA.
+
+        :param name: name of the certificate to delete
+        :param ca_name: name of the CA that signed the cert (optional, defaults to root CA)
+        :raises ValueError: if trying to delete a CA that has issued valid certificates
+        """
+        # Default to root CA if not specified
+        if not ca_name:
+            ca_name = self.root_ca_name
+
+        # Check if this is a CA certificate and if it has issued valid certs
+        if name == ca_name:
+            db_file = self.ca_db_file(name)
+            if os.path.exists(db_file):
+                with open(db_file, "r") as f:
+                    ca_db = jsonapi.load(f)
+
+                # Check if there are any valid certificates signed by this CA
+                valid_certs = [entry for entry in ca_db.values()
+                               if entry.get('status') == 'valid']
+                if valid_certs:
+                    raise ValueError(
+                        f"Cannot delete CA '{name}' because it has {len(valid_certs)} "
+                        f"valid certificate(s) signed by it. Please delete those certificates first."
+                    )
+
+        cert_file = self.cert_file(name)
+        key_file = self.private_key_file(name)
+
+        # Load cert data before deletion so we can update CA database
+        cert_dn = None
+        if name != ca_name:
+            try:
+                cert = self.cert(name)
+                cert_dn = "C={}/ST={}/L={}/O={}/OU={}/CN={}".format(
+                    _get_cert_attribute_value(cert, NameOID.COUNTRY_NAME),
+                    _get_cert_attribute_value(cert, NameOID.STATE_OR_PROVINCE_NAME),
+                    _get_cert_attribute_value(cert, NameOID.LOCALITY_NAME),
+                    _get_cert_attribute_value(cert, NameOID.ORGANIZATION_NAME),
+                    _get_cert_attribute_value(cert, NameOID.ORGANIZATIONAL_UNIT_NAME),
+                    _get_cert_attribute_value(cert, NameOID.COMMON_NAME))
+            except CertError:
+                # Certificate file doesn't exist, skip database update
+                pass
+
+        # Delete the cert and key files
+        if os.path.exists(cert_file):
+            os.remove(cert_file)
+        if os.path.exists(key_file):
+            os.remove(key_file)
+
+        # Update CA database only if deleting a regular certificate (not a CA)
+        if name != ca_name and cert_dn:
+            try:
+                # Update CA database
+                db_file = self.ca_db_file(ca_name)
+                ca_db = {}
+                if os.path.exists(db_file):
+                    with open(db_file, "r") as f:
+                        ca_db = jsonapi.load(f)
+
+                if cert_dn in ca_db:
+                    ca_db[cert_dn]['status'] = "deleted"
+                    with open(db_file, 'w+') as outfile:
+                        jsonapi.dump(ca_db, outfile, indent=4)
+            except Exception:
+                # If database update fails, continue anyway
+                pass
 
     def delete_remote_cert(self, name):
         cert_file = self.remote_certs_file(name)
@@ -827,8 +902,8 @@ class Certs:
                 ca_db = jsonapi.load(f)
         entries = ca_db.get(dn, {})
         entries['status'] = "valid"
-        entries['expiry'] = cert.not_valid_after.strftime("%Y-%m-%d "
-                                                          "%H:%M:%S.%f%z")
+        entries['expiry'] = cert.not_valid_after_utc.strftime("%Y-%m-%d "
+                                                               "%H:%M:%S.%f%z")
         entries['serial_number'] = cert.serial_number
         ca_db[dn] = entries
         with open(db_file, 'w+') as outfile:
@@ -837,16 +912,65 @@ class Certs:
         with open(self.ca_serial_file(ca_name), "w+") as f:
             f.write(str(serial + 1))    # next available serial is current + 1
 
-    def verify_cert(self, cert_name):
-        """
-        Verify a the given cert is signed by the root ca.
-        :param cert_name: The name of the certificate to be verified against
-        the CA
-        :return:
-        """
-        cacert = self.ca_cert()
-        cert = self.cert(cert_name)
-        return cert.verify(cacert.get_pubkey())
+
+    def _load_root_ca(self):
+        with open(self.cert_file(self.root_ca_name), "rb") as f:
+            return x509.load_pem_x509_certificate(f.read())
+
+    def _load_trusted_cas(self):
+        with open(self.cert_file(self.trusted_ca_name), "rb") as f:
+            pem = f.read()
+        # IMPORTANT: this loads *all* certificates from one PEM bundle
+        return x509.load_pem_x509_certificates(pem)
+
+    def verify_cert(self, cert_name, hostname=None):
+        leaf = self.cert(cert_name)
+
+        root = self._load_root_ca()
+        all_cas = self._load_trusted_cas()
+
+        # Roots in the store (trust anchors)
+        store = Store([root])
+
+        # Intermediates = everything in trusted_cas except the root
+        root_fingerprint = root.fingerprint(hashes.SHA256())
+        intermediates = [c for c in all_cas if c.fingerprint(hashes.SHA256()) != root_fingerprint]
+
+        builder = PolicyBuilder().store(store).time(
+            datetime.datetime.now(datetime.timezone.utc)
+        )
+
+        if hostname:
+            from cryptography.x509 import DNSName
+            verifier = builder.build_server_verifier(DNSName(hostname))
+        else:
+            # Use client_verifier for general certificate chain verification
+            verifier = builder.build_client_verifier()
+        # raises exception
+        chain = verifier.verify(leaf, intermediates)
+        return True
+
+    def verify_client_cert(self, cert_name):
+        leaf = self.cert(cert_name)
+
+        root = self._load_root_ca()
+        all_cas = self._load_trusted_cas()
+
+        store = Store([root])
+
+        root_fingerprint = root.fingerprint(hashes.SHA256())
+        intermediates = [
+            c for c in all_cas
+            if c.fingerprint(hashes.SHA256()) != root_fingerprint
+        ]
+
+        builder = PolicyBuilder().store(store).time(
+            datetime.datetime.now(datetime.timezone.utc)
+        )
+        verifier = builder.build_client_verifier()
+
+        verifier.verify(leaf, intermediates)
+        return True
 
     def create_root_ca(self, overwrite=True, valid_days=DEFAULT_DAYS, **kwargs):
         """
@@ -881,8 +1005,7 @@ class Certs:
 
 def _create_private_key():
     return rsa.generate_private_key(public_exponent=65537,
-                                    key_size=2048,
-                                    backend=default_backend())
+                                    key_size=KEY_SIZE)
 
 
 def _create_signed_certificate(ca_cert,
@@ -924,35 +1047,43 @@ def _create_signed_certificate(ca_cert,
 
     cert_builder = x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(
         public_key).not_valid_before(datetime.datetime.utcnow()).not_valid_after(
-    # Our certificate will be valid for 3650 days
             datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)).add_extension(
                 x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()),
                 critical=False)
+
     if type == 'CA':
         # create a intermediate CA
-        cert_builder = cert_builder.add_extension(x509.BasicConstraints(ca=True, path_length=0),
-                                                  critical=True).add_extension(
-                                                      x509.SubjectKeyIdentifier.from_public_key(
-                                                          key.public_key()),
-                                                      critical=False)
-        # .add_extension(
-        #     x509.SubjectKeyIdentifier(
-        #         _create_fingerprint(public_key)),
-        #     critical=False
-        # )
+        cert_builder = cert_builder.add_extension(
+            x509.BasicConstraints(ca=True, path_length=0),
+            critical=True).add_extension(
+                x509.SubjectKeyIdentifier.from_public_key(key.public_key()),
+                critical=False).add_extension(
+                x509.KeyUsage(digital_signature=False,
+                              key_encipherment=False,
+                              content_commitment=False,
+                              data_encipherment=False,
+                              key_agreement=False,
+                              key_cert_sign=True,
+                              crl_sign=True,
+                              encipher_only=False,
+                              decipher_only=False),
+                critical=True)
 
     else:
-        # if type is server or client.
-        cert_builder = cert_builder.add_extension(x509.KeyUsage(digital_signature=True,
-                                                                key_encipherment=True,
-                                                                content_commitment=False,
-                                                                data_encipherment=False,
-                                                                key_agreement=False,
-                                                                key_cert_sign=False,
-                                                                crl_sign=False,
-                                                                encipher_only=False,
-                                                                decipher_only=False),
-                                                  critical=True)
+        # if type is server or client, mark it explicitly as a non-CA leaf cert
+        cert_builder = cert_builder.add_extension(
+            x509.BasicConstraints(ca=False, path_length=None),
+            critical=True).add_extension(
+                x509.KeyUsage(digital_signature=True,
+                              key_encipherment=True,
+                              content_commitment=False,
+                              data_encipherment=False,
+                              key_agreement=False,
+                              key_cert_sign=False,
+                              crl_sign=False,
+                              encipher_only=False,
+                              decipher_only=False),
+                critical=True)
 
     if type == 'server':
         # if server cert specify that the certificate can be used as an SSL
@@ -963,10 +1094,11 @@ def _create_signed_certificate(ca_cert,
         if hostname and fqdn != hostname:
             cert_builder = cert_builder.add_extension(x509.SubjectAlternativeName(
                 [DNSName(hostname), DNSName(fqdn)]),
-                                                      critical=True)
+                                                      critical=False)
         else:
-            cert_builder = cert_builder.add_extension(x509.SubjectAlternativeName([DNSName(fqdn)]),
-                                                      critical=True)
+            cert_builder = cert_builder.add_extension(
+                x509.SubjectAlternativeName([DNSName(fqdn)]),
+                critical=False)
 
     elif type == 'client':
         # specify that the certificate can be used as an SSL
@@ -974,12 +1106,16 @@ def _create_signed_certificate(ca_cert,
         cert_builder = cert_builder.add_extension(x509.ExtendedKeyUsage(
             (ExtendedKeyUsageOID.CLIENT_AUTH, )),
                                                   critical=False)
+        # Client certs also need SubjectAltName extension
+        cert_builder = cert_builder.add_extension(
+            x509.SubjectAlternativeName([DNSName(name)]),
+            critical=False)
 
     # Serial must be positive integer so we are going to
     # use an increasing milliseconds serial number
     # A CA should generate unique serial numbers for each certificate it
     # generated. (signing authority + serial number) together is expected to
-    #  be unique across all certificates.
+    # be unique across all certificates.
     serial = int(time.time() * 10e3)
     cert_builder = cert_builder.serial_number(serial)
 
@@ -990,7 +1126,7 @@ def _create_signed_certificate(ca_cert,
     # cert.add_ext(X509.new_extension('nsComment', 'SSL sever'))
 
     # ca_key = _load_key(self.private_key_file(ca_name))
-    cert = cert_builder.sign(ca_key, hashes.SHA256(), default_backend())
+    cert = cert_builder.sign(ca_key, hashes.SHA256())
     return cert, key, serial
 
 
