@@ -29,9 +29,3 @@ Please include as much of the information listed below as you can to help us bet
 
 This information will help us triage your report more quickly.
 
-## Supported Versions
-
-Supported versions are:
-
-* Version 1
-* ...
