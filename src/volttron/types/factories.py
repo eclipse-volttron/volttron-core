@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class VctlParserContext:
     """
     Context object passed to vctl plugin configure() methods.
-    
+
     Provides a typed, self-documenting API for registering vctl commands and subcommands.
     Automatically handles:
     - Injection of global arguments (--address, --timeout, --debug)
@@ -26,7 +26,7 @@ class VctlParserContext:
     def __init__(self, *, subparsers, global_args, filterable):
         """
         Initialize the context.
-        
+
         :param subparsers: argparse subparsers action for top-level commands
         :param global_args: ArgumentParser with global options (--address, --timeout, etc.)
         :param filterable: ArgumentParser with filter options (--name, --tag, --uuid, etc.)
@@ -38,10 +38,10 @@ class VctlParserContext:
     def register_command(self, name, *, parent_args=None, apply_global_args=True, **kwargs):
         """
         Register a top-level vctl command (e.g., 'auth', 'cert', 'status').
-        
+
         By default, the command inherits global arguments (--address, --timeout, etc.).
         Set apply_global_args=False for commands that work offline (e.g., cert operations).
-        
+
         :param name: Command name (becomes a vctl subcommand)
         :param parent_args: Optional list of ArgumentParsers to inherit from
             (e.g., [self.filterable] for agent-filtering commands)
@@ -60,15 +60,15 @@ class VctlParserContext:
                            apply_global_args=True, **kwargs):
         """
         Register a nested subcommand under a command's subparsers.
-        
+
         Example:
             auth = ctx.register_command("auth", help="manage credentials")
             auth_subs = auth.add_subparsers(dest="auth_action")
             add_cmd = ctx.register_subcommand(auth_subs, "add", help="add credentials")
-        
+
         By default, the subcommand inherits global arguments. Set apply_global_args=False
         for offline subcommands.
-        
+
         :param subparsers_action: The subparsers action from parent_cmd.add_subparsers()
         :param name: Subcommand name
         :param parent_args: Optional list of ArgumentParsers to inherit from
@@ -86,17 +86,17 @@ class VctlParserContext:
 class ControlParser(ABC):
     """
     Abstract base class for vctl command-line subparser plugins.
-    
+
     Plugins should implement configure() to add their subcommand parser(s) to vctl.
     Plugins are discovered from volttron.plugins.vctl.* namespace packages.
-    
+
     Example::
-    
+
         @vctl_subparser
         class MyParser(ControlParser):
             class Meta:
                 name = "mycommand"
-            
+
             def configure(self, ctx: VctlParserContext):
                 cmd = ctx.register_command("mycommand", help="my command")
                 cmd.add_argument("--option", help="an option")
@@ -107,14 +107,14 @@ class ControlParser(ABC):
     def configure(self, ctx: VctlParserContext) -> None:
         """
         Configure the plugin's subparser(s).
-        
+
         Called at vctl startup to register commands. Use the context object's
         register_command() and register_subcommand() methods to add commands.
-        
+
         :param ctx: VctlParserContext for registering commands
         """
         ...
-    
+
     # Deprecated: kept for backward compatibility
     def get_parser(self):
         """Deprecated. Use configure() instead."""
