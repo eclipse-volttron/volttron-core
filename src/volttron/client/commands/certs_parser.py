@@ -37,12 +37,29 @@ def create_cert(opts):
     from typing import Dict
 
     certs_instance = Certs()
-
     # For CA certs, default name to root_ca_name if not provided
-    if opts.type == "CA" and not opts.name:
+    if opts.type == "root-ca":
+        if opts.name:
+            print("Root CA for a VOLTTRON instance will always be created using instance name")
         opts.name = certs_instance.root_ca_name
+    # name is required
+    if not opts.name:
+        print(
+            "Error: certificate name is required",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
-    if opts.type == "CA":
+    cert_already_exists = certs_instance.cert_exists(opts.name)
+
+    # If cert already existed and overwrite=False, it just returns the existing cert
+    if cert_already_exists and not opts.overwrite:
+        print(f"{opts.type} certificate already exists: {opts.name}")
+        print("Use --overwrite to replace the existing certificate")
+        return
+
+
+    if opts.type == "root-ca":
         # Prompt for CA certificate details
         cert_data: Dict[str, str] = {}
 
@@ -51,7 +68,7 @@ def create_cert(opts):
         cert_data["ST"] = prompt_response("\tState", mandatory=True)
         cert_data["L"] = prompt_response("\tLocation (City)", mandatory=True)
         cert_data["O"] = prompt_response("\tOrganization", mandatory=True)
-        cert_data["OU"] = prompt_response("\tOrganization Unit", mandatory=True)
+        cert_data["OU"] = prompt_response("\tOrganization Unit", mandatory=False)
 
         # Common name for CA is typically set by the library, but can be overridden
         cn_prompt = "\tCommon Name (leave empty for default instance name)"
@@ -96,14 +113,6 @@ def create_cert(opts):
             print(f"Error creating CA certificate: {e}", file=sys.stderr)
             sys.exit(1)
     else:
-        # For client/server certs, name is required
-        if not opts.name:
-            print(
-                "Error: certificate name is required for client/server certificates",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-
         try:
             if opts.ca_name:
                 if not certs_instance.cert_exists(opts.ca_name):
@@ -113,21 +122,16 @@ def create_cert(opts):
                     )
                     sys.exit(1)
             else:
+                # check if root ca exists if so use that to sign
                 if not certs_instance.ca_exists():
                     print(
-                        f"Error creating certificate:No CA file found. Create CA certificate using --type CA or provide existing ca cert using --ca_name",
+                        f"Error creating certificate:No CA file found. Create self signed root CA certificate using --type root-ca or provide existing ca cert using --ca_name",
                         file=sys.stderr,
                     )
                     sys.exit(1)
-            # Check if cert already exists before creating
-            cert_already_exists = certs_instance.cert_exists(opts.name)
 
-            # If cert already existed and overwrite=False, it just returns the existing cert
-            if cert_already_exists and not opts.overwrite:
-                print(f"{opts.type} certificate already exists: {opts.name}")
-                print("Use --overwrite to replace the existing certificate")
-                return
-
+            if opts.type == 'ca':
+                opts.type = "CA"
             cert, key = certs_instance.create_signed_cert_files(
                 name=opts.name,
                 cert_type=opts.type,
@@ -228,14 +232,8 @@ def add_cert_parser(add_parser_fn):
         subparser=cert_subparsers,
     )
     cert_create.add_argument(
-        "name",
-        nargs="?",
-        default=None,
-        help="name used for the certificate files (optional for CA cert, defaults to instance root CA)",
-    )
-    cert_create.add_argument(
         "--type",
-        choices=("client", "server", "CA"),
+        choices=("client", "server", "root-ca", "ca"),
         default="client",
         help="certificate type",
     )
@@ -260,6 +258,12 @@ def add_cert_parser(add_parser_fn):
     cert_create.add_argument(
         "--fqdn",
         help="fully qualified domain name to use for server certificates",
+    )
+    cert_create.add_argument(
+        "name",
+        nargs="?",
+        default=None,
+        help="name used for the certificate files (ignored for root-ca cert, defaults to instance root CA)",
     )
     cert_create.set_defaults(func=create_cert)
 
