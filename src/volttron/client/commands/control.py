@@ -2407,7 +2407,7 @@ def main():
             if not arg.startswith('-'):
                 command = arg
                 break
-        
+
         if command and command not in ("list", "tag", "cert"):
             # check pid file
             if not is_volttron_running(volttron_home):
@@ -2416,8 +2416,10 @@ def main():
                 return 10
 
     conf = os.path.join(volttron_home, "config")
-    # if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
-    #     args = ["--config", conf] + args
+    if not os.path.exists(conf):
+        _stderr.write("VOLTTRON_HOME directory does not have a config file. Please start VOLTTRON at least once "
+                      f"to set up your VOLTTRON_HOME({volttron_home}) before running vctl commands\n")
+        return 10
 
     opts = parser.parse_args(args)
 
