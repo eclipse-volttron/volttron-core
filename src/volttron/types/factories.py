@@ -115,11 +115,6 @@ class ControlParser(ABC):
         """
         ...
 
-    # Deprecated: kept for backward compatibility
-    def get_parser(self):
-        """Deprecated. Use configure() instead."""
-        raise NotImplementedError("Use configure(ctx: VctlParserContext) instead")
-
 
 class ConnectionBuilder(ABC):
 
