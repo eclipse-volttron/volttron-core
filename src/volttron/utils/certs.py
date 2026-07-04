@@ -37,7 +37,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.name import RelativeDistinguishedName
-from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID
+from cryptography.x509.oid import NameOID, ExtendedKeyUsageOID, ExtensionOID
 from cryptography.x509 import DNSName
 from cryptography.x509.verification import PolicyBuilder, Store
 
@@ -673,6 +673,25 @@ class Certs:
         os.chmod(bundle_file, 0o664)
         _log.debug(f"Updated request ca bundle {bundle_file}")
 
+    def _check_ca_has_no_valid_issued_certs(self, ca_name, operation="modify"):
+        db_file = self.ca_db_file(ca_name)
+        if not os.path.exists(db_file):
+            return
+
+        with open(db_file, "r") as f:
+            ca_db = jsonapi.load(f)
+
+        valid_certs = [
+            entry for entry in ca_db.values()
+            if entry.get("status") == "valid"
+        ]
+        if valid_certs:
+            raise ValueError(
+                f"Cannot {operation} CA '{ca_name}' because it has {len(valid_certs)} "
+                f"valid certificate(s) signed by it. Please delete or rotate those "
+                f"certificates first."
+            )
+
     def delete_cert(self, name, ca_name=None):
         """
         Delete a local certificate and its private key, and update the CA database
@@ -689,21 +708,22 @@ class Certs:
         if not ca_name:
             ca_name = self.root_ca_name
 
-        # Check if this is a CA certificate and if it has issued valid certs
-        if name == ca_name:
-            db_file = self.ca_db_file(name)
-            if os.path.exists(db_file):
-                with open(db_file, "r") as f:
-                    ca_db = jsonapi.load(f)
+        cert_file = self.cert_file(name)
 
-                # Check if there are any valid certificates signed by this CA
-                valid_certs = [entry for entry in ca_db.values()
-                               if entry.get('status') == 'valid']
-                if valid_certs:
-                    raise ValueError(
-                        f"Cannot delete CA '{name}' because it has {len(valid_certs)} "
-                        f"valid certificate(s) signed by it. Please delete those certificates first."
-                    )
+        is_ca = False
+        try:
+            if os.path.exists(cert_file):
+                cert = self.cert(name)
+                bc = cert.extensions.get_extension_for_oid(
+                    ExtensionOID.BASIC_CONSTRAINTS
+                ).value
+                is_ca = bc.ca
+        except Exception:
+            is_ca = False
+
+        if is_ca:
+            # Check if this is a CA certificate and if it has issued valid certs
+            self._check_ca_has_no_valid_issued_certs(name, operation="delete")
 
         cert_file = self.cert_file(name)
         key_file = self.private_key_file(name)
@@ -719,9 +739,9 @@ class Certs:
                     _get_cert_attribute_value(cert, NameOID.LOCALITY_NAME),
                     _get_cert_attribute_value(cert, NameOID.ORGANIZATION_NAME),
                     _get_cert_attribute_value(cert, NameOID.ORGANIZATIONAL_UNIT_NAME),
-                    _get_cert_attribute_value(cert, NameOID.COMMON_NAME))
+                    _get_cert_attribute_value(cert, NameOID.COMMON_NAME),
+                )
             except CertError:
-                # Certificate file doesn't exist, skip database update
                 pass
 
         # Delete the cert and key files
@@ -733,19 +753,16 @@ class Certs:
         # Update CA database only if deleting a regular certificate (not a CA)
         if name != ca_name and cert_dn:
             try:
-                # Update CA database
                 db_file = self.ca_db_file(ca_name)
                 ca_db = {}
                 if os.path.exists(db_file):
                     with open(db_file, "r") as f:
                         ca_db = jsonapi.load(f)
-
                 if cert_dn in ca_db:
-                    ca_db[cert_dn]['status'] = "deleted"
-                    with open(db_file, 'w+') as outfile:
+                    ca_db[cert_dn]["status"] = "deleted"
+                    with open(db_file, "w+") as outfile:
                         jsonapi.dump(ca_db, outfile, indent=4)
             except Exception:
-                # If database update fails, continue anyway
                 pass
 
     def delete_remote_cert(self, name):
@@ -828,6 +845,12 @@ class Certs:
             remote = True
         else:
             remote = False
+
+        if cert_type == "CA" and overwrite and self.cert_exists(name, remote=remote):
+            self._check_ca_has_no_valid_issued_certs(
+                name,
+                operation="overwrite",
+            )
 
         if not overwrite and self.cert_exists(name, remote=remote):
             if remote:
@@ -990,9 +1013,13 @@ class Certs:
             CN - Common Name
         :return:
         """
-        if not overwrite:
-            if self.ca_exists():
+        if self.ca_exists():
+            if not overwrite:
                 return
+            self._check_ca_has_no_valid_issued_certs(
+                self.root_ca_name,
+                operation="overwrite",
+            )
 
         if 'CN' not in kwargs.keys() or kwargs['CN'] is None:
             kwargs['CN'] = self.default_root_ca_cn
@@ -1002,6 +1029,59 @@ class Certs:
         self._save_cert(self.root_ca_name, cert, pk)
         return cert, pk
 
+    def get_cert_summary(self, name):
+        cert = self.cert(name)
+
+        subject_cn = _safe_name_attr(cert.subject, NameOID.COMMON_NAME)
+        issuer_cn = _safe_name_attr(cert.issuer, NameOID.COMMON_NAME)
+
+        cert_type = "unknown"
+        try:
+            bc = cert.extensions.get_extension_for_oid(
+                ExtensionOID.BASIC_CONSTRAINTS
+            ).value
+            if bc.ca:
+                if name == self.root_ca_name or subject_cn == self.default_root_ca_cn:
+                    cert_type = "root-ca"
+                else:
+                    cert_type = "ca"
+            else:
+                try:
+                    eku = cert.extensions.get_extension_for_oid(
+                        ExtensionOID.EXTENDED_KEY_USAGE
+                    ).value
+                    usages = set(eku)
+                    if ExtendedKeyUsageOID.SERVER_AUTH in usages:
+                        cert_type = "server"
+                    elif ExtendedKeyUsageOID.CLIENT_AUTH in usages:
+                        cert_type = "client"
+                    else:
+                        cert_type = "leaf"
+                except x509.ExtensionNotFound:
+                    cert_type = "leaf"
+        except x509.ExtensionNotFound:
+            cert_type = "unknown"
+
+        return {
+            "name": name,
+            "type": cert_type,
+            "cn": subject_cn,
+            "issuer_cn": issuer_cn,
+            "expiry": cert.not_valid_after_utc,
+        }
+
+    def list_cert_summaries(self):
+        if not os.path.exists(self.cert_dir):
+            return []
+
+        cert_names = sorted(
+            f[:-4] for f in os.listdir(self.cert_dir) if f.endswith(".crt")
+        )
+        return [self.get_cert_summary(name) for name in cert_names]
+
+def _safe_name_attr(name, oid):
+    attrs = name.get_attributes_for_oid(oid)
+    return attrs[0].value if attrs else None
 
 def _create_private_key():
     return rsa.generate_private_key(public_exponent=65537,

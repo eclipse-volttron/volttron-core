@@ -32,48 +32,61 @@ def prompt_response(prompt, default=None, mandatory=False):
             return ""
 
 
+def format_expiry(value):
+    """Format certificate expiry value for CLI output."""
+    if value is None:
+        return "-"
+    try:
+        return value.strftime("%Y-%m-%d")
+    except Exception:
+        return str(value)
+
+
 def create_cert(opts):
     """Handler for creating certificates."""
-    from typing import Dict
-
     certs_instance = Certs()
-    # For CA certs, default name to root_ca_name if not provided
+    # for root ca default name to certs_instance.root_ca_name if not provided
     if opts.type == "root-ca":
+        if opts.ca_name:
+            print("Error: --ca-name cannot be used with --type root-ca", file=sys.stderr)
+            sys.exit(1)
+        if opts.fqdn:
+            print("Error: --fqdn can only be used with --type server", file=sys.stderr)
+            sys.exit(1)
         if opts.name:
             print("Root CA for a VOLTTRON instance will always be created using instance name")
         opts.name = certs_instance.root_ca_name
-    # name is required
+
+    elif opts.type != "server" and opts.fqdn:
+        print("Error: --fqdn can only be used with --type server", file=sys.stderr)
+        sys.exit(1)
+
     if not opts.name:
-        print(
-            "Error: certificate name is required",
-            file=sys.stderr,
-        )
+        print("Error: certificate name is required", file=sys.stderr)
         sys.exit(1)
 
     cert_already_exists = certs_instance.cert_exists(opts.name)
 
-    # If cert already existed and overwrite=False, it just returns the existing cert
     if cert_already_exists and not opts.overwrite:
         print(f"{opts.type} certificate already exists: {opts.name}")
         print("Use --overwrite to replace the existing certificate")
         return
 
-
     if opts.type == "root-ca":
         # Prompt for CA certificate details
-        cert_data: Dict[str, str] = {}
-
+        cert_data = {}
         print("\nEnter certificate subject details (mandatory fields required):")
         cert_data["C"] = prompt_response("\tCountry", default="US")
         cert_data["ST"] = prompt_response("\tState", mandatory=True)
         cert_data["L"] = prompt_response("\tLocation (City)", mandatory=True)
         cert_data["O"] = prompt_response("\tOrganization", mandatory=True)
         cert_data["OU"] = prompt_response("\tOrganization Unit", mandatory=False)
-
-        # Common name for CA is typically set by the library, but can be overridden
-        cn_prompt = "\tCommon Name (leave empty for default instance name)"
-        cn_value = prompt_response(cn_prompt, default=None, mandatory=False)
-        if cn_value:  # Only include if user provided a value
+        cn_value = prompt_response(
+            "\tCommon Name (leave empty for default instance name)",
+            default=None,
+            mandatory=False,
+        )
+        if cn_value:
             cert_data["CN"] = cn_value
 
         try:
@@ -89,7 +102,6 @@ def create_cert(opts):
                 print("Use --overwrite to replace the existing certificate")
                 return
 
-            cert, key = result
             print(f"Successfully created root CA certificate: {certs_instance.root_ca_name}")
 
             # Ask if user wants to add this CA to trusted CAs
@@ -117,30 +129,27 @@ def create_cert(opts):
             if opts.ca_name:
                 if not certs_instance.cert_exists(opts.ca_name):
                     print(
-                        f"Error creating certificate: CA file {certs_instance.cert_file(opts.ca_name)} doesn't exists",
+                        f"Error creating certificate: CA file {certs_instance.cert_file(opts.ca_name)} doesn't exist",
                         file=sys.stderr,
                     )
                     sys.exit(1)
-            else:
-                # check if root ca exists if so use that to sign
-                if not certs_instance.ca_exists():
-                    print(
-                        f"Error creating certificate:No CA file found. Create self signed root CA certificate using --type root-ca or provide existing ca cert using --ca_name",
-                        file=sys.stderr,
-                    )
-                    sys.exit(1)
+            elif not certs_instance.ca_exists():
+                print(
+                    "Error creating certificate: no CA file found. "
+                    "Create a root CA with --type root-ca or provide --ca-name",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
 
-            if opts.type == 'ca':
-                opts.type = "CA"
-            cert, key = certs_instance.create_signed_cert_files(
+            cert_type = "CA" if opts.type == "ca" else opts.type
+            certs_instance.create_signed_cert_files(
                 name=opts.name,
-                cert_type=opts.type,
+                cert_type=cert_type,
                 ca_name=opts.ca_name,
                 overwrite=opts.overwrite,
                 valid_days=opts.valid_days,
                 fqdn=opts.fqdn if hasattr(opts, "fqdn") else None,
             )
-
             print(f"Successfully created {opts.type} certificate: {opts.name}")
         except Exception as e:
             print(f"Error creating certificate: {e}", file=sys.stderr)
@@ -165,24 +174,89 @@ def list_certs(opts):
             print("No certificates found.")
             return
 
-        print("\nAvailable certificates:")
-        for cert_name in sorted(cert_files):
-            if opts.details:
-                try:
-                    subject = certs_instance.get_cert_subject(cert_name)
-                    print(f"\n  {cert_name}:")
-                    print(f"    Common Name: {subject['common-name']}")
-                    print(f"    Country: {subject['country']}")
-                    print(f"    State: {subject['state']}")
-                    print(f"    Location: {subject['location']}")
-                    print(f"    Organization: {subject['organization']}")
-                    print(f"    Organization Unit: {subject['organization-unit']}")
-                except Exception as e:
-                    print(f"\n  {cert_name}: (error reading details: {e})")
-            else:
+        cert_files = sorted(cert_files)
+
+        if not opts.details:
+            print("\nAvailable certificates:")
+            for cert_name in cert_files:
                 print(f"  - {cert_name}")
+            return
+
+        summaries = []
+        for cert_name in cert_files:
+            try:
+                summaries.append(certs_instance.get_cert_summary(cert_name))
+            except Exception as e:
+                summaries.append(
+                    {
+                        "name": cert_name,
+                        "type": "error",
+                        "cn": "-",
+                        "issuer_cn": str(e),
+                        "expiry": None,
+                    }
+                )
+
+        name_width = max(len("NAME"), max(len(item["name"]) for item in summaries))
+        type_width = max(len("TYPE"), max(len(str(item.get("type") or "-")) for item in summaries))
+        cn_width = max(len("CN"), max(len(str(item.get("cn") or "-")) for item in summaries))
+        issuer_width = max(
+            len("ISSUER"),
+            max(len(str(item.get("issuer_cn") or "-")) for item in summaries),
+        )
+
+        print()
+        header = (
+            f"{'NAME'.ljust(name_width)}  "
+            f"{'TYPE'.ljust(type_width)}  "
+            f"{'CN'.ljust(cn_width)}  "
+            f"{'ISSUER'.ljust(issuer_width)}  "
+            f"EXPIRY"
+        )
+        print(header)
+        print("-" * len(header))
+
+        for item in summaries:
+            print(
+                f"{item['name'].ljust(name_width)}  "
+                f"{str(item.get('type') or '-').ljust(type_width)}  "
+                f"{str(item.get('cn') or '-').ljust(cn_width)}  "
+                f"{str(item.get('issuer_cn') or '-').ljust(issuer_width)}  "
+                f"{format_expiry(item.get('expiry'))}"
+            )
     except Exception as e:
         print(f"Error listing certificates: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def show_cert(opts):
+    """Handler for showing details of a single certificate."""
+    try:
+        certs_instance = Certs()
+
+        if not certs_instance.cert_exists(opts.name, remote=False):
+            print(f"Certificate '{opts.name}' not found.", file=sys.stderr)
+            sys.exit(1)
+
+        summary = certs_instance.get_cert_summary(opts.name)
+        subject = certs_instance.get_cert_subject(opts.name)
+        cert = certs_instance.cert(opts.name)
+
+        print(f"\nCertificate: {opts.name}")
+        print(f"Type: {summary.get('type') or '-'}")
+        print(f"Common Name: {summary.get('cn') or '-'}")
+        print(f"Issuer: {summary.get('issuer_cn') or '-'}")
+        print(f"Expiry: {format_expiry(summary.get('expiry'))}")
+        print(f"Not Before: {cert.not_valid_before_utc}")
+        print(f"Not After: {cert.not_valid_after_utc}")
+        print(f"Serial Number: {cert.serial_number}")
+        print(f"Country: {subject['country']}")
+        print(f"State: {subject['state']}")
+        print(f"Location: {subject['location']}")
+        print(f"Organization: {subject['organization']}")
+        print(f"Organization Unit: {subject['organization-unit']}")
+    except Exception as e:
+        print(f"Error showing certificate: {e}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -194,18 +268,15 @@ def remove_cert(opts):
         if not certs_instance.cert_exists(opts.name, remote=False):
             print(f"Certificate '{opts.name}' not found.", file=sys.stderr)
             sys.exit(1)
-
-        # Prompt for confirmation (require explicit yes/y to proceed)
-        confirm = (
-            input(
-                f"Are you sure you want to remove certificate '{opts.name}'? Type 'y' or 'yes' to confirm: "
-            )
-            .strip()
-            .lower()
-        )
-        if confirm not in ('yes', 'y'):
-            print("Removal cancelled.")
-            return
+        if not opts.force:
+            # Prompt for confirmation (require explicit yes/y to proceed)
+            confirm = input(
+                f"Are you sure you want to remove certificate '{opts.name}'? "
+                "Type 'y' or 'yes' to confirm: "
+            ).strip().lower()
+            if confirm not in ("yes", "y"):
+                print("Removal cancelled.")
+                return
 
         certs_instance.delete_cert(opts.name)
         print(f"Successfully removed certificate: {opts.name}")
@@ -219,11 +290,14 @@ def remove_cert(opts):
 
 def add_cert_parser(add_parser_fn):
     """Create and populate the argparse parser for certificate commands."""
-    cert_cmds = add_parser_fn("cert", help="create, list, or remove certificates")
+    cert_cmds = add_parser_fn("cert",
+                              help="create, list, remove, or show certificates",
+                              description="Create, list, remove, or show certificates.")
     cert_subparsers = cert_cmds.add_subparsers(
         title="subcommands",
         metavar="",
-        dest="store_commands",
+        dest="cert_subcommands",
+        required=True
     )
 
     cert_create = add_parser_fn(
@@ -263,11 +337,10 @@ def add_cert_parser(add_parser_fn):
         "name",
         nargs="?",
         default=None,
-        help="name used for the certificate files (ignored for root-ca cert, defaults to instance root CA)",
+        help="certificate file name; ignored for root-ca",
     )
     cert_create.set_defaults(func=create_cert)
 
-    ####
     cert_list = add_parser_fn(
         "list",
         help="list certificates",
@@ -281,17 +354,29 @@ def add_cert_parser(add_parser_fn):
     cert_list.add_argument(
         "--details",
         action="store_true",
-        help="show certificate subject details",
+        help="show compact certificate details",
     )
     cert_list.set_defaults(func=list_certs)
 
-    ####
+    cert_show = add_parser_fn(
+        "show",
+        help="show details for a certificate",
+        subparser=cert_subparsers,
+    )
+    cert_show.add_argument("name", help="name of the certificate to show")
+    cert_show.set_defaults(func=show_cert)
+
     cert_remove = add_parser_fn(
         "remove",
         help="remove a certificate",
         subparser=cert_subparsers,
     )
     cert_remove.add_argument("name", help="name of the certificate to remove")
+    cert_remove.add_argument(
+        "--force",
+        action="store_true",
+        help="remove without interactive confirmation",
+    )
     # cert_remove.add_argument(
     #     "--remote",
     #     action="store_true",
