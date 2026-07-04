@@ -382,7 +382,7 @@ def start_volttron_process(options: ServerOptions):
         from volttron.services.health.health_service import HealthService
         if 'web' in opts.services:
             try:
-                from volttron.services.web import PlatformWebService
+                from volttron.services.web.platform_web_service import PlatformWebService
             except ModuleNotFoundError as e:
                 missing_module = e.name or str(e)
                 _log.warning('Platform Web Service is configured but could not be imported.'
