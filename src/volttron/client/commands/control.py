@@ -38,15 +38,14 @@ import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from typing import List
-
+import importlib
+import pkgutil
 import gevent
 import gevent.event
 from attrs import define
 
 from volttron.client.commands.connection import ControlConnection
 from volttron.client.commands.rpc_parser import add_rpc_agent_parser
-from volttron.client.commands.auth_parser import add_auth_parser
-from volttron.client.commands.authz_parser import add_authz_parser
 from volttron.client.commands.config_store_parser import add_config_store_parser
 from volttron.client.commands.certs_parser import add_cert_parser
 from volttron.client.commands.install_parser import add_install_agent_parser, add_install_lib_parser
@@ -61,6 +60,9 @@ from volttron.utils import jsonapi
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils import is_volttron_running
+import volttron.plugins.vctl as vctl_plugins_ns
+from volttron.client.decorators import vctl_subparser
+from volttron.types.factories import VctlParserContext
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -2281,11 +2283,55 @@ def main():
     add_install_agent_parser(add_parser)
     add_install_lib_parser(add_parser)
     add_rpc_agent_parser(add_parser)
-
-    add_auth_parser(add_parser, filterable=filterable)
-    add_authz_parser(add_parser, filterable=filterable)
     add_config_store_parser(add_parser)
     add_cert_parser(add_parser)
+
+    # Discover and load vctl plugins from installed libraries
+    # Plugins are expected at volttron.plugins.vctl.<library>/ (e.g., .auth, .web)
+    try:
+
+
+        def _log_plugin_error(name):
+            """Callback for walk_packages to log import errors without aborting."""
+            def onerror(err):
+                _log.warning(f"Failed to import vctl plugin module {name}: {err}")
+            return onerror
+
+        # Recursively walk volttron.plugins.vctl and import all non-package modules
+        # This triggers @vctl_subparser decorator registration
+        for _, mod_name, is_pkg in pkgutil.walk_packages(
+            vctl_plugins_ns.__path__,
+            vctl_plugins_ns.__name__ + ".",
+            onerror=_log_plugin_error(vctl_plugins_ns.__name__)
+        ):
+            if not is_pkg:  # Import actual modules (e.g., authparser.py), not packages
+                try:
+                    importlib.import_module(mod_name)
+                except Exception as e:
+                    _log.warning(f"Failed to import vctl plugin module {mod_name}: {e}")
+
+        # Build the context for plugins
+        ctx = VctlParserContext(
+            subparsers=top_level_subparsers,
+            global_args=global_args,
+            filterable=filterable
+        )
+
+        # Now instantiate and configure each registered plugin
+        for plugin_cls in vctl_subparser.registry.values():
+            try:
+                plugin_instance = plugin_cls()
+                plugin_instance.configure(ctx)
+            except Exception as e:
+                plugin_name = getattr(plugin_cls, '__name__', str(plugin_cls))
+                _log.warning(f"Failed to configure vctl plugin {plugin_name}: {e}")
+
+    except ModuleNotFoundError:
+        # No plugins installed - this is fine, vctl works with just core commands
+        _log.debug("No vctl plugins found (volttron.plugins.vctl namespace not present)")
+    except Exception as e:
+        _log.warning(f"Error during vctl plugin discovery: {e}")
+
     tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
     group = tag.add_mutually_exclusive_group()
