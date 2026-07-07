@@ -38,7 +38,8 @@ import tarfile
 import tempfile
 from datetime import datetime, timedelta
 from typing import List
-
+import importlib
+import pkgutil
 import gevent
 import gevent.event
 from attrs import define
@@ -59,6 +60,9 @@ from volttron.utils import jsonapi
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils import is_volttron_running
+import volttron.plugins.vctl as vctl_plugins_ns
+from volttron.client.decorators import vctl_subparser
+from volttron.types.factories import VctlParserContext
 
 _stdout = sys.stdout
 _stderr = sys.stderr
@@ -2285,11 +2289,7 @@ def main():
     # Discover and load vctl plugins from installed libraries
     # Plugins are expected at volttron.plugins.vctl.<library>/ (e.g., .auth, .web)
     try:
-        import importlib
-        import pkgutil
-        import volttron.plugins.vctl as vctl_plugins_ns
-        from volttron.client.decorators import vctl_subparser
-        from volttron.types.factories import VctlParserContext
+
 
         def _log_plugin_error(name):
             """Callback for walk_packages to log import errors without aborting."""
