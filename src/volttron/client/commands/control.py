@@ -46,6 +46,7 @@ from attrs import define
 from volttron.client.commands.connection import ControlConnection
 from volttron.client.commands.rpc_parser import add_rpc_agent_parser
 from volttron.client.commands.config_store_parser import add_config_store_parser
+from volttron.client.commands.certs_parser import add_cert_parser
 from volttron.client.commands.install_parser import add_install_agent_parser, add_install_lib_parser
 from volttron.client.commands.publish_parser import add_publish_parser
 from volttron.client.commands.subscribe_parser import add_subscribe_parser
@@ -2279,6 +2280,7 @@ def main():
     add_install_lib_parser(add_parser)
     add_rpc_agent_parser(add_parser)
     add_config_store_parser(add_parser)
+    add_cert_parser(add_parser)
 
     # Discover and load vctl plugins from installed libraries
     # Plugins are expected at volttron.plugins.vctl.<library>/ (e.g., .auth, .web)
@@ -2329,6 +2331,7 @@ def main():
         _log.debug("No vctl plugins found (volttron.plugins.vctl namespace not present)")
     except Exception as e:
         _log.warning(f"Error during vctl plugin discovery: {e}")
+
     tag = add_parser("tag", parents=[filterable], help="set, show, or remove agent tag")
     tag.add_argument("agent", help="UUID or name of agent")
     group = tag.add_mutually_exclusive_group()
@@ -2444,7 +2447,14 @@ def main():
     # Below vctl commands can work even when volttron is not up. For others
     # volttron need to be up.
     if len(args) > 0:
-        if args[0] not in ("list", "tag"):
+        # Find the actual command (skip option flags like -v, --verboseness, etc.)
+        command = None
+        for arg in args:
+            if not arg.startswith('-'):
+                command = arg
+                break
+
+        if command and command not in ("list", "tag", "cert"):
             # check pid file
             if not is_volttron_running(volttron_home):
                 _stderr.write("VOLTTRON is not running. This command "
@@ -2452,8 +2462,10 @@ def main():
                 return 10
 
     conf = os.path.join(volttron_home, "config")
-    # if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
-    #     args = ["--config", conf] + args
+    if not os.path.exists(conf):
+        _stderr.write("VOLTTRON_HOME directory does not have a config file. Please start VOLTTRON at least once "
+                      f"to set up your VOLTTRON_HOME({volttron_home}) before running vctl commands\n")
+        return 10
 
     opts = parser.parse_args(args)
 
@@ -2529,8 +2541,9 @@ def main():
         # else we return 0 from here.  This has the added effect of
         # allowing us to cascade short circuit calls.
         if exc.args[0] != 0:
-            print_tb = exc.print_tb
-            error = exc.message
+            # print_tb = exc.args
+            # error = exc.message
+            print(exc)
         else:
             return 0
     finally:
@@ -2552,7 +2565,7 @@ def main():
 
     if opts.debug:
         print_tb()
-    _stderr.write("{}: error: {}\n".format(opts.command, error))
+    #_stderr.write("{}: error: {}\n".format(opts.command, error))
     return 20
 
 
