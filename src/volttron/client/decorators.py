@@ -130,6 +130,16 @@ def get_connection_builder(name: Optional[str] = None) -> ConnectionBuilder:
     return __get_class_from_factory__(registration=connection_builder, name=name)
 
 
+def reset_core_builder():
+    """Reset the cached CoreBuilder singleton so the next call to
+    get_core_builder() creates a fresh instance with empty per-instance state
+    (e.g. agent_contexts, connection_builders on ZmqCoreBuilder).
+    Call this whenever a new isolated server context is needed (e.g. between
+    PlatformWrapper instances in tests)."""
+    global __core_builder__
+    __core_builder__ = None
+
+
 def get_server_credentials(address: Optional[str] = None) -> Credentials:
     import os
     from pathlib import Path

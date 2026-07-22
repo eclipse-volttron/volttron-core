@@ -714,9 +714,12 @@ class VolttronAuthzMap:
         return True
 
     def get_protected_rpcs(self, identity) -> list[str]:
+        if identity not in self.agent_capabilities:
+            raise ValueError(f"################# Invalid agent identity {identity} agent capabilities is {self.agent_capabilities}")
         id_authz = self.agent_capabilities.get(identity)
         if not id_authz:
-            raise ValueError(f"Invalid agent identity {identity}")
+            print(f"No agent capabilities found for identity {identity}")
+            return []
         return id_authz.get("protected_rpcs", [])
 
     def create_protected_topics(self, *, topic_name_patterns: list[str]) -> bool:

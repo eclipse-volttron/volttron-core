@@ -244,7 +244,7 @@ def start_volttron_process(options: ServerOptions):
             # Disable federation to prevent further attempts
             opts.enable_federation = False
             sys.exit(1)
-            
+
 
     # vip_address is meant to be a list so make it so.
     if not isinstance(opts.address, list):
@@ -545,6 +545,15 @@ def start_volttron_process(options: ServerOptions):
         _log.error(traceback.print_exc())
     finally:
         _log.debug("AIP finally")
+        # Stop the authenticator so its inproc socket and greenlet are released
+        # cleanly rather than waiting for process exit.
+        if options.auth_enabled:
+            try:
+                from volttron.types.auth import Authenticator
+                _authenticator = service_repo.resolve(Authenticator)
+                _authenticator.stop()
+            except Exception:
+                _log.exception("Failed to stop authenticator cleanly")
         opts.aip.finish()
         instance_file = str(VOLTTRON_INSTANCES_PATH)
         try:
