@@ -75,6 +75,10 @@ class Container:
         Container.containers[name] = self
         self._resolvable: dict[T, S] = {}
         self._resolvable_lists: dict[T, Container.ResolvableList] = {}
+        # Tracks only class-based registrations (Singleton/ResolvableList/Transient).
+        # Never mutated after a registration is added, so reset_instances() can
+        # restore _resolvable to the factory state without losing class definitions.
+        self._registrations: dict[T, S] = {}
 
     def print_resolved(self, stream=sys.stdout):
         stream.write(f'{"-" * 80}\n')
@@ -89,7 +93,7 @@ class Container:
             stream.write("Singletons")
             for r, v in self._resolvable.items():
                 stream.write(f"\t{r}-> {v}\n")
-            
+
         else:
             stream.write("No resolved items found")
         stream.write(f'{"-" * 80}\n')
@@ -433,6 +437,7 @@ class Container:
         if type in self._resolvable:
             raise AttributeError(f"Type: {type} already exists and can't be modified.")
         self._resolvable[type] = Container.Singleton(self, value, **kwargs)
+        self._registrations[type] = self._resolvable[type]
 
     def add_concrete_reference(self, type: T, value: S, **kwargs: dict):
 
@@ -449,12 +454,18 @@ class Container:
         if not type in self._resolvable_lists:
             self._resolvable_lists[type] = resolvable_list
         resolvable_list.add_singleton(value, Container.Singleton(self, value, **kwargs))
+        # Always point _registrations at the (possibly updated) ResolvableList so that
+        # reset_instances() can restore it even after resolve() has overwritten it.
+        self._registrations[type] = self._resolvable[type]
 
     def add_instance(self, type: T, value: S):
+        # Direct instances are NOT recorded in _registrations so that
+        # reset_instances() removes them (forcing the caller to re-supply them).
         self._resolvable[type] = value
 
     def add_factory(self, type: T, value: S, **kwargs):
         self._resolvable[type] = Container.Transient(value, **kwargs)
+        self._registrations[type] = self._resolvable[type]
 
     def resolve(self, type: T, **kwargs) -> Optional[S]:
         _log.debug(f"Attempting resolve of type: {type}")
@@ -497,6 +508,41 @@ class Container:
                     if v.contains(type):
                         return v.retrieve(type)
             raise Unresolvable(type=type)
+
+    def reset_instances(self):
+        """Clear all resolved live-object caches and direct add_instance values.
+
+        After this call the container is back to its class-registration state:
+        every subsequent resolve() will build a fresh instance, picking up any
+        new add_instance() values (e.g. a new ServerOptions for a new
+        VOLTTRON_HOME).  Class-registrations made via add_interface_reference,
+        add_concrete_reference, and add_factory are preserved.
+
+        Call this whenever a new "context" (e.g. a new PlatformWrapper with its
+        own volttron_home) is being set up so that stale singletons from the
+        previous context are not reused.
+        """
+        # Step 1: Remove from _resolvable any key that is not a class-registration.
+        # This covers:
+        #   - Direct add_instance values (e.g. ServerOptions instances)
+        #   - Live objects cached by resolve() that replaced a Singleton entry
+        keys_to_remove = [k for k in list(self._resolvable) if k not in self._registrations]
+        for k in keys_to_remove:
+            del self._resolvable[k]
+
+        # Step 2: Restore any registration entry whose _resolvable slot was
+        # overwritten by a cached live object from a previous resolve() call.
+        for k, v in self._registrations.items():
+            self._resolvable[k] = v
+
+        # Step 3: Clear the _resolved cache on every Singleton so the next
+        # resolve() call re-instantiates with fresh dependencies.
+        for entry in self._resolvable.values():
+            if isinstance(entry, Container.Singleton):
+                entry._resolved = None
+        for rl in self._resolvable_lists.values():
+            for singleton in rl._resolvers.values():
+                singleton._resolved = None
 
     @staticmethod
     def create(name: str) -> Container:

@@ -637,8 +637,6 @@ def status_agents(opts):
             agent_user = ""
         try:
             agent = all_agents[uuid]
-            print(f"Agent user is {agent_user}")
-            print(f"agent is {agent}")
             all_agents[uuid] = agent
         except KeyError:
             all_agents[uuid] = AgentMeta(name=name, uuid=uuid, identity=identity, agent_user=agent_user)

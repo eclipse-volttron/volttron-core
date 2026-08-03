@@ -581,7 +581,7 @@ class AIPplatform:
 
             # will reuse credentials and capabilities if already exists.
             # Else will create new creds and default capabilities
-            self._auth_service.create_agent(identity=final_identity)
+            self._auth_service.create_credentials(identity=final_identity)
 
             # if self.message_bus == "rmq":
             #     rmq_user = cc.get_fq_identity(final_identity, cc.get_instance_name())

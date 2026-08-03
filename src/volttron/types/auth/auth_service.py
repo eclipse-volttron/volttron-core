@@ -41,11 +41,24 @@ class Authenticator(ABC):
     def is_authenticated(self, *, identity: authz.Identity) -> bool:
         ...
 
+    def stop(self) -> None:
+        """Release any resources held by this authenticator.
+
+        Implementations that hold sockets, threads, or greenlets MUST
+        override this and release them.  The default is a no-op so that
+        implementations that need no teardown don't have to override it.
+        """
+        ...
+
 
 class AuthorizationManager:
 
     @abstractmethod
     def get_protected_rpcs(self, identity: authz.Identity) -> list[str]:
+        ...
+
+    def reload(self) -> None:
+        """Re-read persisted authz state into memory. No-op by default."""
         ...
 
     @abstractmethod
@@ -141,9 +154,6 @@ class AuthorizationManager:
 class AuthService(Service):
 
     # Authentication
-    @abstractmethod
-    def create_agent(self, *, identity: str, **kwargs) -> bool:
-        ...
 
     @abstractmethod
     def remove_agent(self, *, identity: str, **kwargs) -> bool:

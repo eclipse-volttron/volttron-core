@@ -177,7 +177,7 @@ def wait_for_volttron_startup(vhome, timeout):
     Wait for the VOLTTRON_PID file to be written.  Raises
     Exception if timeout is hit first.
     """
-    
+
     # Check for VOLTTRON_PID
     sleep_time = 0
     while (not is_volttron_running(vhome)) and sleep_time < timeout:
