@@ -35,7 +35,7 @@ class Credentials(JSONSerializable):
     def create(cls, *, identity: str, **kwargs) -> Credentials:
         return Credentials(identity=identity)
 
-    def get_public_part(self) -> str|None:
+    def get_public_part(self) -> PublicCredentials|None:
         """ Return public part of a credential or None"""
         return None
 

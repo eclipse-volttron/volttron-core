@@ -2,7 +2,10 @@ from typing import Any, Optional
 from abc import ABC, abstractmethod
 from typing import Literal
 
-from volttron.types.auth.auth_credentials import (Credentials, CredentialsCreator, CredentialsStore)
+from volttron.types.auth.auth_credentials import (Credentials,
+                                                  PublicCredentials,
+                                                  CredentialsCreator,
+                                                  CredentialsStore)
 
 from volttron.types import Service, Identity
 
@@ -175,6 +178,16 @@ class AuthService(Service):
         :param identity: The identity to load from the credentials.
         :return: A credentials object
         :rtype: Credentials
+        """
+        ...
+    @abstractmethod
+    def get_public_credentials(self, identity: Identity = None) -> PublicCredentials:
+        """
+        Get public credentials of specific identity or all agents and server
+        :param identity: identity for which public credentials should be return.  defaults to None
+        :type identity: Identity, optional
+        :return: public part of credentials
+        :rtype: PublicCredentials
         """
         ...
 
