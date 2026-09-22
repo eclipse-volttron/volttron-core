@@ -65,6 +65,28 @@ class VctlParserContext:
             auth = ctx.register_command("auth", help="manage credentials")
             auth_subs = auth.add_subparsers(dest="auth_action")
             add_cmd = ctx.register_subcommand(auth_subs, "add", help="add credentials")
+        Example 2:
+            # Create a custom parser with just the args you want
+            timeout_only = argparse.ArgumentParser(add_help=False)
+            timeout_only.add_argument("--timeout", type=int, default=30)
+
+            # Apply only this parser to specific subcommands
+            sub1 = ctx.register_subcommand(subs, "sub1", parent_args=[timeout_only])
+            sub2 = ctx.register_subcommand(subs, "sub2", parent_args=[])  # No parents
+        Example 3:
+            # Global args for all commands
+            ctx.register_command("status", apply_global_args=True)     # Gets --address, --timeout
+
+            # Offline command (no connection needed)
+            ctx.register_command("cert", apply_global_args=False)      # No global args
+
+            # Agent-filtering subcommands (need filterable)
+            start_cmd = ctx.register_command("start")
+            start_subs = start_cmd.add_subparsers()
+            ctx.register_subcommand(start_subs, "agent",
+                                parent_args=[ctx.filterable],        # Only gets filterable
+                                apply_global_args=True)              # Plus global args
+
 
         By default, the subcommand inherits global arguments. Set apply_global_args=False
         for offline subcommands.
