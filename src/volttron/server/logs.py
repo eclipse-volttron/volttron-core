@@ -23,13 +23,18 @@
 # }}}
 
 import argparse
+import hashlib
 import inspect
 import logging
 import logging.config
 import os
+import re
 import stat
 import syslog
 import traceback
+from logging import FileHandler
+from logging.handlers import RotatingFileHandler
+from typing import Any, Dict, List, Optional, Set
 
 from pathlib import Path
 
@@ -264,3 +269,228 @@ class LogLevelAction(argparse.Action):
                     raise argparse.ArgumentError(self, "invalid log level {!r}".format(level_name))
             logger = logging.getLogger(logger_name)
             logger.setLevel(level)
+
+
+DEFAULT_LOG_TAIL = 200
+DEFAULT_LOG_BYTES = 65536
+MAX_LOG_BYTES = 1048576
+MAX_LOG_TAIL = 10000
+
+
+def _is_log_name(filename: str, base_name: str) -> bool:
+    return filename == base_name or bool(re.fullmatch(re.escape(base_name) + r"\.\d+", filename))
+
+
+def _log_file_candidates(volttron_home: Optional[str] = None) -> Set[str]:
+    paths: Set[str] = set()
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, logging.FileHandler):
+            filename = os.path.abspath(handler.baseFilename)
+            if os.path.isfile(filename):
+                paths.add(filename)
+    if volttron_home and os.path.isdir(volttron_home):
+        for entry in os.listdir(volttron_home):
+            if entry.endswith(".log") or ".log." in entry:
+                path = os.path.abspath(os.path.join(volttron_home, entry))
+                if os.path.isfile(path):
+                    paths.add(path)
+    return paths
+
+
+def _hash_file_identity(st_dev: int, st_ino: int) -> str:
+    """Hash device and inode to create an opaque, stable file identifier for rotation detection without leaking raw inode info."""
+    return hashlib.sha256(f"{st_dev}:{st_ino}".encode("utf-8")).hexdigest()[:16]
+
+
+def _hash_log_id(filename: str) -> str:
+    """Generate a deterministic neutral identifier from filename."""
+    return hashlib.sha256(filename.encode("utf-8")).hexdigest()[:16]
+
+
+def get_log_retention() -> Optional[Dict[str, Any]]:
+    for handler in logging.getLogger().handlers:
+        if isinstance(handler, RotatingFileHandler):
+            max_bytes = handler.maxBytes
+            backups = handler.backupCount
+            if max_bytes > 0:
+                return {
+                    "max_file_bytes": max_bytes,
+                    "backup_count": backups,
+                    "max_total_bytes": max_bytes * (backups + 1),
+                }
+    return None
+
+
+def get_available_logs(volttron_home: Optional[str] = None) -> Dict[str, Any]:
+    discovered = {}
+    for base_path in _log_file_candidates(volttron_home):
+        directory = os.path.dirname(base_path)
+        base_name = os.path.basename(base_path)
+        try:
+            filenames = os.listdir(directory)
+        except OSError:
+            continue
+        for filename in filenames:
+            if _is_log_name(filename, base_name):
+                path = os.path.join(directory, filename)
+                if os.path.isfile(path):
+                    try:
+                        stat_res = os.stat(path)
+                    except OSError:
+                        continue
+                    log_id = _hash_log_id(filename)
+                    discovered[filename] = {
+                        "id": log_id,
+                        "name": filename,
+                        "file_id": _hash_file_identity(stat_res.st_dev, stat_res.st_ino),
+                        "size_bytes": stat_res.st_size,
+                        "modified": stat_res.st_mtime,
+                        "is_active": filename == base_name,
+                    }
+    logs_list = sorted(discovered.values(), key=lambda item: item["name"])
+    return {
+        "logs": logs_list,
+        "retention": get_log_retention(),
+    }
+
+
+def read_log_file(
+    log_id: str,
+    tail: int = DEFAULT_LOG_TAIL,
+    offset: Optional[int] = None,
+    before: Optional[int] = None,
+    max_bytes: int = DEFAULT_LOG_BYTES,
+    volttron_home: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Read a bounded portion of a discovered log file.
+
+    Parameters:
+    - log_id: Neutral ID (SHA-256 prefix) or safe filename of the log file.
+    - tail: Number of lines to return from end of file (used when offset and before are None).
+    - offset: Byte offset to read forward from (used for live streaming/following).
+    - before: Byte offset to read backwards from (used for reverse historical pagination).
+    - max_bytes: Maximum number of bytes to read in one request (capped at 1 MiB).
+    - volttron_home: Optional path to VOLTTRON home directory.
+    """
+    discovered_info = get_available_logs(volttron_home)
+    available_logs = discovered_info.get("logs", [])
+
+    matched_item = None
+    for item in available_logs:
+        if item["id"] == log_id or item["name"] == log_id:
+            matched_item = item
+            break
+
+    if matched_item is None:
+        raise FileNotFoundError(f"Log not found: {log_id}")
+
+    target_filename = matched_item["name"]
+    base_path = next(
+        (path for path in _log_file_candidates(volttron_home) if _is_log_name(target_filename, os.path.basename(path))),
+        None,
+    )
+    if base_path is None:
+        raise FileNotFoundError(f"Log not found: {log_id}")
+
+    path = os.path.join(os.path.dirname(base_path), target_filename)
+    stat_res = os.stat(path)
+    file_size = stat_res.st_size
+    file_id = matched_item["file_id"]
+    canonical_id = matched_item["id"]
+    max_bytes = min(max(1, max_bytes), MAX_LOG_BYTES)
+
+    with open(path, "rb") as log_file:
+        if before is not None:
+            before = min(max(0, before), file_size)
+            start = max(0, before - max_bytes)
+            log_file.seek(start)
+            chunk = log_file.read(before - start)
+            previous_offset = start
+            if start and chunk:
+                log_file.seek(start - 1)
+                begins_mid_line = log_file.read(1) != b"\n"
+            else:
+                begins_mid_line = False
+            if begins_mid_line:
+                first_newline = chunk.find(b"\n")
+                if first_newline >= 0:
+                    previous_offset = start + first_newline + 1
+                    chunk = chunk[first_newline + 1:]
+            end_offset = before
+            if before < file_size and chunk:
+                log_file.seek(before - 1)
+                ends_mid_line = log_file.read(1) != b"\n"
+                if ends_mid_line:
+                    last_newline = chunk.rfind(b"\n")
+                    if last_newline >= 0:
+                        chunk = chunk[:last_newline + 1]
+                        end_offset = previous_offset + len(chunk)
+            return {
+                "lines": chunk.decode("utf-8", errors="replace").splitlines(),
+                "start_offset": previous_offset,
+                "end_offset": end_offset,
+                "previous_offset": previous_offset,
+                "next_offset": end_offset,
+                "total_bytes": file_size,
+                "file_id": file_id,
+                "log_id": canonical_id,
+                "has_older": previous_offset > 0,
+                "has_newer": before < file_size,
+            }
+
+        if offset is None:
+            start = max(0, file_size - max_bytes)
+            log_file.seek(start)
+            chunk = log_file.read(max_bytes)
+            if start:
+                first_newline = chunk.find(b"\n")
+                if first_newline >= 0:
+                    chunk = chunk[first_newline + 1:]
+            lines = chunk.decode("utf-8", errors="replace").splitlines()
+            return {
+                "lines": lines[-min(max(1, tail), MAX_LOG_TAIL):],
+                "start_offset": start,
+                "next_offset": file_size,
+                "previous_offset": start,
+                "total_bytes": file_size,
+                "file_id": file_id,
+                "log_id": canonical_id,
+                "has_older": start > 0,
+                "has_newer": False,
+            }
+
+        offset = max(0, offset)
+        if offset >= file_size:
+            return {
+                "lines": [],
+                "start_offset": file_size,
+                "next_offset": file_size,
+                "previous_offset": offset,
+                "total_bytes": file_size,
+                "file_id": file_id,
+                "log_id": canonical_id,
+                "has_older": offset > 0,
+                "has_newer": False,
+            }
+
+        log_file.seek(offset)
+        chunk = log_file.read(max_bytes)
+        next_offset = log_file.tell()
+        if chunk and not chunk.endswith(b"\n") and next_offset < file_size:
+            partial_start = chunk.rfind(b"\n") + 1
+            next_offset = offset + partial_start
+            chunk = chunk[:partial_start]
+
+        return {
+            "lines": chunk.decode("utf-8", errors="replace").splitlines(),
+            "start_offset": offset,
+            "next_offset": next_offset,
+            "previous_offset": offset,
+            "total_bytes": file_size,
+            "file_id": file_id,
+            "log_id": canonical_id,
+            "has_older": offset > 0,
+            "has_newer": next_offset < file_size,
+        }
+
