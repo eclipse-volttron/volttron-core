@@ -44,6 +44,7 @@ from volttron.client.vip.agent import RPC, Agent, Core
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.server.aip import AIPplatform
 from volttron.server.decorators import service
+from volttron.server.logs import get_available_logs, read_log_file
 from volttron.server.server_options import ServerOptions
 from volttron.utils import ClientContext as cc
 from volttron.utils import get_aware_utc_now, jsonapi
@@ -530,6 +531,43 @@ class ControlService(Agent):
     @RPC.export
     def remove_library(self, library: str) -> None:
         self._aip.remove_library(library=library)
+
+    @RPC.export
+    def list_logs(self) -> Dict[str, Any]:
+        """
+        List discovered log files and retention metadata for the platform.
+        """
+        volttron_home = cc.get_volttron_home()
+        return get_available_logs(volttron_home=volttron_home)
+
+    @RPC.export
+    def read_log(
+        self,
+        log_id: str,
+        tail: int = 200,
+        offset: Optional[int] = None,
+        before: Optional[int] = None,
+        max_bytes: int = 65536,
+    ) -> Dict[str, Any]:
+        """
+        Read a bounded window of lines from a specific platform log.
+
+        :param log_id: Neutral ID (SHA-256 hash prefix) or safe filename of the log file.
+        :param tail: Number of lines to return from end of file (used when offset and before are None).
+        :param offset: Byte offset to read forward from (for live streaming).
+        :param before: Byte offset to read backwards from (for reverse history pagination).
+        :param max_bytes: Max byte chunk to read in one request (capped at 1 MiB).
+        :return: Dict containing lines, cursors, file identity hash, and pagination flags.
+        """
+        volttron_home = cc.get_volttron_home()
+        return read_log_file(
+            log_id=log_id,
+            tail=tail,
+            offset=offset,
+            before=before,
+            max_bytes=max_bytes,
+            volttron_home=volttron_home,
+        )
 
     def _raise_error_if_identity_exists_without_force(self, vip_identity: str, force: bool) -> Identity:
         """
