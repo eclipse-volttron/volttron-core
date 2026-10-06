@@ -24,7 +24,8 @@ applications
 /docs/build/*
 /docs/source/volttron-api
 volttron.log
-__pycache__
+__pycache__/
+*.py[cod]
 .vscode/
 .python-version
 .pytest_cache

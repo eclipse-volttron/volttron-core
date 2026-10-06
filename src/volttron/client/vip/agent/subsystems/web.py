@@ -106,22 +106,53 @@ class WebSubSystem(SubsystemBase):
             res_type = res_type.value
         self._rpc().call(PLATFORM_WEB, "register_endpoint", endpoint, res_type).get(timeout=10)
 
-    def register_path(self, prefix, static_path):
+    def get_web_root(self) -> str:
         """
-        The :meth:`register_path` method registers a prefix that can be used
-        for routing static files.
+        The :meth:`get_web_root` method returns the one directory from which
+        this agent may publish static files through the
+        :class:`volttron.client.web.PlatformWebService`.
+
+        By default this is ``<VOLTTRON_HOME>/agents/<identity>/data/web-root``.
+        If the platform operator has configured ``web-root-dir`` for the web
+        service it is ``<web-root-dir>/<identity>`` instead. The directory is
+        not created; the agent must create it and place its files inside before
+        calling :meth:`register_path`. The full request path is appended to
+        this directory when a file is served, so the layout inside it must
+        mirror the URL paths the agent registers.
+
+        .. versionadded:: volttron-core 2.0
+
+        :return: Absolute path of the agent's web root.
+        :rtype: str
+        """
+        return self._rpc().call(PLATFORM_WEB, "get_web_root").get(timeout=10)
+
+    def register_path(self, prefix, static_path=None):
+        """
+        The :meth:`register_path` method registers a prefix (regular
+        expression) matching the request paths that should be served as static
+        files from this agent's web root (see :meth:`get_web_root`).
+
+        The agent cannot choose the directory files are served from. The
+        ``static_path`` argument is kept for backwards compatibility; if given
+        it must be the agent's web root, otherwise the web service refuses the
+        registration.
 
         .. versionadded:: VOLTTRON 4.0.1
+        .. versionchanged:: volttron-core 2.0
+            ``static_path`` is optional and, when supplied, must equal
+            :meth:`get_web_root`.
 
-        :param prefix:
+        :param prefix: Regular expression matched against the request path.
         :param static_path:
-            An existing path available to the
-            :class:`volttron.client.web.PlatformWebService`
+            Deprecated. The agent's web root, or None.
         :type prefix: str
-        :type static_path: str
+        :type static_path: str | None
+        :return: The directory that was registered.
+        :rtype: str
         """
         _log.info("Registering path prefix: {}, path: {}".format(prefix, static_path))
-        self._rpc().call(PLATFORM_WEB, "register_path_route", prefix, static_path).get(timeout=10)
+        return self._rpc().call(PLATFORM_WEB, "register_path_route", prefix, static_path).get(timeout=10)
 
     def register_websocket(self, endpoint, opened=None, closed=None, received=None):
         """
