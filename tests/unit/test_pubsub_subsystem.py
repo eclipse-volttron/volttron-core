@@ -77,3 +77,22 @@ def test_drop_subscription_success(mypubsub):
 
         assert ['heartbeat'] == mypubsub._drop_subscription(subscription_type, "heartbeat", callback)
         assert var["internal"][""]['heartbeat'] == {new_callback}  # variable cleared when callback is sent
+
+
+def test_unsubscribe_sends_through_the_cores_current_connection():
+    """The core swaps its connection object when it connects (zmq_core builds a new one and opens its socket). Both
+    subscribe and unsubscribe must send through the connection the core holds at send time, not one captured when the
+    subsystem was built: that one is never opened and its send fails an assertion, so no unsubscribe ever reached the
+    router."""
+    core = MagicMock()
+    stale = core.connection
+    p = PubSub(core, MagicMock(), MagicMock(), MagicMock())
+    core.connection = MagicMock(name='live connection')         # what zmq_core does on connect
+
+    def callback(peer, sender, bus, topic, headers, message):
+        pass
+    p._add_subscription("prefix", "devices/x", callback)
+    p.unsubscribe("pubsub", "devices/x", callback)
+    assert core.connection.send_vip_message.called
+    assert not stale.send_vip_message.called
+    assert "devices/x" not in p._my_subscriptions.get("internal", {}).get("", {})

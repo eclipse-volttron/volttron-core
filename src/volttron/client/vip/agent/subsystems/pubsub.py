@@ -104,7 +104,6 @@ class PubSub(SubsystemBase):
         self._processgreenlet = None
         self.tag_refresh_interval = tag_refresh_interval
         self.tag_vip_id = tag_vip_id
-        self._connection = core.connection
 
         def setup(sender, **kwargs):
             # pylint: disable=unused-argument
@@ -309,8 +308,6 @@ class PubSub(SubsystemBase):
         frames = ["subscribe", sub_msg]
         message = self._create_message_for_router(msg_id=result.ident, args=frames)
         self.__core__().connection.send_vip_message(message=message)
-        #
-        # self._connection.send_vip_message(message=message)
         return result
 
     @dualmethod
@@ -553,7 +550,7 @@ class PubSub(SubsystemBase):
         frames = ["unsubscribe", unsub_msg]
 
         message = self._create_message_for_router(msg_id=result.ident, args=frames)
-        self._connection.send_vip_message(message=message)
+        self.__core__().connection.send_vip_message(message=message)
         return result
 
     def unsubscribe(self, peer, prefix, callback, bus="", all_platforms=False, **kwargs):
