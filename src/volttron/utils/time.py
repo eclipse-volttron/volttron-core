@@ -36,6 +36,7 @@ from datetime import datetime
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 import logging
+import warnings
 import pytz
 from tzlocal import get_localzone
 
@@ -128,6 +129,34 @@ def get_aware_utc_now():
     return utcnow
 
 
+_local_timezone_warned = False
+
+
+def local_timezone():
+    """The system's local time zone as tzlocal determines it, or UTC when it cannot.
+
+    tzlocal raises when the host's time zone files disagree (/etc/timezone naming a different zone from /etc/localtime,
+    or a TZ variable naming no known zone) and warns when nothing is configured at all, as in minimal containers. A naive
+    timestamp still needs an interpretation in those cases, so UTC is used and the problem is logged once, instead of a
+    traceback or a warning on the terminal at every call that converts a naive timestamp.
+    """
+    global _local_timezone_warned
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            tz = get_localzone()
+        except Exception as e:
+            if not _local_timezone_warned:
+                _log.warning(f"Unable to determine the local time zone ({e}); naive timestamps are read as UTC.")
+                _local_timezone_warned = True
+            return tzutc()
+    for w in caught:
+        if not _local_timezone_warned:
+            _log.warning(f"Local time zone lookup: {w.message}")
+            _local_timezone_warned = True
+    return tz
+
+
 def get_utc_seconds_from_epoch(timestamp=None):
     """
     convert a given time stamp to seconds from epoch based on utc time. If
@@ -141,7 +170,7 @@ def get_utc_seconds_from_epoch(timestamp=None):
         timestamp = datetime.now(tz=tzutc())
 
     if timestamp.tzinfo is None:
-        local_tz = get_localzone()
+        local_tz = local_timezone()
 
         # Note:
         # We replace the time zone here which allows us to get the timezone and set it to the
