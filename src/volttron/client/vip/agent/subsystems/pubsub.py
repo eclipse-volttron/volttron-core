@@ -518,6 +518,7 @@ class PubSub(SubsystemBase):
                             del subscriptions[prefix]
                         except KeyError:
                             return []
+                        topics = [prefix]
                     else:
                         try:
                             callbacks = subscriptions[prefix]
@@ -535,7 +536,8 @@ class PubSub(SubsystemBase):
                                 _log.debug(f"subscriptions: {subscriptions}")
                             except KeyError:
                                 return []
-                    topics = [prefix]
+                            # Only now does the router need to know: other callbacks still want this prefix otherwise.
+                            topics = [prefix]
                     if not subscriptions:
                         del bus_subscriptions[bus]
                     if not bus_subscriptions:

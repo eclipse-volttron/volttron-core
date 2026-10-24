@@ -75,8 +75,12 @@ def test_drop_subscription_success(mypubsub):
 
         # assert var["internal"][""] == dict() # why is local variable not cleared. server is always updated.
 
-        assert ['heartbeat'] == mypubsub._drop_subscription(subscription_type, "heartbeat", callback)
-        assert var["internal"][""]['heartbeat'] == {new_callback}  # variable cleared when callback is sent
+        # Dropping one of two callbacks keeps the prefix, locally and (nothing to tell) at the router.
+        assert [] == mypubsub._drop_subscription(subscription_type, "heartbeat", callback)
+        assert var["internal"][""]['heartbeat'] == {new_callback}
+        # The last callback out takes the prefix with it, and that is what the router is told.
+        assert ['heartbeat'] == mypubsub._drop_subscription(subscription_type, "heartbeat", new_callback)
+        assert 'heartbeat' not in var["internal"].get("", {})
 
 
 def test_unsubscribe_sends_through_the_cores_current_connection():
@@ -96,3 +100,26 @@ def test_unsubscribe_sends_through_the_cores_current_connection():
     assert core.connection.send_vip_message.called
     assert not stale.send_vip_message.called
     assert "devices/x" not in p._my_subscriptions.get("internal", {}).get("", {})
+
+
+
+def test_unsubscribing_one_of_two_callbacks_keeps_the_router_subscription():
+    """Two handlers on one prefix (two bridges reading one device, say): dropping one must not tell the router to
+    unsubscribe the prefix, or the other handler goes silent. Only the last one out unsubscribes at the router."""
+    core = MagicMock()
+    p = PubSub(core, MagicMock(), MagicMock(), MagicMock())
+
+    def first(peer, sender, bus, topic, headers, message): pass
+    def second(peer, sender, bus, topic, headers, message): pass
+    p._add_subscription("prefix", "devices/x", first)
+    p._add_subscription("prefix", "devices/x", second)
+
+    p.unsubscribe("pubsub", "devices/x", first)
+    sent = core.connection.send_vip_message.call_args.kwargs['message']
+    assert "devices/x" in p._my_subscriptions["internal"][""]
+    assert b'"prefix": []' in sent.args[1] or '"prefix": []' in str(sent.args[1])
+
+    p.unsubscribe("pubsub", "devices/x", second)
+    sent = core.connection.send_vip_message.call_args.kwargs['message']
+    assert "devices/x" not in p._my_subscriptions["internal"].get("", {})
+    assert b'devices/x' in sent.args[1] or 'devices/x' in str(sent.args[1])
