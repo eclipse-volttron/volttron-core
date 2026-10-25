@@ -131,9 +131,9 @@ def _mk_cacert(valid_days=DEFAULT_DAYS, **kwargs):
 
     issuer = subject = _create_subject(**kwargs)
     cert_builder = x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(
-        key.public_key()).not_valid_before(datetime.datetime.utcnow()).not_valid_after(
+        key.public_key()).not_valid_before(datetime.datetime.now(datetime.timezone.utc)).not_valid_after(
     # Our certificate will be valid for 365 days
-            datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)).add_extension(
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=valid_days)).add_extension(
     # set CA to true
                 x509.BasicConstraints(ca=True, path_length=1),
                 critical=True).serial_number(int(time.time())).add_extension(
@@ -1126,8 +1126,8 @@ def _create_signed_certificate(ca_cert,
         fqdn, hostname, subject = build_subject(ca_cert, name, type, fqdn)
 
     cert_builder = x509.CertificateBuilder().subject_name(subject).issuer_name(issuer).public_key(
-        public_key).not_valid_before(datetime.datetime.utcnow()).not_valid_after(
-            datetime.datetime.utcnow() + datetime.timedelta(days=valid_days)).add_extension(
+        public_key).not_valid_before(datetime.datetime.now(datetime.timezone.utc)).not_valid_after(
+            datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=valid_days)).add_extension(
                 x509.AuthorityKeyIdentifier.from_issuer_public_key(ca_cert.public_key()),
                 critical=False)
 

@@ -32,11 +32,11 @@ __all__ = [
 ]
 
 import calendar
-from datetime import datetime
+from datetime import datetime, timezone
 from dateutil.parser import parse
 from dateutil.tz import tzutc, tzoffset
 import logging
-import pytz
+import warnings
 from tzlocal import get_localzone
 
 _log = logging.getLogger(__name__)
@@ -100,7 +100,7 @@ def parse_timestamp_string(time_stamp_str):
             time_stamp = datetime.strptime(base_time_stamp_str, "%Y-%m-%dT%H:%M:%S.%f")
             # Handle most common case.
             if time_zone_str == "+00:00":
-                return time_stamp.replace(tzinfo=pytz.UTC)
+                return time_stamp.replace(tzinfo=timezone.utc)
 
             hours_offset = int(time_zone_str[1:3])
             minutes_offset = int(time_zone_str[4:6])
@@ -123,9 +123,35 @@ def get_aware_utc_now():
     :returns: an aware UTC datetime object
     :rtype: datetime
     """
-    utcnow = datetime.utcnow()
-    utcnow = pytz.UTC.localize(utcnow)
-    return utcnow
+    return datetime.now(timezone.utc)
+
+
+_local_timezone_warned = False
+
+
+def local_timezone():
+    """The system's local time zone as tzlocal determines it, or UTC when it cannot.
+
+    tzlocal raises when the host's time zone files disagree (/etc/timezone naming a different zone from /etc/localtime,
+    or a TZ variable naming no known zone) and warns when nothing is configured at all, as in minimal containers. A naive
+    timestamp still needs an interpretation in those cases, so UTC is used and the problem is logged once, instead of a
+    traceback or a warning on the terminal at every call that converts a naive timestamp.
+    """
+    global _local_timezone_warned
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            tz = get_localzone()
+        except Exception as e:
+            if not _local_timezone_warned:
+                _log.warning(f"Unable to determine the local time zone ({e}); naive timestamps are read as UTC.")
+                _local_timezone_warned = True
+            return tzutc()
+    for w in caught:
+        if not _local_timezone_warned:
+            _log.warning(f"Local time zone lookup: {w.message}")
+            _local_timezone_warned = True
+    return tz
 
 
 def get_utc_seconds_from_epoch(timestamp=None):
@@ -141,17 +167,9 @@ def get_utc_seconds_from_epoch(timestamp=None):
         timestamp = datetime.now(tz=tzutc())
 
     if timestamp.tzinfo is None:
-        local_tz = get_localzone()
-
-        # Note:
-        # We replace the time zone here which allows us to get the timezone and set it to the
-        # current local timezone.  This may have an issue when we are in the daylight savings time
-        # era.  See using fold on the timestamp for fixing this.
-        #
-        # https://pytz-deprecation-shim.readthedocs.io/en/latest/migration.html#acquiring-a-tzinfo-object
-        #
-        # TODO: Handle timestamp without using localize for migration.
-        timestamp = timestamp.replace(tzinfo=local_tz)
+        # A zoneinfo zone resolves the offset from the wall time and the timestamp's fold attribute (PEP 495), so the
+        # repeated hour at the end of daylight saving time takes its first occurrence unless fold=1 was set.
+        timestamp = timestamp.replace(tzinfo=local_timezone())
 
     # utctimetuple can be called on aware timestamps and it will
     # convert to UTC first.
@@ -180,11 +198,11 @@ def process_timestamp(timestamp_string, topic=""):
         return
 
     if timestamp.tzinfo is None:
-        timestamp = timestamp.replace(tzinfo=pytz.UTC)
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
         original_tz = None
     else:
         original_tz = timestamp.tzinfo
-        timestamp = timestamp.astimezone(pytz.UTC)
+        timestamp = timestamp.astimezone(timezone.utc)
     return timestamp, original_tz
 
 
