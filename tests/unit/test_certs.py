@@ -1,3 +1,5 @@
+import json
+import os
 import time
 from pathlib import Path
 
@@ -202,3 +204,62 @@ def test_verify_cert_raises_for_missing_cert(certs_env):
 
     with pytest.raises(CertError):
         certs.verify_cert("does-not-exist")
+
+
+# ---------------------------------------------------------------------------
+# Pending CSR files are named after the CSR's common name, which the remote
+# peer chooses (CERT VU#173170.1, claims 8 and 9).
+
+@pytest.mark.parametrize("name", [
+    "volttron1.platform.agent", "v1.federation", "a-b_c.d", "x", "A" * 255,
+])
+def test_validate_csr_common_name_accepts_identities(name):
+    from volttron.utils.certs import validate_csr_common_name
+    assert validate_csr_common_name(name) == name
+
+
+@pytest.mark.parametrize("name", [
+    "../volttron1.agent", "volttron1.agent/../../web-users", "volttron1./agent", "/etc/passwd",
+    "volttron1.agent\x00", ".hidden", "..", ".", "", " volttron1.agent", "volttron1.agent\n",
+    "volttron1.agent;rm", "A" * 256, None, 5, b"volttron1.agent",
+])
+def test_validate_csr_common_name_refuses_paths_and_odd_input(name):
+    from volttron.utils.certs import validate_csr_common_name
+    with pytest.raises(ValueError) as excinfo:
+        validate_csr_common_name(name)
+    # The attacker-supplied name is not echoed.
+    assert str(name) not in str(excinfo.value) or name in ("", None, 5)
+
+
+FAKE_CSR = b"-----BEGIN CERTIFICATE REQUEST-----\nMIIB\n-----END CERTIFICATE REQUEST-----\n"
+
+
+def test_save_pending_csr_request_refuses_traversal_and_writes_nothing(certs_env):
+    certs, instance_name, certs_dir = certs_env
+    before = set(os.listdir(certs.csr_pending_dir))
+    for bad in ("../escaped", f"{instance_name}.agent/../../web-users", f"{instance_name}.agent\n"):
+        with pytest.raises(ValueError):
+            certs.save_pending_csr_request("10.0.0.1", bad, FAKE_CSR)
+    assert set(os.listdir(certs.csr_pending_dir)) == before
+    assert not (Path(certs.csr_pending_dir).parent / "escaped.json").exists()
+
+
+def test_save_pending_csr_request_records_once_and_never_overwrites(certs_env):
+    certs, instance_name, certs_dir = certs_env
+    name = f"{instance_name}.remote.agent"
+    csrfile = certs.save_pending_csr_request("10.0.0.1", name, FAKE_CSR)
+    metafile = Path(certs.csr_pending_dir) / (name + ".json")
+    assert csrfile == os.path.join(certs.csr_pending_dir, name + ".csr")
+    assert Path(csrfile).read_bytes() == FAKE_CSR
+    assert [req["identity"] for req in certs.get_pending_csr_requests()] == [name]
+
+    # A second request for the same name changes nothing.
+    certs.save_pending_csr_request("10.0.0.2", name, b"other")
+    assert Path(csrfile).read_bytes() == FAKE_CSR
+    assert json.loads(metafile.read_text())["remote_ip_address"] == "10.0.0.1"
+
+    # Nor does a request for a name whose .csr exists without its .json (claim 9).
+    metafile.unlink()
+    certs.save_pending_csr_request("10.0.0.2", name, b"other")
+    assert Path(csrfile).read_bytes() == FAKE_CSR
+    assert not metafile.exists()
