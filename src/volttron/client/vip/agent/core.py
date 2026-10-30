@@ -62,6 +62,9 @@ __all__: list[str] = ["BasicCore", "Core", "killing"]
 
 _log = logging.getLogger(__name__)
 
+# Seconds a core waits for the router's welcome after sending hello before it stops itself.
+HELLO_RESPONSE_TIMEOUT = 60.0
+
 
 class Periodic(object):    # pylint: disable=invalid-name
     """Decorator to set a method up as a periodic callback.
@@ -569,11 +572,11 @@ class Core(BasicCore):
     def create_event_handlers(self, state, hello_response_event, running_event):
 
         def connection_failed_check():
-            # If we don't have a verified connection after 10.0 seconds
-            # shut down.
-            if hello_response_event.wait(60.0):
+            # If we don't have a verified connection after HELLO_RESPONSE_TIMEOUT
+            # seconds shut down.
+            if hello_response_event.wait(HELLO_RESPONSE_TIMEOUT):
                 return
-            _log.error("No response to hello message after 10 seconds.")
+            _log.error(f"No response to hello message after {HELLO_RESPONSE_TIMEOUT:g} seconds.")
             _log.error("Possible reasons are authentication or conflicting vip identities.")
             self.stop(timeout=10.0)
 
