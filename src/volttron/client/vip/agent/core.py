@@ -520,14 +520,21 @@ class Core(BasicCore):
         assert self.connected
         self._connection.send_vip_message(message=message)
 
+    # How long stop() waits to hand its agentstop notice to the bus. The notice is a courtesy to the router; a stop
+    # must not depend on it, because when the router is gone the send can block for ever (volttron-core#360).
+    stop_notify_timeout = 1.0
+
     def stop(self, timeout=None, platform_shutdown=False):
-        # Send message to router that this agent is stopping
+        # Tell the router that this agent is stopping, unless the link is known to be down.
         if self.connected and not platform_shutdown:
             frames = [self.identity]
-
-            self._connection.send_vip("", "agentstop", args=frames, copy=False)
-
-            # self._connection.send_vip_message(message=Message(peer='', subsystem="agentstop", args=frames))
+            sent = False
+            with gevent.Timeout(self.stop_notify_timeout, False):
+                self._connection.send_vip("", "agentstop", args=frames, copy=False)
+                sent = True
+            if not sent:
+                _log.warning(f"{self.identity}: could not notify the router of the stop within "
+                             f"{self.stop_notify_timeout}s; stopping anyway")
         super(Core, self).stop(timeout=timeout)
 
     # # This function moved directly from the zmqcore agent.  it is included here because
