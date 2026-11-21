@@ -320,6 +320,13 @@ def install_lib_vctl(opts: argparse.Namespace, callback=None):
         callback()
 
 
+def _progress(message: str):
+    """A progress message for the person running vctl. On stderr, so that stdout carries only the command's result
+    (with --json, exactly one JSON document)."""
+    sys.stderr.write(f"{message}\n")
+    sys.stderr.flush()
+
+
 def install_agent_vctl(opts: argparse.Namespace, callback=None):
     """
     The `install_agent_vctl` function is called from the volttron-ctl or vctl install
@@ -350,18 +357,18 @@ def install_agent_vctl(opts: argparse.Namespace, callback=None):
         if opts.connection.address.startswith("ipc:"):
             editable =True
         else:
-            print(f"Building agent from {install_path}")
+            _progress(f"Building agent from {install_path}")
             install_path = _build_from_pyproject(install_path)
 
     if editable:
         # No wheel file was built. install editable
-        print(f"Installing editable agent package on local server: {install_path} opts {opts.install_path}")
+        _progress(f"Installing editable agent package on local server: {install_path} opts {opts.install_path}")
         _install_and_initialize_agent(opts)
     elif install_path.is_file() and install_path.suffix == ".whl":
-        print(f"Installing from wheel {install_path}")
+        _progress(f"Installing from wheel {install_path}")
         _install_and_initialize_agent(opts, wheel_file=install_path)
     else:
-        print(f"Installing from pypi {install_path}")
+        _progress(f"Installing from pypi {install_path}")
         _install_and_initialize_agent(opts, pypi_string=install_path.as_posix())
 
     if callback:
