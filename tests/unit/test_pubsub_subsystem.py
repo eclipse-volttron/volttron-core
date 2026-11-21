@@ -123,3 +123,23 @@ def test_unsubscribing_one_of_two_callbacks_keeps_the_router_subscription():
     sent = core.connection.send_vip_message.call_args.kwargs['message']
     assert "devices/x" not in p._my_subscriptions["internal"].get("", {})
     assert b'devices/x' in sent.args[1] or 'devices/x' in str(sent.args[1])
+
+
+def test_decorated_subscriptions_of_the_agent_are_registered():
+    """@PubSub.subscribe on an agent method registers the subscription when the agent's subsystems are set up
+    (volttron-core#363: PubSub was given the Subsystems object instead of the agent as its owner)."""
+    from volttron.client.vip.agent import Agent
+    from volttron.types.agent_context import AgentOptions
+
+    class Owner:
+        @PubSub.subscribe('pubsub', 'devices/probe')
+        def on_probe(self, peer, sender, bus, topic, headers, message):
+            pass
+
+    owner = Owner()
+    core = MagicMock()
+    subsystems = Agent.Subsystems(owner=owner, core=core, options=AgentOptions())
+    setups = [c.args[0] for c in core.onsetup.connect.call_args_list if c.args[1:2] == (subsystems.pubsub,)]
+    assert len(setups) == 1
+    setups[0](core)
+    assert owner.on_probe in subsystems.pubsub._my_subscriptions["internal"][""]["devices/probe"]

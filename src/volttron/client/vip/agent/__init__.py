@@ -53,7 +53,7 @@ class Agent(AbstractAgent):
             self.pubsub = PubSub(core=core,
                                  peerlist_subsys=self.peerlist,
                                  rpc_subsys=self.rpc,
-                                 owner=self,
+                                 owner=owner,
                                  tag_vip_id=options.tag_vip_id,
                                  tag_refresh_interval=options.tag_refresh_interval)
             self.health = Health(owner=owner, core=core, rpc=self.rpc)
