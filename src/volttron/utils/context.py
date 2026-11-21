@@ -148,8 +148,8 @@ class ClientContext:
 
     @classmethod
     def get_messagebus(cls):
-        """Get type of message bus - zeromq or rabbbitmq."""
-        return cls.get_config_param("message-bus")
+        """The platform's message bus: the config's ``messagebus`` value (Monolithic's key was ``message-bus``)."""
+        return cls.get_config_param("messagebus", None) or cls.get_config_param("message-bus", None)
 
     @classmethod
     def get_instance_name(cls):
