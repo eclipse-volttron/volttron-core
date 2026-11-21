@@ -1,3 +1,4 @@
+import importlib
 import inspect
 import logging
 import typing
@@ -93,36 +94,56 @@ def __get_class_from_factory__(*, registration, name: str = None):
 
 
 __core_builder__: CoreBuilder = None
+"""The builder unnamed lookups return, once chosen. Agent.__init__ looks up unnamed."""
+
+__core_builders__: dict[str, CoreBuilder] = {}
+"""One builder instance per registry name."""
+
+
+def _builder_instance(name: str, kwargs: dict) -> CoreBuilder:
+    builder = __core_builders__.get(name)
+    if builder is None:
+        cls = __get_class_from_factory__(registration=core_builder, name=name)
+        specs = inspect.getfullargspec(cls.__init__)
+        builder = cls() if len(specs.args) == 1 and specs.defaults is None else cls(**kwargs)
+        __core_builders__[name] = builder
+    return builder
+
+
+def _default_builder_name() -> str:
+    """The registry name an unnamed lookup uses.
+
+    One registered builder is used. With several, the platform's message bus decides: a builder whose registry name,
+    or whose ``messagebus`` attribute, equals the platform config's ``messagebus`` value. With none registered, the
+    platform's message bus package is imported, which registers its builder.
+    """
+    from volttron.utils import ClientContext as cc
+    bus = cc.get_messagebus() or "zmq"
+    registry = core_builder.registry
+    if not registry:
+        importlib.import_module(f"volttron.messagebus.{bus}")
+        registry = core_builder.registry
+    if len(registry) == 1:
+        return next(iter(registry))
+    matches = [key for key, cls in registry.items() if key == bus or getattr(cls, "messagebus", None) == bus]
+    if len(matches) == 1:
+        return matches[0]
+    raise ValueError(f"Can't choose a core builder for message bus {bus!r}: registered {sorted(registry)}, "
+                     f"matching {sorted(matches)}. Pass name= to get_core_builder().")
 
 
 def get_core_builder(name: Optional[str] = None, **kwargs) -> CoreBuilder:
+    """The core builder registered as ``name``, or for unnamed lookups the platform's (see _default_builder_name).
+
+    Each registered builder is created once and cached by name; ``kwargs`` are used only when it is created. An
+    explicit name always returns that builder (it used to return whichever builder was cached first,
+    volttron-core#361).
+    """
     global __core_builder__
-    # TODO: Not sure why the second lookup doesn't work as it should.
-    # TODO: Server is going to use a file in volttron_home called system to hold the
-    # TODO: Builder so we can get it if we are a client.
+    if name is not None:
+        return _builder_instance(name, kwargs)
     if __core_builder__ is None:
-        try:
-            __core_builder__ = __get_class_from_factory__(registration=core_builder, name=name)
-        except ValueError:
-
-            import importlib
-            zmq_core_module = "volttron.messagebus.zmq.zmq_core"
-            zmq_core_builder_class = "ZmqCoreBuilder"
-            module = importlib.import_module(zmq_core_module)
-            __core_builder__ = __get_class_from_factory__(
-                registration=core_builder, name=name)    # __core_builder__ = getattr(module, zmq_core_builder_class)
-
-            # __core_builder__ = importlib.import_module(new_package)
-
-        specs = inspect.getfullargspec(__core_builder__.__init__)
-        # for k, v in kwargs.items():
-        #     if k not in signature.parameters:
-        #         raise ValueError(f"Invalid parameter {k} signature has {signature.parameters}")
-        if len(specs.args) == 1 and specs.defaults is None:
-            __core_builder__ = __core_builder__()
-        else:
-            __core_builder__ = __core_builder__(**kwargs)
-
+        __core_builder__ = _builder_instance(_default_builder_name(), kwargs)
     return __core_builder__
 
 
@@ -131,13 +152,12 @@ def get_connection_builder(name: Optional[str] = None) -> ConnectionBuilder:
 
 
 def reset_core_builder():
-    """Reset the cached CoreBuilder singleton so the next call to
-    get_core_builder() creates a fresh instance with empty per-instance state
-    (e.g. agent_contexts, connection_builders on ZmqCoreBuilder).
-    Call this whenever a new isolated server context is needed (e.g. between
-    PlatformWrapper instances in tests)."""
+    """Forget every cached CoreBuilder, so the next get_core_builder() call creates fresh instances with empty
+    per-instance state (e.g. agent_contexts, connection_builders on ZmqCoreBuilder). Call this whenever a new
+    isolated server context is needed (e.g. between PlatformWrapper instances in tests)."""
     global __core_builder__
     __core_builder__ = None
+    __core_builders__.clear()
 
 
 def get_server_credentials(address: Optional[str] = None) -> Credentials:
