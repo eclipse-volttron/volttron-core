@@ -357,6 +357,9 @@ def install_agent_vctl(opts: argparse.Namespace, callback=None):
         # No wheel file was built. install editable
         print(f"Installing editable agent package on local server: {install_path} opts {opts.install_path}")
         _install_and_initialize_agent(opts)
+    elif install_path.suffix == ".whl" and not install_path.exists():
+        # A wheel path that does not exist is a mistake, not a PyPI requirement; vctl's main reports it and exits 1.
+        raise FileNotFoundError(f"Invalid wheel file {install_path}: no such file")
     elif install_path.is_file() and install_path.suffix == ".whl":
         print(f"Installing from wheel {install_path}")
         _install_and_initialize_agent(opts, wheel_file=install_path)
