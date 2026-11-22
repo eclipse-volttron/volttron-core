@@ -36,94 +36,44 @@
 # under Contract DE-AC05-76RL01830
 # }}}
 """
-This is the main entry point to the VOLTTRON server. The first thing that
-should happen is setting up of logging and verbosity for the server.  After
-that we hand off to the run_server method, which will start the server process.
+The main entry point to the VOLTTRON server (the ``volttron`` command and ``python -m volttron.server``).
+
+Logging is configured once, by ``run_server``, from the parsed options with the config file included. Until then
+the records logged while the server's modules import are held in a bounded buffer and replayed at the configured
+levels (volttron-core#362). This used to be a hand-written scan of ``sys.argv`` that recognised only ``-l PATH``
+and ``-v``, so every other logging setting was ignored.
 """
 
-import logging.handlers
 import os
 import sys
 
-from pathlib import Path
+from volttron.server.logs import early_log_buffer, install_early_log_buffer, log_to_console, replay_early_logs
 
-from volttron.server.logs import log_to_console, log_to_file, configure_logging
 
-file_to_log_to: str | None = None
-total_count: int = 0
-logging_config: Path | str | None = None
+def main():
+    install_early_log_buffer()
 
-arg_iter = iter(sys.argv)
-for arg in arg_iter:
-    vcount = 0
+    if os.environ.get("VOLTTRON_HOME") is None:
+        os.environ["VOLTTRON_HOME"] = os.path.expanduser("~/.volttron")
+    # Create the volttron home if it doesn't exist.
+    os.makedirs(os.path.join(os.environ["VOLTTRON_HOME"]), exist_ok=True)
 
-    if arg.startswith("-v"):
-        vcount = arg.count("v")
-    elif arg == "--verbose":
-        vcount = 1
-    elif arg == "--log" or arg == "-l":
-        file_to_log_to = next(arg_iter)
+    # Append PYTHONPATH variables to the system environment
+    python_path = os.environ.get("PYTHONPATH")
+    if python_path:
+        for pth in python_path.split(":"):
+            if pth not in sys.path:
+                sys.path.insert(0, pth)
 
-    elif arg == "--log-config" or arg == "-L":
-        # Find the index of the log configuration so we can replace the
-        # file with absolute path.
-        try:
-            index = sys.argv.index("--log-config")
-        except ValueError:
-            index = sys.argv.index("-L")
+    try:
+        from volttron.server.run_server import _main
+        return _main()
+    finally:
+        if early_log_buffer() is not None:
+            # The server stopped before configuring logging (an error, --help, --version): show what it logged.
+            log_to_console()
+            replay_early_logs()
 
-        # Get the logging config file and verify it's existence.
-        logging_config = Path(sys.argv[index + 1])
-        if not logging_config.exists():
-            sys.stderr.write(f"Invalid --log-config file passed {logging_config}")
-            sys.exit(10)
 
-        # Finally set the logging parameter to the absolute path
-        sys.argv[index + 1] = logging_config.absolute().as_posix()
-
-    total_count += vcount
-
-if os.environ.get("VOLTTRON_HOME") is None:
-    os.environ["VOLTTRON_HOME"] = os.path.expanduser("~/.volttron")
-
-# Create the volttron home if it doesn't exist.
-os.makedirs(os.path.join(os.environ["VOLTTRON_HOME"]), exist_ok=True)
-
-if logging_config and total_count > 0:
-    sys.stderr.write("Cannot specify both --log-config and --verbose options\n"
-                     "Update the logging config file to set the verbosity level")
-    sys.exit(1)
-
-if logging_config and file_to_log_to:
-    sys.stderr.write("Cannot specify both --log and --log-config options\n"
-                     "Update the logging config file to specify the log file")
-    sys.exit(1)
-
-# If the user has specified a logging configuration then allow them full access to all the
-# responsibility of logging.
-if logging_config:
-    configure_logging(logging_config)
-
-else:
-    # Convert -v count to a logging level: each -v lowers level by 10
-    # no -v → WARNING (30), -v → INFO (20), -vv → DEBUG (10), -vvv → 1 (all)
-    level = max(1, logging.WARNING - total_count * 10)
-
-    # The user wants to output all to a file so we can do that for them.
-    if file_to_log_to:
-        log_to_file(file_to_log_to, level, handler_class=logging.handlers.WatchedFileHandler)
-
-    # Normal here just use the default stream handler setup.
-    else:
-        log_to_console(level)
-
-from volttron.server.run_server import _main
-
-# Append PYTHONPATH variables to the system environment
-python_path = os.environ.get("PYTHONPATH")
-if python_path:
-    for pth in python_path.split(":"):
-        if pth not in sys.path:
-            sys.path.insert(0, pth)
-
-_main()
+if __name__ == "__main__":
+    sys.exit(main())

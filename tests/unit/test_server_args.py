@@ -106,9 +106,8 @@ def test_agent_isolation_mode_from_the_command_line_or_config(home):
     assert parse(home, config="[volttron]\nagent-isolation-mode = False\n").agent_isolation_mode is False
 
 
-@pytest.mark.xfail(strict=True, raises=AssertionError,
-                   reason="volttron-core#373: the boolean default is compared with the string 'False'")
 def test_agent_isolation_mode_is_off_by_default(home):
+    # volttron-core#373: the boolean default used to be compared with the string 'False'.
     assert parse(home).agent_isolation_mode is False
 
 
