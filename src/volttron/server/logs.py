@@ -23,6 +23,7 @@
 # }}}
 
 import argparse
+import collections
 import hashlib
 import inspect
 import logging
@@ -161,6 +162,50 @@ def log_to_file(file_, level=logging.WARNING, handler_class=logging.StreamHandle
     root = logging.getLogger()
     root.setLevel(level)
     root.addHandler(handler)
+
+class EarlyLogBuffer(logging.Handler):
+    """Holds the records logged before the server has parsed its options, so logging can be configured once, from
+    the parsed options (config file included), and the early records replayed at the configured levels
+    (volttron-core#362). Bounded, so a server that never configures logging cannot grow it without limit."""
+
+    def __init__(self, capacity: int = 10000):
+        super().__init__(level=1)
+        self.records = collections.deque(maxlen=capacity)
+
+    def emit(self, record):
+        self.records.append(record)
+
+
+def install_early_log_buffer() -> EarlyLogBuffer:
+    """Buffer every record until :func:`replay_early_logs`; the root logger passes everything meanwhile."""
+    buffer = EarlyLogBuffer()
+    root = logging.getLogger()
+    root.addHandler(buffer)
+    root.setLevel(1)
+    return buffer
+
+
+def early_log_buffer() -> Optional[EarlyLogBuffer]:
+    return next((h for h in logging.getLogger().handlers if isinstance(h, EarlyLogBuffer)), None)
+
+
+def logging_configured() -> bool:
+    """Whether the root logger has a handler other than the early buffer."""
+    return any(not isinstance(h, EarlyLogBuffer) for h in logging.getLogger().handlers)
+
+
+def replay_early_logs():
+    """Remove the early buffer and pass its records to the now configured handlers, as each logger's level allows."""
+    buffer = early_log_buffer()
+    if buffer is None:
+        return
+    logging.getLogger().removeHandler(buffer)
+    for record in buffer.records:
+        logger = logging.getLogger(record.name)
+        if logger.isEnabledFor(record.levelno):
+            logger.handle(record)
+    buffer.records.clear()
+
 
 def configure_logging(conf_path):
     """

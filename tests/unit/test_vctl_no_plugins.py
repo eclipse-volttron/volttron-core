@@ -2,101 +2,70 @@
 """
 Tests for vctl behavior when no optional vctl plugins are installed.
 
-This module simulates an environment where the auth-related plugin package is
-not available on ``sys.path``. The tests verify that importing the optional
-namespace fails cleanly, that the plugin registry remains empty, and that the
-control flow can continue gracefully when the namespace is missing.
+Plugins are hidden for each test, however they are installed: an import hook makes every
+``volttron.plugins.vctl`` import raise ``ModuleNotFoundError``, as it does in an environment without plugins,
+and the plugin registry starts empty. (Removing ``sys.path`` entries, as these tests used to, only hid a plugin
+installed on its own path entry; a plugin installed into ``site-packages`` stayed importable, so the tests failed
+wherever volttron-lib-auth was installed.)
 """
-
 import importlib
+import importlib.abc
 import sys
 
 import pytest
 
-
-def _path_without_auth_plugins(path_entries):
-    """
-    Return a copy of ``sys.path`` with auth plugin locations removed.
-
-    Parameters
-    ----------
-    path_entries : list[str]
-        Original Python import path entries.
-
-    Returns
-    -------
-    list[str]
-        A filtered path list with any entry containing ``volttron-lib-auth``
-        removed.
-    """
-    return [p for p in path_entries if "volttron-lib-auth" not in p]
+PLUGIN_NAMESPACE = "volttron.plugins.vctl"
 
 
-def _clear_vctl_modules():
-    """
-    Remove cached vctl plugin modules from ``sys.modules``.
+def _is_plugin_module(name: str) -> bool:
+    return name == PLUGIN_NAMESPACE or name.startswith(PLUGIN_NAMESPACE + ".")
 
-    This prevents prior imports in the current pytest session from affecting
-    tests that are specifically checking missing-plugin behavior.
-    """
-    for name in list(sys.modules):
-        if (
-            name == "volttron.plugins.vctl"
-            or name.startswith("volttron.plugins.vctl.")
-        ):
-            sys.modules.pop(name, None)
+
+class _HidePlugins(importlib.abc.MetaPathFinder):
+    """Import hook that makes the vctl plugin namespace look absent."""
+
+    def find_spec(self, name, path=None, target=None):
+        if _is_plugin_module(name):
+            raise ModuleNotFoundError(f"No module named {name!r} (vctl plugins hidden by the test)", name=name)
+        return None
 
 
 @pytest.fixture
-def no_auth_plugin_path(monkeypatch):
-    """
-    Configure the test environment to behave as if auth plugins are absent.
-
-    The fixture removes any auth-plugin-related paths from ``sys.path`` and
-    clears cached vctl namespace modules so each test starts from a clean
-    import state.
-    """
-    monkeypatch.setattr(sys, "path", _path_without_auth_plugins(sys.path.copy()))
-    _clear_vctl_modules()
-
-
-def test_import_vctl_raises_when_no_plugins_installed(no_auth_plugin_path):
-    """
-    Verify that the optional ``volttron.plugins.vctl`` namespace is missing.
-
-    When the auth plugin package is not installed, importing the vctl plugin
-    namespace should raise ``ModuleNotFoundError`` rather than failing in some
-    less predictable way.
-    """
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("volttron.plugins.vctl")
-
-
-def test_vctl_subparser_registry_is_empty_when_no_plugins_installed(no_auth_plugin_path):
-    """
-    Verify that the vctl subparser registry is empty without plugins.
-
-    This test assumes no other plugin modules have already populated the
-    registry during the same test session.
-    """
+def no_vctl_plugins(monkeypatch):
+    """Run the test as if no vctl plugins were installed, and restore the real state afterwards."""
     from volttron.client.decorators import vctl_subparser
 
+    cached = {name: sys.modules.pop(name) for name in list(sys.modules) if _is_plugin_module(name)}
+    monkeypatch.setattr(sys, "meta_path", [_HidePlugins(), *sys.meta_path])
+    monkeypatch.setattr(vctl_subparser, "registry", {})
+    yield
+    sys.modules.update(cached)
+
+
+def _vctl_commands(parser):
+    return set(parser._subparsers._group_actions[0].choices)
+
+
+def test_import_vctl_raises_when_no_plugins_installed(no_vctl_plugins):
+    """Without plugins the optional namespace is missing: importing it raises ``ModuleNotFoundError``."""
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module(PLUGIN_NAMESPACE)
+
+
+def test_vctl_subparser_registry_is_empty_when_no_plugins_installed(no_vctl_plugins, tmp_path):
+    """Building vctl's parser without plugins registers no plugin and adds no plugin command."""
+    from volttron.client.commands.control import build_parser
+    from volttron.client.decorators import vctl_subparser
+
+    parser = build_parser(str(tmp_path))
     assert vctl_subparser.registry == {}
+    assert not {"auth", "authz"} & _vctl_commands(parser)
 
 
-def test_control_flow_handles_missing_vctl_namespace_gracefully(no_auth_plugin_path):
-    """
-    Verify that missing plugin namespaces can be handled gracefully.
+def test_control_flow_handles_missing_vctl_namespace_gracefully(no_vctl_plugins, tmp_path):
+    """vctl's plugin discovery catches the missing namespace, and the core commands still parse."""
+    from volttron.client.commands.control import build_parser
 
-    This mirrors the control-path behavior where optional plugin imports are
-    attempted and ``ModuleNotFoundError`` is intentionally caught so core vctl
-    functionality can continue.
-    """
-    try:
-        importlib.import_module("volttron.plugins.vctl")
-    except ModuleNotFoundError:
-        caught = True
-    else:
-        caught = False
-
-    assert caught is True
+    parser = build_parser(str(tmp_path))
+    assert {"status", "install", "config", "start", "stop"} <= _vctl_commands(parser)
+    assert parser.parse_args(["status"]).func.__name__ == "status_agents"

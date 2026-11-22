@@ -428,6 +428,9 @@ def add_install_agent_parser(add_parser_fn: Callable):
     install.add_argument(
         "--json",
         action="store_true",
+        # No default, so "vctl --json install ..." keeps the top-level value: argparse copies a command's defaults
+        # over the values parsed before the command (volttron-core#306).
+        default=argparse.SUPPRESS,
         help="format the standard out output to json",
     )
     install.add_argument(
