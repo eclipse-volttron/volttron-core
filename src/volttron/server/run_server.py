@@ -45,8 +45,8 @@ import gevent
 from volttron.server import aip
 from volttron.utils import cli
 from volttron.server.containers import service_repo
-from volttron.server.logs import (LogLevelAction, configure_logging, log_to_file, logging_configured,
-                                  replay_early_logs)
+from volttron.server.logs import (LogLevelAction, configure_logging, early_log_buffer, log_to_file,
+                                  logging_configured, replay_early_logs)
 from volttron.server.server_options import ServerOptions
 from volttron.utils import ClientContext as cc, execute_command, is_volttron_running
 from volttron.utils import (get_version, store_message_bus_config)
@@ -90,6 +90,8 @@ def run_server():
         raise ValueError("Message Bus Not Found")
 
     opts = parse_server_args(sys.argv[1:], server_options, volttron_home)
+    # Before anything else runs (storing the options, the poetry project), so its errors reach the configured log.
+    configure_server_logging(opts)
     dev_mode = opts.dev_mode
     # Update the server options with the command line parameter options.
     server_options.update(opts)
@@ -316,7 +318,8 @@ def start_volttron_process(options: ServerOptions):
     # vip_address is meant to be a list so make it so.
     if not isinstance(opts.address, list):
         opts.address = [opts.address]
-    configure_server_logging(opts)
+    if early_log_buffer() is not None:    # started without run_server (embedded or tests)
+        configure_server_logging(opts)
 
     if cli.as_bool(opts.agent_isolation_mode):
         _log.info("VOLTTRON starting in secure mode")
