@@ -2463,6 +2463,46 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
     return parser
 
 
+def run_command(opts: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Run the parsed command and turn its failures into vctl's exit codes, with a message on stderr for each.
+
+    A server-side error (RemoteError) prints ``<command>: error: <message>``, plus the remote traceback with
+    ``--debug``, and exits 20.
+    """
+    try:
+        with gevent.Timeout(opts.timeout):
+            return opts.func(opts)
+    except gevent.Timeout:
+        _stderr.write(f"{opts.command} function {opts.func.__name__}: operation timed out\n")
+        return 75
+    except RemoteError as exc:
+        _stderr.write(f"{opts.command}: error: {exc.message}\n")
+        if opts.debug:
+            exc.print_tb(file=_stderr)
+        return 20
+    except AttributeError:
+        _stderr.write(f"Invalid command: '{opts.command}' or command requires additional arguments\n")
+        parser.print_help()
+        return 1
+    # raised during install if wheel not found.
+    except FileNotFoundError as exc:
+        _stderr.write(f"{exc.args[0]}\n")
+        return 1
+    except SystemExit as exc:
+        # A command may call sys.exit: 0 (or no code) is success; anything else has printed its own message.
+        if exc.code in (0, None):
+            return 0
+        print(exc)
+        return 20
+    finally:
+        # make sure the connection to the server is closed when this script is about to exit.
+        if getattr(opts, "connection", None):
+            try:
+                opts.connection.kill()
+            finally:
+                opts.connection = None
+
+
 def main():
 
     # Refuse to run as root
@@ -2560,55 +2600,7 @@ def main():
     # with gevent.Timeout(opts.timeout):
     #     return opts.func(opts)
     # sys.exit(0)
-    try:
-        with gevent.Timeout(opts.timeout):
-            return opts.func(opts)
-    except gevent.Timeout:
-        _stderr.write(f"{opts.command} function {opts.func.__name__}: operation timed out\n")
-        return 75
-    except RemoteError as exc:
-        print_tb = exc.print_tb
-        error = exc.message
-    except AttributeError as exc:
-        _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
-        parser.print_help()
-        return 1
-    # raised during install if wheel not found.
-    except FileNotFoundError as exc:
-        _stderr.write(f"{exc.args[0]}\n")
-        return 1
-    except SystemExit as exc:
-        # Handles if sys.exit is called from within a function if not 0
-        # then we know there was an error and processing will continue
-        # else we return 0 from here.  This has the added effect of
-        # allowing us to cascade short circuit calls.
-        if exc.args[0] != 0:
-            # print_tb = exc.args
-            # error = exc.message
-            print(exc)
-        else:
-            return 0
-    finally:
-        # make sure the connection to the server is closed when this scriopt is about to exit.
-        if opts.connection:
-            try:
-                opts.connection.kill()
-            finally:
-                opts.connection = None
-            # try:
-            #     opts.connection.server.core.stop(timeout=1)
-            # except gevent.Timeout:
-            #     pass
-            # except Unreachable:
-            #     # its ok for this to fail at this point it might not even be valid.
-            #     pass
-            # finally:
-            #     opts.connection = None
-
-    if opts.debug:
-        print_tb()
-    #_stderr.write("{}: error: {}\n".format(opts.command, error))
-    return 20
+    return run_command(opts, parser)
 
 
 def _main():
