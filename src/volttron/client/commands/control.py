@@ -55,7 +55,7 @@ from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFOR
 from volttron.client.vip.agent.errors import Unreachable, VIPError
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.utils import ClientContext as cc
-from volttron.utils import argparser as config
+from volttron.utils import cli
 from volttron.utils import jsonapi
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
@@ -2130,9 +2130,35 @@ def get_keys(opts):
 #     certs.export_pkcs12(fq_identity, opts.outfile)
 
 
+class VctlArgumentParser(argparse.ArgumentParser):
+    """vctl's parsers: abbreviations off, and errors print the message and then the full help (vctl's output since
+    before the subclassed argparse was replaced, volttron-core#306). ``error`` is argparse's documented hook for
+    this; nothing else is overridden."""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
+
+    def error(self, message):
+        sys.stderr.write(f"error: {message}\n")
+        self.print_help()
+        sys.exit(2)
+
+
+# Global options appear on the top-level parser and on every command, so they can be given on either side of the
+# command. They carry no defaults (argument_default=SUPPRESS): a command's parser would otherwise write its defaults
+# over a value given before the command. The defaults come from the namespace parse_args() starts with.
+GLOBAL_DEFAULTS = dict(address=None, timeout=120.0, debug=False)
+
+
+def parse_args(parser: argparse.ArgumentParser, args) -> argparse.Namespace:
+    """Parse vctl's arguments with the global options' defaults in place."""
+    return parser.parse_args(args, namespace=argparse.Namespace(**GLOBAL_DEFAULTS))
+
+
 def build_parser(volttron_home: str) -> argparse.ArgumentParser:
     """vctl's argument parser: the global options, the core commands and every discovered vctl plugin's commands."""
-    global_args = config.ArgumentParser(description="global options", add_help=False)
+    global_args = VctlArgumentParser(description="global options", add_help=False, argument_default=argparse.SUPPRESS)
 
     # Connection options
     connection_group = global_args.add_argument_group('Connection Options')
@@ -2146,8 +2172,7 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
         "--timeout",
         type=float,
         metavar="SECS",
-        timeout=120.0,
-        help="timeout in seconds for remote calls (default: %(default)g)",
+        help=f"timeout in seconds for remote calls (default: {GLOBAL_DEFAULTS['timeout']:g})",
     )
 
     # Debug options
@@ -2158,7 +2183,7 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
         help="show tracebacks for errors rather than a brief message",
     )
 
-    filterable = config.ArgumentParser(add_help=False)
+    filterable = VctlArgumentParser(add_help=False)
 
     # Filter/Search options
     filter_group = filterable.add_argument_group('Filter Options')
@@ -2185,7 +2210,7 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
         help="filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
     )
     filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
-    parser = config.ArgumentParser(
+    parser = VctlArgumentParser(
         prog=os.path.basename(sys.argv[0]),
         add_help=False,
         description="Manage and control VOLTTRON agents.",
@@ -2221,7 +2246,7 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
     logging_group.add_argument(
         "-q",
         "--quiet",
-        action="add_const",
+        action=cli.AddConstAction,
         const=10,
         dest="verboseness",
         help="decrease logger verboseness; may be used multiple times",
@@ -2229,7 +2254,7 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
     logging_group.add_argument(
         "-v",
         "--verbose",
-        action="add_const",
+        action=cli.AddConstAction,
         const=-10,
         dest="verboseness",
         help="increase logger verboseness; may be used multiple times",
@@ -2245,13 +2270,15 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
     # Hidden options
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
 
-    parser.add_help_argument()
+    parser.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                        help="show this help message and exit")
     parser.set_defaults(
         log_config=None,
         volttron_home=volttron_home,
     )
 
-    top_level_subparsers = parser.add_subparsers(title="commands", metavar="", dest="command")
+    top_level_subparsers = parser.add_subparsers(title="commands", metavar="", dest="command",
+                                                 parser_class=VctlArgumentParser)
 
     def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         """Generic method for adding parents and subparsers to the argument parser.
@@ -2474,15 +2501,15 @@ def main():
                       f"to set up your VOLTTRON_HOME({volttron_home}) before running vctl commands\n")
         return 10
 
-    opts = parser.parse_args(args)
+    opts = parse_args(parser, args)
 
     logging.config.dictConfig(get_default_client_log_config(level=max(1, opts.verboseness)))
 
     if opts.log:
-        opts.log = config.expandall(opts.log)
+        opts.log = cli.expandall(opts.log)
     if opts.log_config:
-        opts.log_config = config.expandall(opts.log_config)
-    #opts.vip_address = config.expandall(opts.vip_address)
+        opts.log_config = cli.expandall(opts.log_config)
+    #opts.vip_address = cli.expandall(opts.vip_address)
     if getattr(opts, "show_config", False):
         for name, value in sorted(vars(opts).items()):
             print(name, repr(value))

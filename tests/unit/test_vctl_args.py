@@ -4,13 +4,23 @@ These record today's behaviour so the replacement of the subclassed argparse can
 """
 import pytest
 
-from volttron.client.commands.control import build_parser
+from volttron.client.commands.control import build_parser, parse_args
+
+
+class Vctl:
+    """vctl's parser, parsed the way vctl's main does (control.parse_args supplies the global defaults)."""
+
+    def __init__(self, parser):
+        self.parser = parser
+
+    def parse_args(self, args):
+        return parse_args(self.parser, args)
 
 
 @pytest.fixture
 def parser(tmp_path, monkeypatch):
     monkeypatch.setenv("VOLTTRON_HOME", str(tmp_path))
-    return build_parser(str(tmp_path))
+    return Vctl(build_parser(str(tmp_path)))
 
 
 def test_defaults(parser):
@@ -61,5 +71,5 @@ def test_errors_print_the_message_then_the_full_help(parser, capsys):
 
 
 def test_core_commands_are_registered(parser):
-    commands = set(parser._subparsers._group_actions[0].choices)
+    commands = set(parser.parser._subparsers._group_actions[0].choices)
     assert {"status", "install", "start", "stop", "config", "rpc", "publish", "subscribe", "shutdown"} <= commands
