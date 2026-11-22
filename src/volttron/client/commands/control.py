@@ -2131,18 +2131,8 @@ def get_keys(opts):
 #     certs.export_pkcs12(fq_identity, opts.outfile)
 
 
-def main():
-
-    # Refuse to run as root
-    if not getattr(os, "getuid", lambda: -1)():
-        sys.stderr.write("%s: error: refusing to run as root to prevent "
-                         "potential damage.\n" % os.path.basename(sys.argv[0]))
-        sys.exit(77)
-
-    volttron_home = cc.get_volttron_home()
-
-    os.environ["VOLTTRON_HOME"] = volttron_home
-
+def build_parser(volttron_home: str) -> argparse.ArgumentParser:
+    """vctl's argument parser: the global options, the core commands and every discovered vctl plugin's commands."""
     global_args = config.ArgumentParser(description="global options", add_help=False)
 
     # Connection options
@@ -2432,6 +2422,22 @@ def main():
         nargs="?",
     )
     stats.set_defaults(func=do_stats, op="status")
+    return parser
+
+
+def main():
+
+    # Refuse to run as root
+    if not getattr(os, "getuid", lambda: -1)():
+        sys.stderr.write("%s: error: refusing to run as root to prevent "
+                         "potential damage.\n" % os.path.basename(sys.argv[0]))
+        sys.exit(77)
+
+    volttron_home = cc.get_volttron_home()
+
+    os.environ["VOLTTRON_HOME"] = volttron_home
+
+    parser = build_parser(volttron_home)
 
     # ==============================================================================
     global message_bus
