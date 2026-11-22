@@ -60,7 +60,6 @@ from volttron.utils import jsonapi
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils import is_volttron_running
-import volttron.plugins.vctl as vctl_plugins_ns
 from volttron.client.decorators import vctl_subparser
 from volttron.types.factories import VctlParserContext
 
@@ -2284,6 +2283,10 @@ def build_parser(volttron_home: str) -> argparse.ArgumentParser:
             def onerror(err):
                 _log.warning(f"Failed to import vctl plugin module {name}: {err}")
             return onerror
+
+        # The namespace exists only when a library ships vctl plugins; without one this raises ModuleNotFoundError,
+        # handled below, and vctl runs with its core commands.
+        import volttron.plugins.vctl as vctl_plugins_ns
 
         # Recursively walk volttron.plugins.vctl and import all non-package modules
         # This triggers @vctl_subparser decorator registration
