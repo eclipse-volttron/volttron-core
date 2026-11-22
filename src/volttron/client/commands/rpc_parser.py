@@ -22,10 +22,19 @@
 # ===----------------------------------------------------------------------===
 # }}}
 
+import argparse
+import json
+import logging
+import pprint
+import sys
+
 import gevent
 
 from volttron.client.vip.agent.errors import Unreachable
+from volttron.utils import jsonapi
 from volttron.utils.jsonrpc import MethodNotFound
+
+_log = logging.getLogger(__name__)
 
 
 def print_rpc_list(peers, code=False):
@@ -184,6 +193,156 @@ def list_agent_rpc_code(opts):
     print_rpc_methods(opts, peer_method_metadata, code=True)
 
 
+# ------------------------------------------------------------------------------------------------ vctl rpc call
+# Command-line values are strings; RPC methods expect native values. A method's inspection reports each parameter's
+# annotation only if its author wrote one, and often as a union or Any, so the annotation decides the type only when
+# it names one simple type; everything else is read as JSON when it is valid JSON and sent as a string otherwise
+# (volttron-core#386).
+
+_SIMPLE_TYPES = {"str": "str", "int": "int", "float": "float", "bool": "bool"}
+_JSON_TYPES = ("list", "dict", "tuple", "set", "List[", "Dict[", "Tuple[", "Set[", "Sequence[", "Mapping[",
+               "Iterable[", "MutableMapping[", "MutableSequence[", "list[", "dict[", "tuple[", "set[")
+_TRUE = {"true", "1", "yes", "on"}
+INSPECT_TIMEOUT = 10.0    # seconds to wait for a method's inspection before converting without it
+_FALSE = {"false", "0", "no", "off"}
+
+
+def annotation_kind(annotation) -> str | None:
+    """How to convert a value for a parameter with this annotation text: "str", "int", "float", "bool", "json",
+    or None to read it as JSON when valid and as a string otherwise (no annotation, a union, Any, Optional)."""
+    if not annotation:
+        return None
+    text = str(annotation).replace("typing.", "").strip().strip("'\"")
+    if "|" in text or text.startswith(("Union[", "Optional[")) or text in ("Any", "object"):
+        return None
+    if text in _SIMPLE_TYPES:
+        return _SIMPLE_TYPES[text]
+    if text in ("list", "dict", "tuple", "set") or text.startswith(_JSON_TYPES):
+        return "json"
+    return None
+
+
+def _strict_json(text: str):
+    """Standard JSON only: NaN and Infinity are not values here, so a bare "NaN" stays a string."""
+    def reject(constant):
+        raise ValueError(f"not standard JSON: {constant}")
+    return json.loads(text, parse_constant=reject)
+
+
+def convert_value(text: str, kind: str | None, name: str):
+    """Convert one command-line value for parameter ``name``; ValueError names the parameter on a bad value."""
+    if kind == "str":
+        return text
+    if kind == "int":
+        try:
+            return int(text)
+        except ValueError:
+            raise ValueError(f"{name}: expected an integer, got {text!r}") from None
+    if kind == "float":
+        try:
+            return float(text)
+        except ValueError:
+            raise ValueError(f"{name}: expected a number, got {text!r}") from None
+    if kind == "bool":
+        if text.lower() in _TRUE:
+            return True
+        if text.lower() in _FALSE:
+            return False
+        raise ValueError(f"{name}: expected true or false, got {text!r}")
+    if kind == "json":
+        try:
+            return _strict_json(text)
+        except ValueError:
+            raise ValueError(f"{name}: expected JSON, got {text!r}") from None
+    try:
+        return _strict_json(text)
+    except ValueError:
+        return text
+
+
+def convert_args(params: dict, args: list[str], kwargs: dict[str, str], raw: bool = False):
+    """Positional and keyword values for a call, converted using the method's inspection ``params``
+    (name -> {"kind", "annotation", ...}, in declaration order; may be empty when the method has no inspection)."""
+    if raw:
+        return list(args), dict(kwargs)
+    positional = [(name, p) for name, p in params.items()
+                  if p.get("kind") in ("POSITIONAL_ONLY", "POSITIONAL_OR_KEYWORD")]
+    var_positional = next((name for name, p in params.items() if p.get("kind") == "VAR_POSITIONAL"), None)
+    converted_args = []
+    for i, text in enumerate(args):
+        if i < len(positional):
+            name, p = positional[i]
+            converted_args.append(convert_value(text, annotation_kind(p.get("annotation")), name))
+        else:
+            converted_args.append(convert_value(text, None, var_positional or f"argument {i + 1}"))
+    converted_kwargs = {}
+    for name, text in kwargs.items():
+        p = params.get(name)
+        kind = annotation_kind(p.get("annotation")) if p and p.get("kind") != "VAR_KEYWORD" else None
+        converted_kwargs[name] = convert_value(text, kind, name)
+    return converted_args, converted_kwargs
+
+
+def _keyword_values(pairs) -> dict[str, str]:
+    values = {}
+    for pair in pairs or []:
+        name, sep, value = pair.partition("=")
+        if not sep or not name:
+            raise ValueError(f"--kw expects NAME=VALUE, got {pair!r}")
+        values[name] = value
+    return values
+
+
+def call_agent_rpc(opts):
+    """vctl rpc call: call an agent's RPC method and print the result."""
+    if (opts.json_args is not None or opts.json_kwargs is not None) and (opts.args or opts.kw):
+        sys.stderr.write("error: --json-args/--json-kwargs cannot be combined with positional values or --kw\n")
+        return 2
+    try:
+        peers = opts.connection.call("peerlist")
+    except Exception as e:    # cannot list peers: let the call itself report what is wrong
+        _log.debug(f"peerlist failed ({e}); calling without checking the identity")
+        peers = None
+    if peers is not None and opts.identity not in peers:
+        sys.stderr.write(f"error: {opts.identity} is not connected to the platform (vctl peerlist shows who is)\n")
+        return 1
+    try:
+        if opts.json_args is not None or opts.json_kwargs is not None:
+            args = jsonapi.loads(opts.json_args) if opts.json_args is not None else []
+            kwargs = jsonapi.loads(opts.json_kwargs) if opts.json_kwargs is not None else {}
+            if not isinstance(args, list) or not isinstance(kwargs, dict):
+                raise ValueError("--json-args must be a JSON list and --json-kwargs a JSON object")
+        else:
+            kwargs_text = _keyword_values(opts.kw)
+            params = {}
+            if not opts.raw:
+                try:
+                    params = opts.connection.server.vip.rpc.call(opts.identity, f"{opts.method}.inspect").get(
+                        timeout=min(opts.timeout, INSPECT_TIMEOUT)).get("params", {})
+                except (Exception, gevent.Timeout) as e:    # no inspection: convert without annotations
+                    _log.debug(f"inspection of {opts.identity}.{opts.method} failed ({e}); converting without it")
+            args, kwargs = convert_args(params, opts.args, kwargs_text, raw=opts.raw)
+    except ValueError as e:
+        sys.stderr.write(f"error: {e}\n")
+        return 2
+    _log.debug(f"calling {opts.identity}.{opts.method} with args={args!r} kwargs={kwargs!r}")
+    try:
+        result = opts.connection.server.vip.rpc.call(opts.identity, opts.method, *args, **kwargs).get(
+            timeout=opts.timeout)
+    except MethodNotFound:
+        sys.stderr.write(f"error: {opts.identity} has no RPC method {opts.method!r} "
+                         f"(vctl rpc list {opts.identity} shows its methods)\n")
+        return 1
+    except Unreachable:
+        sys.stderr.write(f"error: {opts.identity} is not connected to the platform (vctl peerlist shows who is)\n")
+        return 1
+    if getattr(opts, "json", False):
+        sys.stdout.write(jsonapi.dumps(result, indent=2) + "\n")
+    else:
+        pprint.pprint(result)
+    return 0
+
+
 def add_rpc_agent_parser(add_parser_fn):
     rpc_ctl = add_parser_fn("rpc", help="rpc controls")
 
@@ -230,3 +389,19 @@ def add_rpc_agent_parser(add_parser_fn):
     )
 
     rpc_list.set_defaults(func=list_agents_rpc, min_uuid_len=1)
+
+    rpc_call = add_parser_fn("call", subparser=rpc_subparsers,
+                             help="call an agent's RPC method and print the result")
+    rpc_call.add_argument("identity", help="VIP identity of the agent")
+    rpc_call.add_argument("method", help="name of the exported RPC method")
+    rpc_call.add_argument("args", nargs="*", metavar="ARG",
+                          help="positional values, converted by the method's annotations where they name one simple "
+                          "type, otherwise read as JSON when valid JSON and sent as a string when not")
+    rpc_call.add_argument("--kw", action="append", metavar="NAME=VALUE", help="a keyword value; may be repeated")
+    rpc_call.add_argument("--json-args", metavar="JSON_LIST", help="all positional values as one JSON list, sent as is")
+    rpc_call.add_argument("--json-kwargs", metavar="JSON_OBJECT",
+                          help="all keyword values as one JSON object, sent as is")
+    rpc_call.add_argument("--raw", action="store_true", help="send every value as the string typed")
+    # No default, so "vctl --json rpc call ..." keeps vctl's top-level --json (volttron-core#374).
+    rpc_call.add_argument("--json", action="store_true", default=argparse.SUPPRESS, help="print the result as JSON")
+    rpc_call.set_defaults(func=call_agent_rpc)

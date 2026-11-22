@@ -181,11 +181,14 @@ def test_parse_auth_command_with_arguments(parser_context):
 
     AuthCtlParser().configure(ctx)
 
-    args = main_parser.parse_args(["auth", "add", "test_agent", "--domain", "mydomain"])
-    assert args.command == "auth"
+    # Only the identity: lib-auth's "auth add" options have changed between releases (--domain was removed,
+    # --publickey added), and this test is about the nested command, not those options.
+    args = main_parser.parse_args(["auth", "add", "test_agent"])
+    assert args.command == "auth" and args.identity == "test_agent"
 
+    # "auth list" was removed from lib-auth; "remove" has been there throughout and takes the global args.
     args = main_parser.parse_args(
-        ["auth", "list", "--address", "tcp://127.0.0.1:22916"]
+        ["auth", "remove", "test_agent", "--address", "tcp://127.0.0.1:22916"]
     )
     assert args.command == "auth"
     assert args.address == "tcp://127.0.0.1:22916"

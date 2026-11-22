@@ -67,8 +67,7 @@ def test_rpc_capabilities():
 
 
 def test_expand_agent_capabilities_on_init():
-    with Path(__file__).parent / "input.json" as f:
-        input_dict = json.load(f.open("r"))
+    input_dict = json.loads((Path(__file__).parent / "input.json").read_text())
 
     volttron_authz_map = authz.VolttronAuthzMap.from_unstructured_dict(input_dict)
     assert volttron_authz_map.compact_dict == input_dict
