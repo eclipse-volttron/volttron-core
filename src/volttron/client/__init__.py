@@ -32,6 +32,10 @@ patches = [
     ('ssl', monkey.patch_ssl),
     ('socket', monkey.patch_socket),
     ('os', monkey.patch_os),
+    # With os patched, gevent (25.8.1 and later) closes pipe ends through the hub, so subprocess must be
+    # patched too: otherwise Popen blocks reading its error pipe for the hub that never runs, and every
+    # subprocess call hangs (seen as agent installs timing out after 'poetry add').
+    ('subprocess', monkey.patch_subprocess),
 ]
 
 # patch modules if necessary.  Only if the module hasn't been patched before.
