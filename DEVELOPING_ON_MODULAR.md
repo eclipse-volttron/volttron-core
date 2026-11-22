@@ -67,7 +67,7 @@ To bump the version number of the project execute one of the following.
 # patch, minor, major, prepatch, preminor, premajor, prerelease
 
 # use patch
-user@path$ poetry patch
+user@path$ poetry version patch
 
 # output
 Bumping version from 0.2.0-alpha.0 to 0.2.0
