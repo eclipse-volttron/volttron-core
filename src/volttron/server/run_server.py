@@ -43,9 +43,10 @@ from pathlib import Path
 import gevent
 
 from volttron.server import aip
-from volttron.server import server_argparser as config
+from volttron.utils import cli
 from volttron.server.containers import service_repo
-from volttron.server.logs import (LogLevelAction, configure_logging, log_to_file)
+from volttron.server.logs import (LogLevelAction, configure_logging, early_log_buffer, log_to_file,
+                                  logging_configured, replay_early_logs)
 from volttron.server.server_options import ServerOptions
 from volttron.utils import ClientContext as cc, execute_command, is_volttron_running
 from volttron.utils import (get_version, store_message_bus_config)
@@ -85,24 +86,12 @@ def run_server():
 
     server_options: ServerOptions = service_repo.resolve(ServerOptions)
 
-    parser = build_arg_parser(server_options)
-
     if server_options.messagebus is None:
         raise ValueError("Message Bus Not Found")
 
-    # Parse and expand options
-    args = sys.argv[1:]
-    conf = os.path.join(volttron_home, "config")
-    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
-        # command line args get preference over same args in config file
-        args = args + ["--config", conf]
-
-    opts = parser.parse_args(args)
-
-    # Handle the fact that we don't use store_true and config that requires
-    # inverse.  This is not a switch but a mode of operation, so we change
-    # from the string to a boolean value here.
-    opts.agent_isolation_mode = opts.agent_isolation_mode != 'False'
+    opts = parse_server_args(sys.argv[1:], server_options, volttron_home)
+    # Before anything else runs (storing the options, the poetry project), so its errors reach the configured log.
+    configure_server_logging(opts)
     dev_mode = opts.dev_mode
     # Update the server options with the command line parameter options.
     server_options.update(opts)
@@ -117,6 +106,47 @@ def run_server():
         setup_poetry_project(server_options.poetry_project_path)
 
     start_volttron_process(server_options)
+
+
+def parse_server_args(args: list[str], server_options: ServerOptions, volttron_home: Path) -> argparse.Namespace:
+    """Parse the server's command line, with ``$VOLTTRON_HOME/config`` read as well unless ``SKIP_VOLTTRON_CONFIG``
+    is set. Command-line values take precedence over the config file's."""
+    parser = build_arg_parser(server_options)
+    args = list(args)
+    # Config files become arguments placed before the command line, so the command line wins for single values and
+    # lists such as --address combine, config first: $VOLTTRON_HOME/config, then any -c/--config file.
+    files = []
+    conf = os.path.join(volttron_home, "config")
+    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
+        files.append(conf)
+    pre = argparse.ArgumentParser(add_help=False)
+    pre.add_argument("-c", "--config", action="append", default=[])
+    files += pre.parse_known_args(args)[0].config
+    from_files = []
+    for file in files:
+        from_files += cli.config_args(parser, file, sections=(None, "volttron"))
+    opts = parser.parse_args(from_files + args)
+    if hasattr(opts, "config"):
+        del opts.config
+    if getattr(opts, "address", None):
+        opts.address = list(dict.fromkeys(opts.address))    # once each, in order
+    if opts.log_config:
+        if opts.verboseness != logging.WARNING:
+            parser.error("cannot specify both --log-config and --verbose/--quiet/--verboseness; set the verbosity "
+                         "in the logging config file")
+        if opts.log:
+            parser.error("cannot specify both --log and --log-config; set the log file in the logging config file")
+        path = Path(cli.expandall(opts.log_config))
+        if not path.exists():
+            parser.error(f"--log-config file not found: {path}")
+        opts.log_config = path.absolute().as_posix()
+    # A mode of operation given as a value (True/False) on the command line or in the config file, or the parser's
+    # boolean default (volttron-core#373).
+    try:
+        opts.agent_isolation_mode = cli.as_bool(opts.agent_isolation_mode)
+    except ValueError:
+        parser.error(f"--agent-isolation-mode expects True or False, not {opts.agent_isolation_mode!r}")
+    return opts
 
 
 def setup_poetry_project(python_project_path: Path):
@@ -231,31 +261,17 @@ def setup_poetry_project(python_project_path: Path):
             os.remove(lockfile)
         raise
 
-def start_volttron_process(options: ServerOptions):
-    opts = options
-    # Change working dir
-    os.chdir(opts.volttron_home)
-
-    if opts.enable_federation:
-        if not opts.address or len(opts.address) == 0:
-            _log.error("Cannot enable federation: no external address available.")
-            _log.error("Use --address to specify an external address for other platforms to connect to.")
-            _log.error("Federation will not be enabled.")
-            # Disable federation to prevent further attempts
-            opts.enable_federation = False
-            sys.exit(1)
-
-
-    # vip_address is meant to be a list so make it so.
-    if not isinstance(opts.address, list):
-        opts.address = [opts.address]
+def configure_server_logging(opts):
+    """Configure logging once, from the parsed options (config file included), and replay the records __main__
+    buffered until now (volttron-core#362)."""
     if opts.log:
-        opts.log = config.expandall(opts.log)
+        opts.log = cli.expandall(opts.log)
     if opts.log_config:
-        opts.log_config = config.expandall(opts.log_config)
+        opts.log_config = cli.expandall(opts.log_config)
 
-    # Configure logging (skip if already configured, e.g. by __main__.py)
-    if not logging.getLogger().handlers:
+    # Configure logging from the parsed options, config file included (volttron-core#362). __main__ only buffers the
+    # records logged before this point; an embedding program that configured logging itself keeps its handlers.
+    if not logging_configured():
         level = max(1, opts.verboseness)
         if opts.monitor and level > logging.INFO:
             level = logging.INFO
@@ -277,21 +293,47 @@ def start_volttron_process(options: ServerOptions):
         error = configure_logging(opts.log_config)
 
         if error:
+            replay_early_logs()
             _log.error("{}: {}".format(*error))
             sys.exit(1)
 
-    if opts.agent_isolation_mode == "True":
+    replay_early_logs()
+
+
+def start_volttron_process(options: ServerOptions):
+    opts = options
+    # Change working dir
+    os.chdir(opts.volttron_home)
+
+    if opts.enable_federation:
+        if not opts.address or len(opts.address) == 0:
+            _log.error("Cannot enable federation: no external address available.")
+            _log.error("Use --address to specify an external address for other platforms to connect to.")
+            _log.error("Federation will not be enabled.")
+            # Disable federation to prevent further attempts
+            opts.enable_federation = False
+            sys.exit(1)
+
+
+    # vip_address is meant to be a list so make it so.
+    if not isinstance(opts.address, list):
+        opts.address = [opts.address]
+    if early_log_buffer() is not None:    # started without run_server (embedded or tests)
+        configure_server_logging(opts)
+
+    if cli.as_bool(opts.agent_isolation_mode):
         _log.info("VOLTTRON starting in secure mode")
         os.umask(0o007)
+        opts.agent_isolation_mode = "True"
     else:
         opts.agent_isolation_mode = "False"
 
     logging.getLogger("watchdog.observers.inotify_buffer").setLevel(logging.INFO)
 
-    opts.address = [config.expandall(addr) for addr in opts.address]
-    opts.local_address = config.expandall(opts.local_address)
+    opts.address = [cli.expandall(addr) for addr in opts.address]
+    opts.local_address = cli.expandall(opts.local_address)
 
-    opts.messagebus = config.expandall(opts.messagebus)
+    opts.messagebus = cli.expandall(opts.messagebus)
 
     os.environ["MESSAGEBUS"] = opts.messagebus
     os.environ["AGENT_ISOLATION_MODE"] = opts.agent_isolation_mode
@@ -605,7 +647,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     }
     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 
-    volttron_home = os.path.normpath(config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
+    volttron_home = os.path.normpath(cli.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
     os.environ["VOLTTRON_HOME"] = volttron_home
 
     argv = sys.argv
@@ -617,7 +659,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         sys.exit(77)
 
     # Setup option parser
-    parser = config.ArgumentParser(
+    parser = argparse.ArgumentParser(
         prog=os.path.basename(argv[0]),
         add_help=False,
         description="VOLTTRON platform service",
@@ -631,9 +673,6 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
         "-c",
         "--config",
         metavar="FILE",
-        action="parse_config",
-        ignore_unknown=False,
-        sections=[None, "volttron"],
         help="read configuration from FILE",
     )
     parser.add_argument(
@@ -663,7 +702,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     parser.add_argument(
         "-q",
         "--quiet",
-        action="add_const",
+        action=cli.AddConstAction,
         const=10,
         dest="verboseness",
         help="decrease logger verboseness; may be used multiple times",
@@ -671,7 +710,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     parser.add_argument(
         "-v",
         "--verbose",
-        action="add_const",
+        action=cli.AddConstAction,
         const=-10,
         dest="verboseness",
         help="increase logger verboseness; may be used multiple times",
@@ -704,10 +743,9 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     #    help='VOLTTRON configuration directory')
     parser.add_argument("--auth-enabled",
                         action="store_true",
-                        inverse="--auth-disabled",
                         dest="auth_enabled",
                         help=argparse.SUPPRESS)
-    parser.add_argument("--auth-disabled", action="store_false", help=argparse.SUPPRESS)
+    parser.add_argument("--auth-disabled", action="store_false", dest="auth_enabled", help=argparse.SUPPRESS)
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--dev",
                         action="store_true",
@@ -715,14 +753,15 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
                         default=False,
                         help="development mode with poetry environment to build volttron libraries from source/pypi")
 
-    parser.add_help_argument()
-    parser.add_version_argument(version="%(prog)s " + str(get_version()))
+    parser.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                        help="show this help message and exit")
+    parser.add_argument("--version", action="version", default=argparse.SUPPRESS,
+                        version="%(prog)s " + str(get_version()), help="show program's version number and exit")
 
     agents = parser.add_argument_group("agent options")
     agents.add_argument(
         "--autostart",
         action="store_true",
-        inverse="--no-autostart",
         help="automatically start enabled agents and services",
     )
     agents.add_argument(
@@ -753,13 +792,11 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
     agents.add_argument(
         "--enable-federation",
         action="store_true",
-        inverse="--disable-federation",
         help="Enable platform federation for connecting multiple VOLTTRON instances",
     )
     agents.add_argument(
         "--enable-federation-cache",
         action="store_true",
-        inverse="--disable-federation-cache",
         help="Enable caching for federation messages. Ignored if federation is not enabled",
     )
     agents.add_argument(
@@ -862,7 +899,7 @@ def build_arg_parser(options: ServerOptions) -> argparse.ArgumentParser:
 #     [logging.getLogger(k).setLevel(v) for k, v in default_levels_for_modules.items()]
 
 #     volttron_home = os.path.normpath(
-#         config.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
+#         cli.expandall(os.environ.get("VOLTTRON_HOME", "~/.volttron")))
 #     os.environ["VOLTTRON_HOME"] = volttron_home
 
 #     #load_volttron_packages()
