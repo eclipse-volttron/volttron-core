@@ -40,7 +40,11 @@ def add_config_to_store(opts):
     opts.connection.peer = CONFIGURATION_STORE
     call = opts.connection.call
 
-    file_contents = opts.infile.read()
+    if opts.infile == "-":
+        file_contents = sys.stdin.read()
+    else:
+        with open(opts.infile) as f:
+            file_contents = f.read()
 
     call(
         "set_config",
@@ -163,9 +167,9 @@ def add_config_store_parser(add_parser_fn):
     config_store_store.add_argument(
         "infile",
         nargs="?",
-        type=argparse.FileType("r"),
-        default=sys.stdin,
-        help="file containing the contents of the configuration",
+        default="-",
+        # A path, opened when the command runs (argparse.FileType is deprecated from Python 3.14); "-" is stdin.
+        help="file containing the contents of the configuration (default: standard input)",
     )
     config_store_store.add_argument(
         "--raw",
