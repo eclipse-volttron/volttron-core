@@ -2135,6 +2135,14 @@ class VctlArgumentParser(argparse.ArgumentParser):
     before the subclassed argparse was replaced, volttron-core#306). ``error`` is argparse's documented hook for
     this; nothing else is overridden."""
 
+    # TODO(volttron-core#306): remove this class once Python 3.11 is no longer supported. From Python 3.12,
+    # exit_on_error=False makes parse_args raise argparse.ArgumentError for every error (on 3.10 and 3.11 it still
+    # exits for unrecognized arguments and a missing required command). Then: create the parsers as plain
+    # argparse.ArgumentParser(..., allow_abbrev=False, exit_on_error=False), pass the same two keywords to
+    # add_subparsers(parser_class=functools.partial(argparse.ArgumentParser, allow_abbrev=False, exit_on_error=False)),
+    # and in main() catch argparse.ArgumentError around parse_args() to write "error: <message>", print the help
+    # and exit with status 2, which keeps today's output.
+
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("allow_abbrev", False)
         super().__init__(*args, **kwargs)
