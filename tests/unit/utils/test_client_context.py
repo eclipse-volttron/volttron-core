@@ -33,15 +33,16 @@ from volttron.utils import ClientContext
 
 @pytest.fixture
 def undocontext():
-    # Resets the context of volttron_home klass
-    # variable (NOTE not sure if this is the best
-    # way or not to undo this.)
+    """Start and end without a cached VOLTTRON_HOME. ClientContext caches the first home it is asked for, and other
+    test modules (test_certs, the vctl plugin tests) ask with a temporary one, so a test that expects a different
+    home must not inherit theirs."""
+    ClientContext.__volttron_home__ = None
     yield
-
     ClientContext.__volttron_home__ = None
 
 
-def test_default_VOLTTRON_HOME(undocontext):
+def test_default_VOLTTRON_HOME(undocontext, monkeypatch):
+    monkeypatch.delenv("VOLTTRON_HOME", raising=False)
     # must be ~/.volttron as default
     path = Path("~/.volttron").expanduser().resolve()
 
