@@ -60,7 +60,6 @@ from volttron.utils import jsonapi
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils import is_volttron_running
-import volttron.plugins.vctl as vctl_plugins_ns
 from volttron.client.decorators import vctl_subparser
 from volttron.types.factories import VctlParserContext
 
@@ -2131,18 +2130,8 @@ def get_keys(opts):
 #     certs.export_pkcs12(fq_identity, opts.outfile)
 
 
-def main():
-
-    # Refuse to run as root
-    if not getattr(os, "getuid", lambda: -1)():
-        sys.stderr.write("%s: error: refusing to run as root to prevent "
-                         "potential damage.\n" % os.path.basename(sys.argv[0]))
-        sys.exit(77)
-
-    volttron_home = cc.get_volttron_home()
-
-    os.environ["VOLTTRON_HOME"] = volttron_home
-
+def build_parser(volttron_home: str) -> argparse.ArgumentParser:
+    """vctl's argument parser: the global options, the core commands and every discovered vctl plugin's commands."""
     global_args = config.ArgumentParser(description="global options", add_help=False)
 
     # Connection options
@@ -2295,6 +2284,10 @@ def main():
                 _log.warning(f"Failed to import vctl plugin module {name}: {err}")
             return onerror
 
+        # The namespace exists only when a library ships vctl plugins; without one this raises ModuleNotFoundError,
+        # handled below, and vctl runs with its core commands.
+        import volttron.plugins.vctl as vctl_plugins_ns
+
         # Recursively walk volttron.plugins.vctl and import all non-package modules
         # This triggers @vctl_subparser decorator registration
         for _, mod_name, is_pkg in pkgutil.walk_packages(
@@ -2432,6 +2425,22 @@ def main():
         nargs="?",
     )
     stats.set_defaults(func=do_stats, op="status")
+    return parser
+
+
+def main():
+
+    # Refuse to run as root
+    if not getattr(os, "getuid", lambda: -1)():
+        sys.stderr.write("%s: error: refusing to run as root to prevent "
+                         "potential damage.\n" % os.path.basename(sys.argv[0]))
+        sys.exit(77)
+
+    volttron_home = cc.get_volttron_home()
+
+    os.environ["VOLTTRON_HOME"] = volttron_home
+
+    parser = build_parser(volttron_home)
 
     # ==============================================================================
     global message_bus

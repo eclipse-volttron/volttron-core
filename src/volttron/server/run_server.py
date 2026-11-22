@@ -85,24 +85,10 @@ def run_server():
 
     server_options: ServerOptions = service_repo.resolve(ServerOptions)
 
-    parser = build_arg_parser(server_options)
-
     if server_options.messagebus is None:
         raise ValueError("Message Bus Not Found")
 
-    # Parse and expand options
-    args = sys.argv[1:]
-    conf = os.path.join(volttron_home, "config")
-    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
-        # command line args get preference over same args in config file
-        args = args + ["--config", conf]
-
-    opts = parser.parse_args(args)
-
-    # Handle the fact that we don't use store_true and config that requires
-    # inverse.  This is not a switch but a mode of operation, so we change
-    # from the string to a boolean value here.
-    opts.agent_isolation_mode = opts.agent_isolation_mode != 'False'
+    opts = parse_server_args(sys.argv[1:], server_options, volttron_home)
     dev_mode = opts.dev_mode
     # Update the server options with the command line parameter options.
     server_options.update(opts)
@@ -117,6 +103,21 @@ def run_server():
         setup_poetry_project(server_options.poetry_project_path)
 
     start_volttron_process(server_options)
+
+
+def parse_server_args(args: list[str], server_options: ServerOptions, volttron_home: Path) -> argparse.Namespace:
+    """Parse the server's command line, with ``$VOLTTRON_HOME/config`` read as well unless ``SKIP_VOLTTRON_CONFIG``
+    is set. Command-line values take precedence over the config file's."""
+    parser = build_arg_parser(server_options)
+    conf = os.path.join(volttron_home, "config")
+    if os.path.exists(conf) and "SKIP_VOLTTRON_CONFIG" not in os.environ:
+        args = list(args) + ["--config", conf]
+    opts = parser.parse_args(args)
+    # Handle the fact that we don't use store_true and config that requires
+    # inverse.  This is not a switch but a mode of operation, so we change
+    # from the string to a boolean value here.
+    opts.agent_isolation_mode = opts.agent_isolation_mode != 'False'
+    return opts
 
 
 def setup_poetry_project(python_project_path: Path):
