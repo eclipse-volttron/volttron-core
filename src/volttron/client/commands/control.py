@@ -55,12 +55,11 @@ from volttron.client.known_identities import (AUTH, CONFIGURATION_STORE, PLATFOR
 from volttron.client.vip.agent.errors import Unreachable, VIPError
 from volttron.client.vip.agent.subsystems.query import Query
 from volttron.utils import ClientContext as cc
-from volttron.utils import argparser as config
+from volttron.utils import cli
 from volttron.utils import jsonapi
 from volttron.utils.commands import (is_volttron_running, wait_for_volttron_shutdown)
 from volttron.utils.jsonrpc import MethodNotFound, RemoteError
 from volttron.utils import is_volttron_running
-import volttron.plugins.vctl as vctl_plugins_ns
 from volttron.client.decorators import vctl_subparser
 from volttron.types.factories import VctlParserContext
 
@@ -2131,19 +2130,43 @@ def get_keys(opts):
 #     certs.export_pkcs12(fq_identity, opts.outfile)
 
 
-def main():
+class VctlArgumentParser(argparse.ArgumentParser):
+    """vctl's parsers: abbreviations off, and errors print the message and then the full help (vctl's output since
+    before the subclassed argparse was replaced, volttron-core#306). ``error`` is argparse's documented hook for
+    this; nothing else is overridden."""
 
-    # Refuse to run as root
-    if not getattr(os, "getuid", lambda: -1)():
-        sys.stderr.write("%s: error: refusing to run as root to prevent "
-                         "potential damage.\n" % os.path.basename(sys.argv[0]))
-        sys.exit(77)
+    # TODO(volttron-core#306): remove this class once Python 3.11 is no longer supported. From Python 3.12,
+    # exit_on_error=False makes parse_args raise argparse.ArgumentError for every error (on 3.10 and 3.11 it still
+    # exits for unrecognized arguments and a missing required command). Then: create the parsers as plain
+    # argparse.ArgumentParser(..., allow_abbrev=False, exit_on_error=False), pass the same two keywords to
+    # add_subparsers(parser_class=functools.partial(argparse.ArgumentParser, allow_abbrev=False, exit_on_error=False)),
+    # and in main() catch argparse.ArgumentError around parse_args() to write "error: <message>", print the help
+    # and exit with status 2, which keeps today's output.
 
-    volttron_home = cc.get_volttron_home()
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("allow_abbrev", False)
+        super().__init__(*args, **kwargs)
 
-    os.environ["VOLTTRON_HOME"] = volttron_home
+    def error(self, message):
+        sys.stderr.write(f"error: {message}\n")
+        self.print_help()
+        sys.exit(2)
 
-    global_args = config.ArgumentParser(description="global options", add_help=False)
+
+# Global options appear on the top-level parser and on every command, so they can be given on either side of the
+# command. They carry no defaults (argument_default=SUPPRESS): a command's parser would otherwise write its defaults
+# over a value given before the command. The defaults come from the namespace parse_args() starts with.
+GLOBAL_DEFAULTS = dict(address=None, timeout=120.0, debug=False)
+
+
+def parse_args(parser: argparse.ArgumentParser, args) -> argparse.Namespace:
+    """Parse vctl's arguments with the global options' defaults in place."""
+    return parser.parse_args(args, namespace=argparse.Namespace(**GLOBAL_DEFAULTS))
+
+
+def build_parser(volttron_home: str) -> argparse.ArgumentParser:
+    """vctl's argument parser: the global options, the core commands and every discovered vctl plugin's commands."""
+    global_args = VctlArgumentParser(description="global options", add_help=False, argument_default=argparse.SUPPRESS)
 
     # Connection options
     connection_group = global_args.add_argument_group('Connection Options')
@@ -2157,8 +2180,7 @@ def main():
         "--timeout",
         type=float,
         metavar="SECS",
-        timeout=120.0,
-        help="timeout in seconds for remote calls (default: %(default)g)",
+        help=f"timeout in seconds for remote calls (default: {GLOBAL_DEFAULTS['timeout']:g})",
     )
 
     # Debug options
@@ -2169,7 +2191,7 @@ def main():
         help="show tracebacks for errors rather than a brief message",
     )
 
-    filterable = config.ArgumentParser(add_help=False)
+    filterable = VctlArgumentParser(add_help=False)
 
     # Filter/Search options
     filter_group = filterable.add_argument_group('Filter Options')
@@ -2196,7 +2218,7 @@ def main():
         help="filter/search by UUID (default). value passed should be quoted if it contains a regular expression",
     )
     filterable.set_defaults(by_name=False, by_tag=False, by_all_tagged=False, by_uuid=False)
-    parser = config.ArgumentParser(
+    parser = VctlArgumentParser(
         prog=os.path.basename(sys.argv[0]),
         add_help=False,
         description="Manage and control VOLTTRON agents.",
@@ -2232,7 +2254,7 @@ def main():
     logging_group.add_argument(
         "-q",
         "--quiet",
-        action="add_const",
+        action=cli.AddConstAction,
         const=10,
         dest="verboseness",
         help="decrease logger verboseness; may be used multiple times",
@@ -2240,7 +2262,7 @@ def main():
     logging_group.add_argument(
         "-v",
         "--verbose",
-        action="add_const",
+        action=cli.AddConstAction,
         const=-10,
         dest="verboseness",
         help="increase logger verboseness; may be used multiple times",
@@ -2256,13 +2278,15 @@ def main():
     # Hidden options
     parser.add_argument("--show-config", action="store_true", help=argparse.SUPPRESS)
 
-    parser.add_help_argument()
+    parser.add_argument("-h", "--help", action="help", default=argparse.SUPPRESS,
+                        help="show this help message and exit")
     parser.set_defaults(
         log_config=None,
         volttron_home=volttron_home,
     )
 
-    top_level_subparsers = parser.add_subparsers(title="commands", metavar="", dest="command")
+    top_level_subparsers = parser.add_subparsers(title="commands", metavar="", dest="command",
+                                                 parser_class=VctlArgumentParser)
 
     def add_parser(*args, **kwargs) -> argparse.ArgumentParser:
         """Generic method for adding parents and subparsers to the argument parser.
@@ -2294,6 +2318,10 @@ def main():
             def onerror(err):
                 _log.warning(f"Failed to import vctl plugin module {name}: {err}")
             return onerror
+
+        # The namespace exists only when a library ships vctl plugins; without one this raises ModuleNotFoundError,
+        # handled below, and vctl runs with its core commands.
+        import volttron.plugins.vctl as vctl_plugins_ns
 
         # Recursively walk volttron.plugins.vctl and import all non-package modules
         # This triggers @vctl_subparser decorator registration
@@ -2432,6 +2460,62 @@ def main():
         nargs="?",
     )
     stats.set_defaults(func=do_stats, op="status")
+    return parser
+
+
+def run_command(opts: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Run the parsed command and turn its failures into vctl's exit codes, with a message on stderr for each.
+
+    A server-side error (RemoteError) prints ``<command>: error: <message>``, plus the remote traceback with
+    ``--debug``, and exits 20.
+    """
+    try:
+        with gevent.Timeout(opts.timeout):
+            return opts.func(opts)
+    except gevent.Timeout:
+        _stderr.write(f"{opts.command} function {opts.func.__name__}: operation timed out\n")
+        return 75
+    except RemoteError as exc:
+        _stderr.write(f"{opts.command}: error: {exc.message}\n")
+        if opts.debug:
+            exc.print_tb(file=_stderr)
+        return 20
+    except AttributeError:
+        _stderr.write(f"Invalid command: '{opts.command}' or command requires additional arguments\n")
+        parser.print_help()
+        return 1
+    # raised during install if wheel not found.
+    except FileNotFoundError as exc:
+        _stderr.write(f"{exc.args[0]}\n")
+        return 1
+    except SystemExit as exc:
+        # A command may call sys.exit: 0 (or no code) is success; anything else has printed its own message.
+        if exc.code in (0, None):
+            return 0
+        print(exc)
+        return 20
+    finally:
+        # make sure the connection to the server is closed when this script is about to exit.
+        if getattr(opts, "connection", None):
+            try:
+                opts.connection.kill()
+            finally:
+                opts.connection = None
+
+
+def main():
+
+    # Refuse to run as root
+    if not getattr(os, "getuid", lambda: -1)():
+        sys.stderr.write("%s: error: refusing to run as root to prevent "
+                         "potential damage.\n" % os.path.basename(sys.argv[0]))
+        sys.exit(77)
+
+    volttron_home = cc.get_volttron_home()
+
+    os.environ["VOLTTRON_HOME"] = volttron_home
+
+    parser = build_parser(volttron_home)
 
     # ==============================================================================
     global message_bus
@@ -2465,15 +2549,15 @@ def main():
                       f"to set up your VOLTTRON_HOME({volttron_home}) before running vctl commands\n")
         return 10
 
-    opts = parser.parse_args(args)
+    opts = parse_args(parser, args)
 
     logging.config.dictConfig(get_default_client_log_config(level=max(1, opts.verboseness)))
 
     if opts.log:
-        opts.log = config.expandall(opts.log)
+        opts.log = cli.expandall(opts.log)
     if opts.log_config:
-        opts.log_config = config.expandall(opts.log_config)
-    #opts.vip_address = config.expandall(opts.vip_address)
+        opts.log_config = cli.expandall(opts.log_config)
+    #opts.vip_address = cli.expandall(opts.vip_address)
     if getattr(opts, "show_config", False):
         for name, value in sorted(vars(opts).items()):
             print(name, repr(value))
@@ -2516,55 +2600,7 @@ def main():
     # with gevent.Timeout(opts.timeout):
     #     return opts.func(opts)
     # sys.exit(0)
-    try:
-        with gevent.Timeout(opts.timeout):
-            return opts.func(opts)
-    except gevent.Timeout:
-        _stderr.write(f"{opts.command} function {opts.func.__name__}: operation timed out\n")
-        return 75
-    except RemoteError as exc:
-        print_tb = exc.print_tb
-        error = exc.message
-    except AttributeError as exc:
-        _stderr.write("Invalid command: '{}' or command requires additional arguments\n".format(opts.command))
-        parser.print_help()
-        return 1
-    # raised during install if wheel not found.
-    except FileNotFoundError as exc:
-        _stderr.write(f"{exc.args[0]}\n")
-        return 1
-    except SystemExit as exc:
-        # Handles if sys.exit is called from within a function if not 0
-        # then we know there was an error and processing will continue
-        # else we return 0 from here.  This has the added effect of
-        # allowing us to cascade short circuit calls.
-        if exc.args[0] != 0:
-            # print_tb = exc.args
-            # error = exc.message
-            print(exc)
-        else:
-            return 0
-    finally:
-        # make sure the connection to the server is closed when this scriopt is about to exit.
-        if opts.connection:
-            try:
-                opts.connection.kill()
-            finally:
-                opts.connection = None
-            # try:
-            #     opts.connection.server.core.stop(timeout=1)
-            # except gevent.Timeout:
-            #     pass
-            # except Unreachable:
-            #     # its ok for this to fail at this point it might not even be valid.
-            #     pass
-            # finally:
-            #     opts.connection = None
-
-    if opts.debug:
-        print_tb()
-    #_stderr.write("{}: error: {}\n".format(opts.command, error))
-    return 20
+    return run_command(opts, parser)
 
 
 def _main():
