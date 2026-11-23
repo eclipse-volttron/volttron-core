@@ -123,7 +123,8 @@ class ServerOptions:
                     setattr(self, fld, getattr(options, fld))
 
         # Load or create federation password if federation is enabled
-        if self.enable_federation:
+        # The password is only needed to talk to the optional platform-lookup service
+        if self.enable_federation and self.federation_url:
             self.federation_password = self._load_federation_password(self.volttron_home)
 
     from volttron.types import MessageBusConfig
